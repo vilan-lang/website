@@ -1,11 +1,18 @@
 # The vilan promo website — built with vilan itself.
 #
-# Three packages, the render-then-replace SSR shape:
-#   common — the shared `fun page(): View` both legs build
-#   server — node; renders the page to markup and serves it plus the bundles
-#   client — browser; rebuilds the same page live and replaces on boot
+# One package, two entries (the walkthrough shape): `src/page.vl` is the one
+# `fun page(): View` both entries build. `std::ui` resolves per entry platform —
+# live DOM in the client build, an HTML string tree in the server build — so the
+# server renders the page to markup for first paint and the client rebuilds it
+# live and replaces on boot.
 #
 #   vilan run .            build everything and serve http://localhost:3000/
 #   vilan run . --watch    the dev loop (rebuild + HMR on save)
-[project]
-packages = ["common", "client", "server"]
+[package]
+name = "website"
+
+[entry.client]
+target = "browser"
+
+[entry.server]
+# target defaults to node; path defaults to src/server.vl
