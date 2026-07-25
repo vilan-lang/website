@@ -1,0 +1,11 @@
+# The vilan promo website — built with vilan itself.
+#
+# Three packages, the render-then-replace SSR shape:
+#   common — the shared `fun page(): View` both legs build
+#   server — node; renders the page to markup and serves it plus the bundles
+#   client — browser; rebuilds the same page live and replaces on boot
+#
+#   vilan run .            build everything and serve http://localhost:3000/
+#   vilan run . --watch    the dev loop (rebuild + HMR on save)
+[project]
+packages = ["common", "client", "server"]

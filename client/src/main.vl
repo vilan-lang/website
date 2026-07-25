@@ -1,0 +1,10 @@
+// The client entry: build the same `page()` and mount it. On boot `mount_root`
+// clears the container — the server-rendered markup — and appends the freshly
+// built live UI: render, then replace.
+
+import std::ui::mount_root;
+import common::page;
+
+fun main() {
+	let _root = mount_root("app", || page());
+}

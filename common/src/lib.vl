@@ -1,0 +1,53 @@
+// The one page both legs build: the server renders it to an HTML string for
+// first paint (view source — the content is already there), the client rebuilds
+// it as live DOM and replaces it on boot. Build pure, bind reactive: nothing
+// here reaches for `std::dom`, so the same source compiles on both platforms.
+
+import std::style::{ AlignItems, Color, Display, FlexDirection, Length, TextAlign, space, style };
+import std::ui::{ View, view };
+
+// --- the brand palette ---
+
+let ink = const Color::hex("#110C31");
+let lavender = const Color::hex("#D4CDFF");
+let pink = const Color::hex("#F3145B");
+
+// --- styles ---
+
+let shell = const style().display(Display::Flex).flex_direction(FlexDirection::Column).align_items(AlignItems::Center).gap(space(12)).min_height(Length::pct(100.0)).padding_y(space(20)).padding_x(space(6)).background(ink).color(lavender).text_align(TextAlign::Center).raw("font-family", "system-ui, sans-serif");
+
+let title = const style().font_size(Length::rem(4.0)).font_weight(800).margin(space(0)).color(lavender);
+
+let tagline = const style().font_size(Length::rem(1.25)).line_height(1.6).max_width(Length::rem(38.0)).margin_y(space(4));
+
+let accent = const style().color(pink);
+
+let feature_row = const style().display(Display::Flex).flex_direction(FlexDirection::Row).gap(space(6)).raw("flex-wrap", "wrap").raw("justify-content", "center");
+
+let card = const style().display(Display::Flex).flex_direction(FlexDirection::Column).gap(space(2)).padding(space(6)).radius(space(2)).max_width(Length::rem(20.0)).background(Color::hex("#1B1546")).text_align(TextAlign::Left);
+
+let card_title = const style().color(pink).font_weight(700).margin(space(0));
+
+let card_body = const style().line_height(1.5).margin(space(0));
+
+// --- the page ---
+
+fun page(): View {
+	view("main").styled(shell).child(hero()).child(features()).child(footer())
+}
+
+fun hero(): View {
+	view("header").child(view("h1").styled(title).text("vilan")).child(view("p").styled(tagline).text("One language for the whole stack — typed, reactive, and compiled to fast JavaScript for the server and the browser alike."))
+}
+
+fun features(): View {
+	view("section").styled(feature_row).child(feature("Fullstack by design", "One workspace compiles a node server and a browser client that share types and code.")).child(feature("Reactive UI", "Signals and views, no virtual DOM — updates land exactly where the data changed.")).child(feature("Server-side rendered", "This page is rendered by the vilan server that serves it. View source: the markup is already there."))
+}
+
+fun feature(name: str, body: str): View {
+	view("article").styled(card).child(view("h2").styled(card_title).text(name)).child(view("p").styled(card_body).text(body))
+}
+
+fun footer(): View {
+	view("footer").child(view("p").styled(accent).text("Built with vilan."))
+}

@@ -1,0 +1,25 @@
+// The server: read the client bundle, its stylesheet, and the HTML shell, then
+// serve. The page route renders `page()` to markup and splices it into the shell
+// at the `<!--ssr-->` marker — a fresh render per request, created, serialized,
+// and discarded. The page arrives fully painted; `/client.js` boots and replaces.
+
+import std::fs;
+import std::http::{ Request, Response, Server };
+import std::print;
+import std::ui::render;
+import common::page;
+
+async fun main() {
+	// Read once at boot; the server runs from the project root (`vilan run .`).
+	let client_js = fs::read_file_to_str("dist/client.js");
+	let client_css = fs::read_file_to_str("dist/client.css");
+	let shell = fs::read_file_to_str("server/src/app.html");
+
+	Server::builder().port(3000).on_request(|request| {
+		match request.path() {
+			"/client.js" => Response::builder().set_header("Content-Type", "text/javascript").body(client_js).build(),
+			"/client.css" => Response::builder().set_header("Content-Type", "text/css").body(client_css).build(),
+			_ => Response::builder().set_header("Content-Type", "text/html").body(shell.replace("<!--ssr-->", render(page()))).build(),
+		}
+	}).on_start(|server| print("vilan website: http://localhost:3000/")).build().start();
+}

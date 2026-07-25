@@ -1,0 +1,5 @@
+[library]
+name = "common"
+# A `[library]` compiles into EACH consumer, so `std::ui` resolves per platform:
+# live DOM in the client leg, an HTML string tree in the server leg. That per-leg
+# shadow is the whole SSR mechanism — one component, two rendered forms.
