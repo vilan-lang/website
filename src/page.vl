@@ -2,18 +2,22 @@
 // first paint (view source — the content is already there), the client rebuilds
 // it as live DOM and replaces it on boot. Build pure, bind reactive: nothing
 // here reaches for `std::dom`, so the same source compiles on both platforms.
+// The client passes a live `scrolled` signal (wired to the window in
+// client.vl); the server passes a constant `false`.
 //
 // Layout and art direction follow the landing concept in the brand repository
-// (`vilan-lang/branding`, `assets/landing_page_concept.png` — a 1920-logical
-// design at 4x) to the user's measurements: 64px toolbar; 1016px hero with
-// the mark, wordmark, and tagline 64px-gapped (stack top at 292, measured
-// from the concept); content column 1600px max with 32px side padding;
-// 1px dividers at 10% blush between sections; Raleway SemiBold 32/48 for
-// display text, Inter 14/18 for body. Below 1920 the hero scales
-// proportionally (vw-derived clamps), grids collapse at breakpoints.
+// (`vilan-lang/branding`, a 1920-logical design at 4x) to the user's
+// measurements: 64px sticky toolbar (background and divider fade in on
+// scroll); 1016px hero with the mark, wordmark, and tagline 64px-gapped
+// (stack top at 292); content column 1200px + 32px side padding; 1px 10%
+// dividers; Raleway SemiBold 32/48 display, Inter 14/18 body. Below 1920
+// the hero scales proportionally; grids collapse at breakpoints.
 //
-// Images and fonts are served from the production asset space
-// (vilan-lang.org/assets) so dev and deployed builds see the same bytes.
+// The bloom and every piece of section art are BUILT HERE as styled views —
+// no image fetches, crisp at any size, animatable (the bloom drifts; the
+// keyframes and the reduced-motion switch live in app.html). The only raster
+// assets left are the brand marks and fonts, served from
+// vilan-lang.org/assets so dev and deployed builds see the same bytes.
 
 import std::reactive::Signal;
 import std::style::{ AlignItems, Color, Cursor, Display, FlexDirection, JustifyContent, Length, Overflow, Position, TextAlign, space, style };
@@ -24,8 +28,6 @@ import std::ui::{ View, view };
 let ink = const Color::hex("#120004");
 let blush = const Color::hex("#F9DFE7");
 let panel = const Color::hex("#1B060D");
-// Accents are the two brightest canonical gradient anchors (the palette in
-// vilan-lang/branding: README.md, sampled from assets/gradient.png).
 let ember = const Color::hex("#EB682E");
 let rose = const Color::hex("#E5AFD9");
 
@@ -36,6 +38,10 @@ let body_face = "'Inter', system-ui, -apple-system, sans-serif";
 let display_face = "'Raleway', system-ui, -apple-system, sans-serif";
 let mono = "ui-monospace, SFMono-Regular, Menlo, Consolas, monospace";
 let hairline = "1px solid rgba(249, 223, 231, 0.10)";
+
+// The grain that rides every piece of art: an SVG turbulence tile, inline —
+// still zero fetches.
+let grain_tile = "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='240' height='240'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3'/%3E%3C/filter%3E%3Crect width='240' height='240' filter='url(%23n)' opacity='0.55'/%3E%3C/svg%3E\")";
 
 // --- shared styles ---
 
@@ -57,11 +63,16 @@ let heading = const style().raw("font-family", display_face).font_size(Length::p
 
 let lead = const style().opacity(0.82).max_width(Length::rem(36.0)).margin_y(space(3));
 
-// The 1px section rule, 10% blush, content-wide.
 let rule_line = const style().height(Length::px(1.0)).raw("background", "rgba(249, 223, 231, 0.10)");
 
 fun divider(): View {
 	view("div").styled(column).child(view("div").styled(rule_line))
+}
+
+let grain_overlay = const (style().position(Position::Absolute).raw("inset", "0").opacity(0.55).raw("mix-blend-mode", "overlay").raw("background-image", grain_tile).raw("pointer-events", "none") + no_select);
+
+fun grain(): View {
+	view("div").styled(grain_overlay)
 }
 
 // --- code panels ---
@@ -98,24 +109,37 @@ fun code_panel(lines: List<View>): View {
 
 // --- the page ---
 
-fun page(): View {
-	view("div").styled(shell).child(masthead()).child(divider()).child(install_section()).child(divider()).child(showcase_reactive()).child(divider()).child(showcase_fullstack()).child(divider()).child(showcase_compiler()).child(divider()).child(editor_band()).child(divider()).child(feature_grid()).child(divider()).child(dogfood()).child(page_footer())
+fun page(scrolled: Signal<bool>): View {
+	view("div").styled(shell)
+		.child(top_bar(scrolled))
+		.child(masthead())
+		.child(divider())
+		.child(install_section())
+		.child(divider())
+		.child(showcase_reactive())
+		.child(divider())
+		.child(showcase_fullstack())
+		.child(divider())
+		.child(showcase_compiler())
+		.child(divider())
+		.child(editor_band())
+		.child(divider())
+		.child(feature_grid())
+		.child(divider())
+		.child(dogfood())
+		.child(page_footer())
 }
 
-// --- masthead: the bloom, the 64px toolbar, and the 1016px hero ---
+// --- the sticky toolbar ---
 
-// One positioned wrapper so the bloom can sit behind both the toolbar and
-// the hero. The bloom layer's design placement is 135px above the page top
-// (measured against the concept), and everything scales with the viewport
-// below the 1920 design width.
-let masthead_wrap = const style().position(Position::Relative).overflow(Overflow::Hidden);
+// Sticky across the whole page. Transparent at the top; once the page
+// scrolls, a background, blur, and divider fade in (the client toggles the
+// class set; the transition on the base style animates both ways).
+let topbar = const style().position(Position::Sticky).raw("top", "0").raw("z-index", "100").raw("background", "rgba(18, 0, 4, 0)").raw("border-bottom", "1px solid transparent").transition("background-color 240ms ease, border-color 240ms ease, backdrop-filter 240ms ease");
 
-// The bloom scales with the viewport but never below 1100px — narrower and
-// it would shrink away from under the stack, leaving dark ink on the dark
-// ground. Centered so the overflow crops evenly on phones.
-let bloom_layer = const (style().position(Position::Absolute).raw("top", "calc(max(100vw, 1100px) * -0.0703)").raw("left", "50%").raw("transform", "translateX(-50%)").raw("width", "max(100vw, 1100px)").height(Length::auto()).raw("pointer-events", "none") + no_select);
+let topbar_scrolled = const (topbar + style().raw("background", "rgba(18, 0, 4, 0.86)").raw("backdrop-filter", "blur(14px)").raw("border-bottom", hairline));
 
-let nav_row = const style().position(Position::Relative).display(Display::Flex).align_items(AlignItems::Center).justify_content(JustifyContent::Between).height(Length::px(64.0));
+let nav_row = const style().display(Display::Flex).align_items(AlignItems::Center).justify_content(JustifyContent::Between).height(Length::px(64.0));
 
 let nav_brand = const style().display(Display::Flex).align_items(AlignItems::Center).gap(space(3)).font_weight(600).raw("letter-spacing", "0.35em").font_size(Length::px(13.0));
 
@@ -123,8 +147,68 @@ let nav_links = const style().display(Display::Flex).gap(space(6));
 
 let nav_link = const style().color(blush).opacity(0.8).raw("text-decoration", "none").raw("user-select", "none").hover(style().opacity(1.0));
 
-fun nav_bar(): View {
-	view("nav").styled(column + nav_row).child(view("a").styled(nav_brand + nav_link).attr("href", "/").child(view("img").attr("src", i"{assets}/mark.svg").attr("alt", "").attr("height", "22")).child(view("span").text("VILAN"))).child(view("div").styled(nav_links).child(view("a").styled(nav_link).attr("href", "#install").text("Install")).child(view("a").styled(nav_link).attr("href", "/docs/tour/hello-vilan.html").text("Learn")).child(view("a").styled(nav_link).attr("href", "/docs/").text("Docs")))
+fun top_bar(scrolled: Signal<bool>): View {
+	view("nav")
+		.bind_class(scrolled.map(|is_scrolled: bool| if is_scrolled { topbar_scrolled.class_list() } else { topbar.class_list() }))
+		.child(view("div").styled(column + nav_row)
+			.child(view("a").styled(nav_brand + nav_link).attr("href", "/")
+				.child(view("img").styled(no_drag).attr("src", i"{assets}/mark.svg").attr("alt", "").attr("height", "18"))
+				.child(view("span").text("VILAN")))
+			.child(view("div").styled(nav_links)
+				.child(view("a").styled(nav_link).attr("href", "#install").text("Install"))
+				.child(view("a").styled(nav_link).attr("href", "/docs/tour/hello-vilan.html").text("Learn"))
+				.child(view("a").styled(nav_link).attr("href", "/docs/").text("Docs"))))
+}
+
+// --- masthead: the CSS bloom and the 1016px hero ---
+
+// The bloom is built from stacked elliptical gradient patches (the canonical
+// anchors) on a stage that scales exactly as the old baked image did: the
+// 1920x1080 design box tracks the viewport with an 1100px floor, anchored
+// 135px above the page top (64px of which is the toolbar, now a sibling).
+// Patch geometry is % of the stage; softness scales with it.
+let masthead_wrap = const style().position(Position::Relative).overflow(Overflow::Hidden);
+
+// The stage is the 1920x1080 design box: anchored at the page top (64px of
+// which is the toolbar, a sibling above), scaling with the viewport down to
+// an 1100px floor. The scratch composition this ports from was tuned against
+// exactly this box.
+let bloom_stage = const (style().position(Position::Absolute).raw("left", "0").width(Length::pct(100.0)).raw("top", "-64px").raw("height", "calc(max(100vw, 1100px) * 0.5625)").raw("pointer-events", "none") + no_select);
+
+let bloom_patch = const style().position(Position::Absolute).raw("border-radius", "50%").raw("filter", "blur(calc(max(100vw, 1100px) * 0.0208))");
+
+let bloom_wash = const (bloom_patch + style().raw("left", "13.5%").raw("top", "18.5%").raw("width", "75%").raw("height", "51.9%").raw("background", "radial-gradient(closest-side, rgba(178, 48, 86, 0.85), rgba(178, 48, 86, 0.5) 55%, transparent 82%)").raw("animation", "bloom-drift-b 38s ease-in-out infinite alternate"));
+
+let bloom_orange_band = const (bloom_patch + style().raw("left", "26%").raw("top", "17.6%").raw("width", "52.1%").raw("height", "27.8%").raw("background", "radial-gradient(closest-side, rgba(235, 104, 46, 0.9), rgba(235, 104, 46, 0.6) 55%, transparent 80%)").raw("animation", "bloom-drift-b 34s ease-in-out infinite alternate"));
+
+let bloom_red = const (bloom_patch + style().raw("left", "21.9%").raw("top", "30.6%").raw("width", "58.3%").raw("height", "37%").raw("background", "radial-gradient(closest-side, rgba(216, 71, 48, 0.95), rgba(216, 71, 48, 0.72) 60%, transparent 84%)").raw("animation", "bloom-drift-c 40s ease-in-out infinite alternate"));
+
+let bloom_magenta = const (bloom_patch + style().raw("left", "7.3%").raw("top", "35.2%").raw("width", "37.5%").raw("height", "33.3%").raw("background", "radial-gradient(closest-side, rgba(139, 39, 134, 0.95), rgba(139, 39, 134, 0.6) 55%, transparent 80%)").raw("animation", "bloom-drift-a 44s ease-in-out infinite alternate"));
+
+let bloom_purple = const (bloom_patch + style().raw("left", "1%").raw("top", "50%").raw("width", "24%").raw("height", "27.8%").raw("background", "radial-gradient(closest-side, rgba(103, 34, 131, 0.85), transparent 78%)").raw("animation", "bloom-drift-c 46s ease-in-out infinite alternate"));
+
+let bloom_orange_right = const (bloom_patch + style().raw("left", "55.2%").raw("top", "14.8%").raw("width", "29.2%").raw("height", "37%").raw("background", "radial-gradient(closest-side, rgba(235, 104, 46, 0.95), rgba(235, 104, 46, 0.65) 55%, transparent 80%)").raw("animation", "bloom-drift-a 36s ease-in-out infinite alternate"));
+
+let bloom_ember_tail = const (bloom_patch + style().raw("left", "59.4%").raw("top", "48.1%").raw("width", "39.6%").raw("height", "35.2%").raw("background", "radial-gradient(closest-side, rgba(216, 71, 48, 0.65), transparent 80%)").raw("animation", "bloom-drift-b 48s ease-in-out infinite alternate"));
+
+let bloom_pale_wide = const (bloom_patch + style().raw("left", "19.8%").raw("top", "8.3%").raw("width", "56.3%").raw("height", "27.8%").raw("background", "radial-gradient(closest-side, rgba(229, 175, 217, 0.9), rgba(229, 175, 217, 0.55) 55%, transparent 80%)").raw("animation", "bloom-drift-a 42s ease-in-out infinite alternate"));
+
+let bloom_pale_core = const (bloom_patch + style().raw("left", "29.2%").raw("top", "10.2%").raw("width", "36.5%").raw("height", "20.4%").raw("background", "radial-gradient(closest-side, rgba(249, 223, 231, 0.95), transparent 76%)").raw("animation", "bloom-drift-c 38s ease-in-out infinite alternate"));
+
+let bloom_wisp = const (bloom_patch + style().raw("left", "7.8%").raw("top", "18.5%").raw("width", "13.5%").raw("height", "18.5%").raw("background", "radial-gradient(closest-side, rgba(229, 175, 217, 0.4), transparent 76%)").raw("animation", "bloom-drift-a 50s ease-in-out infinite alternate"));
+
+fun bloom(): View {
+	view("div").styled(bloom_stage)
+		.child(view("div").styled(bloom_wash))
+		.child(view("div").styled(bloom_orange_band))
+		.child(view("div").styled(bloom_red))
+		.child(view("div").styled(bloom_magenta))
+		.child(view("div").styled(bloom_purple))
+		.child(view("div").styled(bloom_ember_tail))
+		.child(view("div").styled(bloom_orange_right))
+		.child(view("div").styled(bloom_pale_wide))
+		.child(view("div").styled(bloom_pale_core))
+		.child(view("div").styled(bloom_wisp))
 }
 
 // Hero: 1016px at the design width, scaling as 52.92vw below it. The stack
@@ -142,11 +226,309 @@ let hero_tagline = const style().raw("font-family", display_face).raw("font-size
 let visually_hidden = const style().position(Position::Absolute).width(Length::px(1.0)).height(Length::px(1.0)).overflow(Overflow::Hidden).raw("clip-path", "inset(50%)");
 
 fun hero(): View {
-	view("header").styled(hero_block).child(view("h1").styled(visually_hidden).text("Vilan — The Modern Web Language")).child(view("img").styled(hero_mark).attr("src", i"{assets}/dark_logo_flat.svg").attr("alt", "")).child(view("img").styled(hero_wordmark).attr("src", i"{assets}/wordmark_hero.svg").attr("alt", "VILAN")).child(view("p").styled(hero_tagline).attr("aria-hidden", "true").text("The Modern Web Language"))
+	view("header").styled(hero_block)
+		.child(view("h1").styled(visually_hidden).text("Vilan — The Modern Web Language"))
+		.child(view("img").styled(hero_mark).attr("src", i"{assets}/dark_logo_flat.svg").attr("alt", ""))
+		.child(view("img").styled(hero_wordmark).attr("src", i"{assets}/wordmark_hero.svg").attr("alt", "VILAN"))
+		.child(view("p").styled(hero_tagline).attr("aria-hidden", "true").text("The Modern Web Language"))
 }
 
 fun masthead(): View {
-	view("div").styled(masthead_wrap).child(view("img").styled(bloom_layer).attr("src", i"{assets}/bloom.webp").attr("alt", "")).child(nav_bar()).child(hero())
+	view("div").styled(masthead_wrap).child(bloom()).child(grain()).child(hero())
+}
+
+// --- shared art vocabulary ---
+
+let art_stage = const style().position(Position::Relative).overflow(Overflow::Hidden);
+
+let art_blob = const style().position(Position::Absolute).raw("border-radius", "50%").raw("filter", "blur(60px)").raw("pointer-events", "none");
+
+let art_card = const style().position(Position::Relative).raw("background", "rgba(27, 6, 13, 0.88)").raw("border", hairline).radius(Length::px(14.0)).padding_y(space(4)).padding_x(space(5)).raw("box-shadow", "0 8px 40px rgba(0, 0, 0, 0.45)");
+
+let art_tab = const style().font_size(Length::px(11.0)).font_weight(600).raw("letter-spacing", "0.1em").raw("text-transform", "uppercase").opacity(0.55).margin_y(space(2));
+
+let art_code = const style().raw("font-family", mono).font_size(Length::px(12.5)).line_height(1.7).raw("white-space", "pre").raw("color", "rgba(249, 223, 231, 0.92)");
+
+let art_caption = const style().text_align(TextAlign::Center).font_size(Length::px(12.0)).raw("letter-spacing", "0.04em").opacity(0.55).margin_y(space(4));
+
+let desktop_only = const style().raw("display", "none").lg(style().raw("display", "block"));
+
+let dot = const style().width(Length::px(9.0)).height(Length::px(9.0)).raw("border-radius", "50%");
+
+let dot_magenta = const (dot + style().raw("background", "#8B2786"));
+let dot_orange = const (dot + style().raw("background", "#EB682E"));
+
+let arrow_head_left = const style().width(Length::px(8.0)).height(Length::px(8.0)).raw("background", "#EB682E").raw("clip-path", "polygon(100% 0, 0 50%, 100% 100%)").raw("flex-shrink", "0");
+
+let arrow_head_right_rose = const style().width(Length::px(8.0)).height(Length::px(8.0)).raw("background", "#E5AFD9").raw("clip-path", "polygon(0 0, 100% 50%, 0 100%)").raw("flex-shrink", "0");
+
+let arrow_head_right = const style().width(Length::px(8.0)).height(Length::px(8.0)).raw("background", "#EB682E").raw("clip-path", "polygon(0 0, 100% 50%, 0 100%)").raw("flex-shrink", "0");
+
+// --- the stack-split diagram (fullstack section) ---
+
+let dg_blob_top = const (art_blob + style().raw("left", "30%").raw("top", "-14%").raw("width", "42%").raw("height", "55%").raw("background", "radial-gradient(closest-side, rgba(178, 48, 86, 0.5), transparent)"));
+
+let dg_blob_left = const (art_blob + style().raw("left", "-8%").raw("bottom", "-18%").raw("width", "36%").raw("height", "52%").raw("background", "radial-gradient(closest-side, rgba(103, 34, 131, 0.5), transparent)"));
+
+let dg_blob_right = const (art_blob + style().raw("right", "-8%").raw("bottom", "-14%").raw("width", "38%").raw("height", "52%").raw("background", "radial-gradient(closest-side, rgba(235, 104, 46, 0.4), transparent)"));
+
+let dg_source = const (art_card + style().max_width(Length::px(460.0)).margin_x(Length::auto()));
+
+// The build wires: rotated hairline gradients bridging the source card to
+// the legs, desktop-only (they assume the side-by-side layout).
+let dg_wire_zone = const (style().position(Position::Relative).height(Length::px(64.0)) + desktop_only);
+
+let dg_wire = const style().position(Position::Absolute).height(Length::px(2.0)).raw("transform-origin", "left center");
+
+let dg_wire_left = const (dg_wire + style().raw("left", "50%").raw("top", "8px").width(Length::px(210.0)).raw("background", "linear-gradient(to left, #B23056, #672283)").raw("transform", "translateX(-40px) rotate(160deg)"));
+
+let dg_wire_right = const (dg_wire + style().raw("left", "50%").raw("top", "8px").width(Length::px(210.0)).raw("background", "linear-gradient(to right, #D84730, #EB682E)").raw("transform", "translateX(40px) rotate(20deg)"));
+
+let dg_wire_label = const style().position(Position::Absolute).raw("font-family", mono).font_size(Length::px(11.5)).font_weight(600).color(rose).raw("top", "26px");
+
+let dg_wire_label_left = const (dg_wire_label + style().raw("left", "24%"));
+let dg_wire_label_right = const (dg_wire_label + style().raw("right", "24%"));
+
+let dg_legs = const style().display(Display::Grid).gap(space(6)).margin_y(space(4)).raw("align-items", "stretch").lg(style().raw("grid-template-columns", "1fr 230px 1fr"));
+
+let dg_leg_head = const style().display(Display::Flex).align_items(AlignItems::Center).gap(space(2)).margin_y(space(2));
+
+let dg_leg_name = const style().raw("font-family", display_face).font_size(Length::px(15.0)).font_weight(600);
+
+let dg_leg_env = const style().raw("margin-left", "auto").raw("font-family", mono).font_size(Length::px(11.0)).opacity(0.5);
+
+let dg_mid = const (style().raw("display", "none").lg(style().raw("display", "flex")).flex_direction(FlexDirection::Column).justify_content(JustifyContent::Center).gap(space(4)) + no_select);
+
+let dg_mid_label = const style().raw("font-family", mono).font_size(Length::px(11.5)).font_weight(600).color(ember).text_align(TextAlign::Center);
+
+let dg_mid_label_rose = const style().raw("font-family", mono).font_size(Length::px(11.5)).font_weight(600).color(rose).text_align(TextAlign::Center);
+
+let dg_line_row = const style().display(Display::Flex).align_items(AlignItems::Center);
+
+let dg_line = const style().raw("flex", "1").height(Length::px(2.0)).raw("background", "#EB682E");
+
+let dg_line_dashed = const style().raw("flex", "1").height(Length::px(2.0)).raw("background", "repeating-linear-gradient(90deg, #E5AFD9 0 5px, transparent 5px 11px)");
+
+let dg_note = const style().font_size(Length::px(11.0)).opacity(0.6).text_align(TextAlign::Center);
+
+fun diagram(): View {
+	view("div").styled(art_stage)
+		.child(view("div").styled(dg_blob_top)).child(view("div").styled(dg_blob_left)).child(view("div").styled(dg_blob_right))
+		.child(grain())
+		.child(view("div").styled(dg_source)
+			.child(view("p").styled(art_tab).text("notes.vl — one source"))
+			.child(view("div").styled(art_code)
+				.child(ln([t("["), kw("service"), t("(NotesClient)]")]))
+				.child(ln([kw("struct"), t(" Notes {")]))
+				.child(ln([t("    ["), kw("expose"), t("] entries: Signal<List<Note>>,")]))
+				.child(ln([t("}")]))
+				.child(blank())
+				.child(ln([kw("impl"), t(" Notes {")]))
+				.child(ln([t("    ["), kw("rpc"), t("]")]))
+				.child(ln([t("    "), kw("fun"), t(" add(self, text: str): i32 { … }")]))
+				.child(ln([t("}")]))))
+		.child(view("div").styled(dg_wire_zone)
+			.child(view("div").styled(dg_wire_left))
+			.child(view("div").styled(dg_wire_right))
+			.child(view("span").styled(dg_wire_label_left).text("vilan build"))
+			.child(view("span").styled(dg_wire_label_right).text("vilan build")))
+		.child(view("div").styled(dg_legs)
+			.child(view("div").styled(art_card)
+				.child(view("div").styled(dg_leg_head)
+					.child(view("div").styled(dot_magenta))
+					.child(view("span").styled(dg_leg_name).text("the server"))
+					.child(view("span").styled(dg_leg_env).text("node")))
+				.child(view("div").styled(art_code)
+					.child(ln([view("span").styled(tk_plain).text("serve_service(4000,")]))
+					.child(ln([t("    notes.dispatcher() …)")]))))
+			.child(view("div").styled(dg_mid)
+				.child(view("div")
+					.child(view("p").styled(dg_mid_label).text("notes.add(\"ship it\")"))
+					.child(view("div").styled(dg_line_row).child(view("div").styled(arrow_head_left)).child(view("div").styled(dg_line))))
+				.child(view("div")
+					.child(view("div").styled(dg_line_row).child(view("div").styled(dg_line_dashed)).child(view("div").styled(arrow_head_right_rose)))
+					.child(view("p").styled(dg_mid_label_rose).text("entries"))
+					.child(view("p").styled(dg_note).text("mirrored live"))))
+			.child(view("div").styled(art_card)
+				.child(view("div").styled(dg_leg_head)
+					.child(view("div").styled(dot_orange))
+					.child(view("span").styled(dg_leg_name).text("the client"))
+					.child(view("span").styled(dg_leg_env).text("browser")))
+				.child(view("div").styled(art_code)
+					.child(ln([kw("let"), t(" notes = NotesClient::connect("), st("\"/rpc\""), t(");")]))
+					.child(ln([t("notes.entries "), view("span").styled(tk_plain).text("// Signal, live")])))))
+		.child(view("p").styled(art_caption).text("one definition — the compiler builds both sides and keeps them honest"))
+}
+
+// --- the editor window (editor band) ---
+
+let ed_blob_a = const (art_blob + style().raw("left", "10%").raw("top", "-20%").raw("width", "62%").raw("height", "62%").raw("background", "radial-gradient(closest-side, rgba(178, 48, 86, 0.55), transparent)"));
+
+let ed_blob_b = const (art_blob + style().raw("right", "-14%").raw("bottom", "-20%").raw("width", "48%").raw("height", "53%").raw("background", "radial-gradient(closest-side, rgba(235, 104, 46, 0.35), transparent)"));
+
+let ed_window = const style().position(Position::Relative).raw("background", "#180509").raw("border", "1px solid rgba(249, 223, 231, 0.14)").radius(Length::px(12.0)).overflow(Overflow::Hidden).raw("box-shadow", "0 24px 80px rgba(0, 0, 0, 0.6)").margin_y(space(6));
+
+let ed_titlebar = const style().display(Display::Flex).align_items(AlignItems::Center).gap(space(2)).padding_y(space(3)).padding_x(space(4)).raw("background", "rgba(249, 223, 231, 0.04)").raw("border-bottom", "1px solid rgba(249, 223, 231, 0.08)");
+
+let ed_dot = const style().width(Length::px(11.0)).height(Length::px(11.0)).raw("border-radius", "50%").opacity(0.85);
+
+let ed_dot_red = const (ed_dot + style().raw("background", "#D84730"));
+let ed_dot_orange = const (ed_dot + style().raw("background", "#EB682E"));
+let ed_dot_magenta = const (ed_dot + style().raw("background", "#8B2786"));
+
+let ed_title = const style().margin_x(Length::auto()).font_size(Length::px(12.0)).opacity(0.55);
+
+let ed_body = const style().display(Display::Flex).padding_y(space(4)).raw("font-family", mono).font_size(Length::px(13.0)).raw("line-height", "24px");
+
+let ed_gutter = const (style().raw("white-space", "pre").width(Length::px(44.0)).text_align(TextAlign::Right).raw("padding-right", "16px").opacity(0.28) + no_select);
+
+let ed_code = const style().raw("white-space", "pre").raw("color", "rgba(249, 223, 231, 0.92)").overflow(Overflow::Auto);
+
+let ed_squiggle = const style().raw("text-decoration", "underline wavy #D84730 1.5px").raw("text-underline-offset", "5px");
+
+let ed_hover = const style().position(Position::Absolute).raw("left", "clamp(120px, 30%, 185px)").raw("top", "300px").raw("width", "min(400px, 70%)").raw("background", "#22080f").raw("border", "1px solid rgba(249, 223, 231, 0.18)").radius(Length::px(10.0)).padding_y(space(3)).padding_x(space(4)).raw("box-shadow", "0 16px 48px rgba(0, 0, 0, 0.55)").raw("z-index", "2");
+
+let ed_hover_error = const style().font_size(Length::px(12.5)).line_height(1.6).color(Color::hex("#D84730")).font_weight(600);
+
+let ed_hover_from = const style().margin_y(space(2)).font_size(Length::px(11.0)).opacity(0.45);
+
+let ed_statusbar = const style().display(Display::Flex).gap(space(4)).padding_y(space(2)).padding_x(space(4)).font_size(Length::px(11.0)).raw("border-top", "1px solid rgba(249, 223, 231, 0.08)").opacity(0.55);
+
+let ed_problem = const style().color(Color::hex("#D84730"));
+
+let ed_status_right = const style().raw("margin-left", "auto");
+
+fun editor_art(): View {
+	view("div").styled(art_stage)
+		.child(view("div").styled(ed_blob_a)).child(view("div").styled(ed_blob_b))
+		.child(grain())
+		.child(view("div").styled(ed_window)
+			.child(view("div").styled(ed_titlebar)
+				.child(view("div").styled(ed_dot_red)).child(view("div").styled(ed_dot_orange)).child(view("div").styled(ed_dot_magenta))
+				.child(view("span").styled(ed_title).text("app.vl — vilan")))
+			.child(view("div").styled(ed_body)
+				.child(view("div").styled(ed_gutter).text("1\n2\n3\n4\n5\n6\n7\n8\n9\n10\n11"))
+				.child(view("div").styled(ed_code)
+					.child(ln([kw("import"), t(" std::print;")]))
+					.child(ln([kw("import"), t(" std::option::Option::{ self, Some, None };")]))
+					.child(ln([kw("fun"), t(" find_user(id: i32): Option<str> {")]))
+					.child(ln([t("    "), kw("if"), t(" id == 1 { Some("), st("\"Ada\""), t(") } "), kw("else"), t(" { None }")]))
+					.child(ln([t("}")]))
+					.child(ln([kw("fun"), t(" greet(name: str): str {")]))
+					.child(ln([t("    "), st("i\"hello {name}\"")]))
+					.child(ln([t("}")]))
+					.child(ln([kw("fun"), t(" main() {")]))
+					.child(ln([t("    print(greet("), view("span").styled(ed_squiggle).text("find_user(2)"), t("));")]))
+					.child(ln([t("}")]))))
+			.child(view("div").styled(ed_statusbar)
+				.child(view("span").styled(ed_problem).text("⊗ 1"))
+				.child(view("span").text("vilan-lsp"))
+				.child(view("span").styled(ed_status_right).text("Ln 10, Col 17 · app.vl")))
+			.child(view("div").styled(ed_hover)
+				.child(view("div").styled(ed_hover_error).text("Expected str, but got Option<str> instead."))
+				.child(view("div").styled(ed_hover_from).text("vilan · live as you type"))))
+}
+
+// --- the toolchain constellation (install section, desktop only) ---
+
+let tc_wrap = const (style().position(Position::Relative).width(Length::px(420.0)).height(Length::px(430.0)).margin_x(Length::auto()) + no_select);
+
+let tc_blob_a = const (art_blob + style().raw("left", "18%").raw("top", "22%").raw("width", "64%").raw("height", "58%").raw("background", "radial-gradient(closest-side, rgba(178, 48, 86, 0.6), transparent)"));
+
+let tc_blob_b = const (art_blob + style().raw("left", "4%").raw("top", "2%").raw("width", "44%").raw("height", "42%").raw("background", "radial-gradient(closest-side, rgba(139, 39, 134, 0.5), transparent)"));
+
+let tc_blob_c = const (art_blob + style().raw("right", "-4%").raw("bottom", "-2%").raw("width", "46%").raw("height", "46%").raw("background", "radial-gradient(closest-side, rgba(235, 104, 46, 0.45), transparent)"));
+
+let tc_spoke = const style().position(Position::Absolute).raw("background", "rgba(249, 223, 231, 0.22)").raw("transform-origin", "left center");
+
+let tc_spoke_up = const (tc_spoke + style().raw("left", "210px").raw("top", "70px").width(Length::px(1.0)).height(Length::px(145.0)));
+let tc_spoke_down = const (tc_spoke + style().raw("left", "210px").raw("top", "215px").width(Length::px(1.0)).height(Length::px(145.0)));
+let tc_spoke_run = const (tc_spoke + style().raw("left", "210px").raw("top", "215px").width(Length::px(154.0)).height(Length::px(1.0)).raw("transform", "rotate(-28.2deg)"));
+let tc_spoke_fmt = const (tc_spoke + style().raw("left", "210px").raw("top", "215px").width(Length::px(153.0)).height(Length::px(1.0)).raw("transform", "rotate(28.6deg)"));
+let tc_spoke_lsp = const (tc_spoke + style().raw("left", "210px").raw("top", "215px").width(Length::px(150.0)).height(Length::px(1.0)).raw("transform", "rotate(151deg)"));
+let tc_spoke_upgrade = const (tc_spoke + style().raw("left", "210px").raw("top", "215px").width(Length::px(147.0)).height(Length::px(1.0)).raw("transform", "rotate(-150.3deg)"));
+
+let tc_chip = const style().position(Position::Absolute).raw("transform", "translate(-50%, -50%)").display(Display::Flex).align_items(AlignItems::Center).gap(space(2)).raw("background", "rgba(27, 6, 13, 0.92)").raw("border", "1px solid rgba(249, 223, 231, 0.16)").radius(Length::px(999.0)).padding_y(space(2)).padding_x(space(4)).raw("font-family", mono).font_size(Length::px(12.5)).raw("box-shadow", "0 6px 28px rgba(0, 0, 0, 0.45)").raw("white-space", "nowrap");
+
+let led = const style().width(Length::px(7.0)).height(Length::px(7.0)).raw("border-radius", "50%").raw("flex-shrink", "0");
+
+// An ink fade behind the wordmark so the spokes read as arriving at it, not
+// crossing through it.
+let tc_center_mask = const style().position(Position::Absolute).raw("left", "50%").raw("top", "50%").raw("transform", "translate(-50%, -50%)").width(Length::px(250.0)).height(Length::px(140.0)).raw("background", "radial-gradient(closest-side, #120004 55%, transparent)");
+
+let tc_center = const (style().position(Position::Absolute).raw("left", "50%").raw("top", "50%").raw("transform", "translate(-50%, -50%)").width(Length::px(180.0)).height(Length::auto()) + no_drag);
+
+fun tc_chip_at(left: str, top: str, color: str, label: str): View {
+	view("div").styled(tc_chip).attr("style", i"left: {left}; top: {top}")
+		.child(view("div").styled(led).attr("style", i"background: {color}"))
+		.child(view("span").text(label))
+}
+
+fun toolchain_art(): View {
+	view("div").styled(tc_wrap)
+		.child(view("div").styled(tc_blob_b)).child(view("div").styled(tc_blob_a)).child(view("div").styled(tc_blob_c))
+		.child(grain())
+		.child(view("div").styled(tc_spoke_up))
+		.child(view("div").styled(tc_spoke_down))
+		.child(view("div").styled(tc_spoke_run))
+		.child(view("div").styled(tc_spoke_fmt))
+		.child(view("div").styled(tc_spoke_lsp))
+		.child(view("div").styled(tc_spoke_upgrade))
+		.child(view("div").styled(tc_center_mask))
+		.child(view("img").styled(tc_center).attr("src", i"{assets}/wordmark_hero_light.svg").attr("alt", "vilan"))
+		.child(tc_chip_at("210px", "70px", "#EB682E", "vilan build"))
+		.child(tc_chip_at("346px", "142px", "#D84730", "vilan run . --watch"))
+		.child(tc_chip_at("344px", "288px", "#E5AFD9", "vilan fmt"))
+		.child(tc_chip_at("210px", "360px", "#B23056", "vilan test"))
+		.child(tc_chip_at("78px", "288px", "#8B2786", "vilan-lsp"))
+		.child(tc_chip_at("82px", "142px", "#672283", "vilan upgrade"))
+}
+
+// --- the dataflow strip (reactive section, desktop only) ---
+
+let df_wrap = const (style().position(Position::Relative).overflow(Overflow::Hidden).padding_y(space(8)).margin_y(space(4)).raw("display", "none").lg(style().raw("display", "block")) + no_select);
+
+let df_blob_a = const (art_blob + style().raw("left", "2%").raw("top", "-30%").raw("width", "30%").raw("height", "120%").raw("background", "radial-gradient(closest-side, rgba(139, 39, 134, 0.45), transparent)"));
+
+let df_blob_b = const (art_blob + style().raw("right", "0%").raw("top", "-20%").raw("width", "34%").raw("height", "120%").raw("background", "radial-gradient(closest-side, rgba(216, 71, 48, 0.5), transparent)"));
+
+let df_row = const style().position(Position::Relative).display(Display::Flex).align_items(AlignItems::Center).gap(space(4));
+
+let df_node = const (art_card + style().radius(Length::px(12.0)));
+
+let df_node_lit = const (df_node + style().raw("border-color", "rgba(235, 104, 46, 0.6)").raw("box-shadow", "0 0 34px rgba(235, 104, 46, 0.25), 0 8px 32px rgba(0, 0, 0, 0.45)"));
+
+let df_tag = const style().font_size(Length::px(10.5)).font_weight(600).raw("letter-spacing", "0.1em").raw("text-transform", "uppercase").opacity(0.5).margin_y(space(1));
+
+let df_arrow = const style().raw("flex", "1").display(Display::Flex).flex_direction(FlexDirection::Column).align_items(AlignItems::Center).gap(space(1));
+
+let df_arrow_label = const style().raw("font-family", mono).font_size(Length::px(11.5)).font_weight(600).color(ember);
+
+let df_arrow_row = const style().display(Display::Flex).align_items(AlignItems::Center).width(Length::pct(100.0));
+
+fun df_arrow_to(label: str): View {
+	view("div").styled(df_arrow)
+		.child(view("span").styled(df_arrow_label).text(label))
+		.child(view("div").styled(df_arrow_row).child(view("div").styled(dg_line)).child(view("div").styled(arrow_head_right)))
+}
+
+fun df_node_view(lit: bool, tag: str, body: List<View>): View {
+	view("div").styled(if lit { df_node_lit } else { df_node })
+		.child(view("p").styled(df_tag).text(tag))
+		.child(view("div").styled(art_code).child(ln(body)))
+}
+
+fun dataflow_art(): View {
+	view("div").styled(df_wrap)
+		.child(view("div").styled(df_blob_a)).child(view("div").styled(df_blob_b))
+		.child(grain())
+		.child(view("div").styled(df_row)
+			.child(df_node_view(false, "the write", [t("count.set("), st("2"), t(")")]))
+			.child(df_arrow_to("notify"))
+			.child(df_node_view(false, "the signal", [t("Signal<i32> "), kw("= 2")]))
+			.child(df_arrow_to("re-set"))
+			.child(df_node_view(true, "the one text node", [t("<p>clicked "), kw("2"), t(" times</p>")])))
+		.child(view("p").styled(art_caption).text("no virtual DOM, no re-render — the subscription updates exactly one node"))
 }
 
 // --- install ---
@@ -155,27 +537,28 @@ let install_label = const style().color(ember).font_size(Length::px(12.0)).font_
 
 let install_command = const style().background(panel).radius(space(2)).padding_y(space(3)).padding_x(space(4)).font_size(Length::px(13.0)).raw("font-family", mono).raw("border", hairline).raw("user-select", "all").overflow(Overflow::Auto).raw("white-space", "pre");
 
-let install_grid = const style().display(Display::Flex).flex_direction(FlexDirection::Column).gap(space(4));
-
-// The authored section art (baked in the brand language, HTML sources in the
-// site repo's assets/art-sources/). Full-bleed within its container, never
-// draggable or selectable.
-let art_img = const (style().width(Length::pct(100.0)).height(Length::auto()).raw("display", "block") + no_drag);
-
-let art_block = const (style().width(Length::pct(100.0)).height(Length::auto()).raw("display", "block").margin_y(space(6)) + no_drag);
-
-// Supplementary art whose labels depend on size: shown from lg up, hidden on
-// phones where it would scale to unreadable.
-let art_desktop = const (style().width(Length::pct(100.0)).height(Length::auto()).margin_y(space(6)).raw("display", "none").lg(style().raw("display", "block")) + no_drag);
+// min-width 0: as a grid item, the default min-width:auto would let the
+// commands' pre-formatted min-content width blow the column open on phones.
+let install_grid = const style().display(Display::Flex).flex_direction(FlexDirection::Column).gap(space(4)).raw("min-width", "0");
 
 let install_split = const style().display(Display::Grid).gap(space(8)).raw("align-items", "center").margin_y(space(6)).lg(style().raw("grid-template-columns", "6fr 5fr"));
+
+let install_art_cell = const (style().raw("display", "none").lg(style().raw("display", "block")) + no_select);
 
 fun install_row(label: str, command: str): View {
 	view("div").child(view("p").styled(install_label).text(label)).child(view("div").styled(install_command).text(command))
 }
 
 fun install_section(): View {
-	view("section").attr("id", "install").styled(column + section_block).child(view("h2").styled(heading).text("One command, the whole toolchain")).child(view("p").styled(lead).text("Compiler, dev server with hot reload, formatter, test runner, and language server — one small binary, no configuration to assemble. Update any time with vilan upgrade.")).child(view("div").styled(install_split).child(view("div").styled(install_grid).child(install_row("macOS / Linux", "curl -fsSL https://github.com/vilan-lang/vilan/releases/latest/download/install.sh | sh")).child(install_row("Windows (PowerShell)", "irm https://github.com/vilan-lang/vilan/releases/latest/download/install.ps1 | iex")).child(install_row("Homebrew", "brew install vilan-lang/vilan/vilan"))).child(view("img").styled(art_desktop).attr("src", i"{assets}/art_toolchain.webp").attr("alt", "The vilan toolchain: build, run --watch, fmt, test, the language server, and upgrade — one binary")))
+	view("section").attr("id", "install").styled(column + section_block)
+		.child(view("h2").styled(heading).text("One command, the whole toolchain"))
+		.child(view("p").styled(lead).text("Compiler, dev server with hot reload, formatter, test runner, and language server — one small binary, no configuration to assemble. Update any time with vilan upgrade."))
+		.child(view("div").styled(install_split)
+			.child(view("div").styled(install_grid)
+				.child(install_row("macOS / Linux", "curl -fsSL https://github.com/vilan-lang/vilan/releases/latest/download/install.sh | sh"))
+				.child(install_row("Windows (PowerShell)", "irm https://github.com/vilan-lang/vilan/releases/latest/download/install.ps1 | iex"))
+				.child(install_row("Homebrew", "brew install vilan-lang/vilan/vilan")))
+			.child(view("div").styled(install_art_cell).child(toolchain_art())))
 }
 
 // --- showcases ---
@@ -207,42 +590,101 @@ let demo_label = const style().margin(space(0)).opacity(0.85);
 
 fun counter_demo(): View {
 	let count = Signal::new(0);
-	view("div").styled(demo_box).child(view("button").styled(demo_button).text("+1").on("click", || count.set_with(|n: i32| n + 1))).child(view("p").styled(demo_label).bind_text(count.map(|n: i32| i"clicked {n} times")))
+	view("div").styled(demo_box)
+		.child(view("button").styled(demo_button).text("+1").on("click", || count.set_with(|n: i32| n + 1)))
+		.child(view("p").styled(demo_label).bind_text(count.map(|n: i32| i"clicked {n} times")))
 }
 
 fun showcase_reactive(): View {
-	view("section").styled(column + section_block).child(showcase(view("div").styled(showcase_copy).child(view("h2").styled(heading).text("UI that follows your data")).child(view("p").styled(lead).text("A view is a value and a binding is a subscription: bind_text sets the one text node now and re-sets it whenever the signal changes. No virtual DOM, no render loop, no dependency arrays — updates land exactly where the data changed.")).child(view("p").styled(lead).text("The snippet is the whole program. This one runs — it is running right here:")).child(counter_demo()), code_panel([ln([kw("import"), t(" std::ui::{ view, mount_root };")]), ln([kw("import"), t(" std::reactive::Signal;")]), blank(), ln([kw("fun"), t(" main() {")]), ln([t("    "), kw("let"), t(" count = Signal::new(0);")]), ln([t("    "), kw("let"), t(" _root = mount_root("), st("\"app\""), t(", || {")]), ln([t("        view("), st("\"div\""), t(")")]), ln([t("            .child(view("), st("\"p\""), t(").bind_text(count.map(|n: i32| "), st("i\"clicked {n} times\""), t(")))")]), ln([t("            .child(view("), st("\"button\""), t(").text("), st("\"+1\""), t(").on("), st("\"click\""), t(", || count.set_with(|n| n + 1)))")]), ln([t("    });")]), ln([t("}")])]))).child(view("img").styled(art_desktop).attr("src", i"{assets}/art_dataflow.webp").attr("alt", "count.set(2) notifies the signal, which re-sets exactly one text node"))
+	view("section").styled(column + section_block)
+		.child(showcase(
+			view("div").styled(showcase_copy)
+				.child(view("h2").styled(heading).text("UI that follows your data"))
+				.child(view("p").styled(lead).text("A view is a value and a binding is a subscription: bind_text sets the one text node now and re-sets it whenever the signal changes. No virtual DOM, no render loop, no dependency arrays — updates land exactly where the data changed."))
+				.child(view("p").styled(lead).text("The snippet is the whole program. This one runs — it is running right here:"))
+				.child(counter_demo()),
+			code_panel([
+				ln([kw("import"), t(" std::ui::{ view, mount_root };")]),
+				ln([kw("import"), t(" std::reactive::Signal;")]),
+				blank(),
+				ln([kw("fun"), t(" main() {")]),
+				ln([t("    "), kw("let"), t(" count = Signal::new(0);")]),
+				ln([t("    "), kw("let"), t(" _root = mount_root("), st("\"app\""), t(", || {")]),
+				ln([t("        view("), st("\"div\""), t(")")]),
+				ln([t("            .child(view("), st("\"p\""), t(").bind_text(count.map(|n: i32| "), st("i\"clicked {n} times\""), t(")))")]),
+				ln([t("            .child(view("), st("\"button\""), t(").text("), st("\"+1\""), t(").on("), st("\"click\""), t(", || count.set_with(|n| n + 1)))")]),
+				ln([t("    });")]),
+				ln([t("}")]),
+			])))
+		.child(dataflow_art())
 }
 
-// Fullstack — the services guide's Notes server as the authored diagram:
-// the one definition at top, the built server and generated client below,
-// the call and the mirror flowing between them.
+// Fullstack — the services guide's Notes server as the live diagram: the one
+// definition at top, the built server and generated client below, the call
+// and the mirror flowing between them.
 
 fun showcase_fullstack(): View {
-	view("section").styled(column + section_block).child(view("h2").styled(heading).text("The server is a struct. The client is generated.")).child(view("p").styled(lead).text("Mark a method [rpc] and the browser can call it — typed, checked, awaited like any other call. Mark a signal [expose] and every connected client holds a live mirror that updates when the server writes. No REST endpoints, no fetch calls, no JSON shapes drifting out of sync by hand.")).child(view("img").styled(art_block).attr("src", i"{assets}/art_diagram.webp").attr("alt", "One notes.vl source compiles into the node server and the generated browser client; the client calls notes.add over rpc and holds a live mirror of the exposed entries signal")).child(docs_link("/docs/guide/services.html", "Services & RPC in the guide"))
+	view("section").styled(column + section_block)
+		.child(view("h2").styled(heading).text("The server is a struct. The client is generated."))
+		.child(view("p").styled(lead).text("Mark a method [rpc] and the browser can call it — typed, checked, awaited like any other call. Mark a signal [expose] and every connected client holds a live mirror that updates when the server writes. No REST endpoints, no fetch calls, no JSON shapes drifting out of sync by hand."))
+		.child(diagram())
+		.child(docs_link("/docs/guide/services.html", "Services & RPC in the guide"))
 }
 
 // The compiler — a real mistake and the real diagnostic. The snippet is the
 // diagnosed file, byte for byte, so the line numbers agree.
 
-let diag_pre = const style().background(panel).radius(space(3)).padding(space(5)).margin(space(0)).overflow(Overflow::Auto).font_size(Length::px(13.0)).line_height(1.65).raw("font-family", mono).raw("border", "1px solid rgba(211, 84, 45, 0.35)").raw("white-space", "pre");
+let diag_pre = const style().background(panel).radius(space(3)).padding(space(5)).margin(space(0)).overflow(Overflow::Auto).font_size(Length::px(13.0)).line_height(1.65).raw("font-family", mono).raw("border", "1px solid rgba(235, 104, 46, 0.35)").raw("white-space", "pre");
 
 let diag_error = const style().color(ember).font_weight(700);
 let diag_frame = const style().opacity(0.5);
-let diag_stack = const style().display(Display::Flex).flex_direction(FlexDirection::Column).gap(space(3));
+// min-width 0: as a grid item with no overflow of its own, min-width:auto
+// would let the snippet's longest line force the column wide on phones.
+let diag_stack = const style().display(Display::Flex).flex_direction(FlexDirection::Column).gap(space(3)).raw("min-width", "0");
 
 fun showcase_compiler(): View {
-	view("section").styled(column + section_block).child(showcase_flipped(view("div").styled(diag_stack).child(code_panel([ln([kw("import"), t(" std::print;")]), ln([kw("import"), t(" std::option::Option::{ self, Some, None };")]), ln([kw("fun"), t(" find_user(id: i32): Option<str> {")]), ln([t("    "), kw("if"), t(" id == 1 { Some("), st("\"Ada\""), t(") } "), kw("else"), t(" { None }")]), ln([t("}")]), ln([kw("fun"), t(" greet(name: str): str {")]), ln([t("    "), st("i\"hello {name}\"")]), ln([t("}")]), ln([kw("fun"), t(" main() {")]), ln([t("    print(greet(find_user(2)));")]), ln([t("}")])])).child(view("pre").styled(diag_pre).child(ln([view("span").styled(diag_error).text("Error:"), t(" Expected str, but got Option<str> instead.")])).child(ln([view("span").styled(diag_frame).text("    ╭─[ demo.vl:10:14 ]")])).child(ln([view("span").styled(diag_frame).text("    │")])).child(ln([view("span").styled(diag_frame).text(" 10 │     print(greet(find_user(2)));")])).child(ln([view("span").styled(diag_frame).text("    │                 ──────┬────")])).child(ln([view("span").styled(diag_frame).text("    │                       ╰─────── Expected str, but got Option<str> instead.")])).child(ln([view("span").styled(diag_frame).text("────╯")]))), view("div").styled(showcase_copy).child(view("h2").styled(heading).text("Find out at compile time")).child(view("p").styled(lead).text("There is no null and there are no exceptions. A value that might be missing is an Option, a call that might fail returns a Result, and the compiler makes you look inside before you use one — so the failure here is a build error, not a production incident.")).child(view("p").styled(lead).text("Values are copied, never silently shared, so two names cannot fight over one object. The mistakes JavaScript saves for runtime are mostly not expressible.")).child(docs_link("/docs/std/option-result.html", "Option & Result in the reference"))))
+	view("section").styled(column + section_block)
+		.child(showcase_flipped(
+			view("div").styled(diag_stack)
+				.child(code_panel([
+					ln([kw("import"), t(" std::print;")]),
+					ln([kw("import"), t(" std::option::Option::{ self, Some, None };")]),
+					ln([kw("fun"), t(" find_user(id: i32): Option<str> {")]),
+					ln([t("    "), kw("if"), t(" id == 1 { Some("), st("\"Ada\""), t(") } "), kw("else"), t(" { None }")]),
+					ln([t("}")]),
+					ln([kw("fun"), t(" greet(name: str): str {")]),
+					ln([t("    "), st("i\"hello {name}\"")]),
+					ln([t("}")]),
+					ln([kw("fun"), t(" main() {")]),
+					ln([t("    print(greet(find_user(2)));")]),
+					ln([t("}")]),
+				]))
+				.child(view("pre").styled(diag_pre)
+					.child(ln([view("span").styled(diag_error).text("Error:"), t(" Expected str, but got Option<str> instead.")]))
+					.child(ln([view("span").styled(diag_frame).text("    ╭─[ demo.vl:10:14 ]")]))
+					.child(ln([view("span").styled(diag_frame).text("    │")]))
+					.child(ln([view("span").styled(diag_frame).text(" 10 │     print(greet(find_user(2)));")]))
+					.child(ln([view("span").styled(diag_frame).text("    │                 ──────┬────")]))
+					.child(ln([view("span").styled(diag_frame).text("    │                       ╰─────── Expected str, but got Option<str> instead.")]))
+					.child(ln([view("span").styled(diag_frame).text("────╯")]))),
+			view("div").styled(showcase_copy)
+				.child(view("h2").styled(heading).text("Find out at compile time"))
+				.child(view("p").styled(lead).text("There is no null and there are no exceptions. A value that might be missing is an Option, a call that might fail returns a Result, and the compiler makes you look inside before you use one — so the failure here is a build error, not a production incident."))
+				.child(view("p").styled(lead).text("Values are copied, never silently shared, so two names cannot fight over one object. The mistakes JavaScript saves for runtime are mostly not expressible."))
+				.child(docs_link("/docs/std/option-result.html", "Option & Result in the reference"))))
 }
 
 // --- the editor band ---
 
-// The language server's story is otherwise absent from the page: the same
-// binary that compiles serves the editor, and the diagnostic shown in the
-// compiler section is the one the editor draws live.
-
 fun editor_band(): View {
-	view("section").styled(column + section_block).child(showcase_flipped(view("img").styled(art_img).attr("src", i"{assets}/art_editor.webp").attr("alt", "An editor window with a vilan file: a squiggle under find_user(2) and a hover reading: Expected str, but got Option<str> instead"), view("div").styled(showcase_copy).child(view("h2").styled(heading).text("The editor is in on it")).child(view("p").styled(lead).text("vilan-lsp ships in the same binary as the compiler, so the editor and the build never disagree: diagnostics as you type, hover types and docs, completion with signatures, rename, formatting, and Organize Imports — in VS Code today, and anywhere else LSP reaches.")).child(view("p").styled(lead).text("Errors are resilient, not modal: a broken line keeps the rest of the file compiling, serving hovers, and completing.")).child(docs_link("https://github.com/vilan-lang/vilan/tree/main/editors/vscode", "The VS Code extension"))))
+	view("section").styled(column + section_block)
+		.child(showcase_flipped(
+			editor_art(),
+			view("div").styled(showcase_copy)
+				.child(view("h2").styled(heading).text("The editor is in on it"))
+				.child(view("p").styled(lead).text("vilan-lsp ships in the same binary as the compiler, so the editor and the build never disagree: diagnostics as you type, hover types and docs, completion with signatures, rename, formatting, and Organize Imports — in VS Code today, and anywhere else LSP reaches."))
+				.child(view("p").styled(lead).text("Errors are resilient, not modal: a broken line keeps the rest of the file compiling, serving hovers, and completing."))
+				.child(docs_link("https://github.com/vilan-lang/vilan/tree/main/editors/vscode", "The VS Code extension"))))
 }
 
 // --- feature grid ---
@@ -278,22 +720,32 @@ fun feature(icon: str, name: str, body: str, href: str): View {
 }
 
 fun feature_grid(): View {
-	view("section").styled(column + section_block).child(view("h2").styled(heading).text("What the language holds")).child(view("div").styled(cards_grid).child(feature("shield-check", "No null, no exceptions", "Option and Result are the only ways out, and match makes you handle both arms. Errors are values you route, not surprises you catch.", "/docs/std/option-result.html")).child(feature("copy", "Values, not references", "Assignment copies. Sharing is explicit, borrowing is checked, and spooky action at a distance is a compile error.", "/docs/tour/memory-model.html")).child(feature("zap", "Async without the ceremony", "await is implicit — call an async function and the machinery is the compiler's problem. Structured concurrency with tasks and nurseries when you want it.", "/docs/tour/async.html")).child(feature("layers", "One program, two platforms", "One workspace compiles the node server and the browser client. The compiler tracks which code needs which platform and keeps each bundle honest.", "/docs/tour/platforms.html")).child(feature("server", "Rendered before it ships", "std::ui renders on the server too: first paint is real markup, then the client rebuilds it live. View source on this page — it is already there.", "/docs/guide/ssr.html")).child(feature("refresh-cw", "A dev loop that keeps up", "vilan run . --watch rebuilds in milliseconds and hot-reloads the browser. Format, test, and language server ship in the same binary.", "/docs/guide/dev-loop.html")))
+	view("section").styled(column + section_block)
+		.child(view("h2").styled(heading).text("What the language holds"))
+		.child(view("div").styled(cards_grid)
+			.child(feature("shield-check", "No null, no exceptions", "Option and Result are the only ways out, and match makes you handle both arms. Errors are values you route, not surprises you catch.", "/docs/std/option-result.html"))
+			.child(feature("copy", "Values, not references", "Assignment copies. Sharing is explicit, borrowing is checked, and spooky action at a distance is a compile error.", "/docs/tour/memory-model.html"))
+			.child(feature("zap", "Async without the ceremony", "await is implicit — call an async function and the machinery is the compiler's problem. Structured concurrency with tasks and nurseries when you want it.", "/docs/tour/async.html"))
+			.child(feature("layers", "One program, two platforms", "One workspace compiles the node server and the browser client. The compiler tracks which code needs which platform and keeps each bundle honest.", "/docs/tour/platforms.html"))
+			.child(feature("server", "Rendered before it ships", "std::ui renders on the server too: first paint is real markup, then the client rebuilds it live. View source on this page — it is already there.", "/docs/guide/ssr.html"))
+			.child(feature("refresh-cw", "A dev loop that keeps up", "vilan run . --watch rebuilds in milliseconds and hot-reloads the browser. Format, test, and language server ship in the same binary.", "/docs/guide/dev-loop.html")))
 }
 
 // --- dogfood + footer ---
 
-let dogfood_panel = const style().padding(space(6)).radius(space(3)).background(panel).raw("border", hairline).text_align(TextAlign::Center);
+// Bare text against the ground — deliberately the one section with no
+// panel, no art, no columns.
+let dogfood_text = const style().margin(space(0)).font_size(Length::px(15.0)).text_align(TextAlign::Center);
 
-let dogfood_text = const style().margin(space(0)).font_size(Length::px(15.0));
-
-let dogfood_cta = const style().margin_y(space(2));
+let dogfood_cta = const style().margin_y(space(3)).text_align(TextAlign::Center);
 
 fun dogfood(): View {
-	view("section").styled(column + section_block).child(view("div").styled(dogfood_panel).child(view("p").styled(dogfood_text).text("This site is a vilan program — one package, two entries. The server rendered the markup you first saw; the browser rebuilt it live.")).child(view("p").styled(dogfood_cta).child(docs_link("https://github.com/vilan-lang/website", "Read this page's source"))))
+	view("section").styled(column + section_block)
+		.child(view("p").styled(dogfood_text).text("This site is a vilan program — one package, two entries. The server rendered the markup you first saw; the browser rebuilt it live."))
+		.child(view("p").styled(dogfood_cta).child(docs_link("https://github.com/vilan-lang/website", "Read this page's source")))
 }
 
-let footer_block = const style().raw("border-top", hairline).padding_y(space(16));
+let footer_block = const style().raw("border-top", hairline).padding_y(Length::px(128.0));
 
 let footer_grid = const style().display(Display::Grid).gap(space(8)).lg(style().raw("grid-template-columns", "2fr 1fr 1fr 1fr"));
 
@@ -305,10 +757,33 @@ let footer_link = const style().color(blush).opacity(0.7).raw("text-decoration",
 
 let footer_mark = const (style().raw("align-self", "center").raw("justify-self", "center") + no_drag);
 
+let footer_micro = const style().display(Display::Flex).justify_content(JustifyContent::Between).raw("flex-wrap", "wrap").gap(space(2)).raw("border-top", hairline).raw("margin-top", "96px").padding_y(space(6)).font_size(Length::px(12.0)).opacity(0.55);
+
 fun footer_column(title: str, links: List<View>): View {
 	view("div").child(view("p").styled(footer_head).text(title)).child(view("div").styled(footer_list).children(links))
 }
 
 fun page_footer(): View {
-	view("footer").styled(footer_block).child(view("div").styled(column + footer_grid).child(view("img").attr("src", i"{assets}/footer_mark.webp").attr("alt", "The vilan mark").attr("width", "200").styled(footer_mark)).child(footer_column("Using Vilan", [view("a").styled(footer_link).attr("href", "#install").text("Install"), view("a").styled(footer_link).attr("href", "/docs/tour/hello-vilan.html").text("Learn"), view("a").styled(footer_link).attr("href", "/docs/").text("Documentation")])).child(footer_column("Community", [view("a").styled(footer_link).attr("href", i"{repo}/issues").text("Issues"), view("a").styled(footer_link).attr("href", i"{repo}/discussions").text("Discussions"), view("a").styled(footer_link).attr("href", "https://github.com/vilan-lang").text("GitHub")])).child(footer_column("Terms & policies", [view("a").styled(footer_link).attr("href", i"{repo}/blob/main/CODE_OF_CONDUCT.md").text("Code of Conduct"), view("a").styled(footer_link).attr("href", i"{repo}#license").text("Licences"), view("a").styled(footer_link).attr("href", i"{repo}/blob/main/assets/branding/LICENSE").text("Logo Policy")])))
+	view("footer").styled(footer_block)
+		.child(view("div").styled(column + footer_grid)
+			.child(view("img").attr("src", i"{assets}/footer_mark.webp").attr("alt", "The vilan mark").attr("width", "200").styled(footer_mark))
+			.child(footer_column("Using Vilan", [
+				view("a").styled(footer_link).attr("href", "#install").text("Install"),
+				view("a").styled(footer_link).attr("href", "/docs/tour/hello-vilan.html").text("Learn"),
+				view("a").styled(footer_link).attr("href", "/docs/").text("Documentation"),
+			]))
+			.child(footer_column("Community", [
+				view("a").styled(footer_link).attr("href", i"{repo}/issues").text("Issues"),
+				view("a").styled(footer_link).attr("href", i"{repo}/discussions").text("Discussions"),
+				view("a").styled(footer_link).attr("href", "https://github.com/vilan-lang").text("GitHub"),
+			]))
+			.child(footer_column("Terms & policies", [
+				view("a").styled(footer_link).attr("href", i"{repo}/blob/main/CODE_OF_CONDUCT.md").text("Code of Conduct"),
+				view("a").styled(footer_link).attr("href", i"{repo}#license").text("Licences"),
+				view("a").styled(footer_link).attr("href", i"{repo}/blob/main/assets/branding/LICENSE").text("Logo Policy"),
+			])))
+		.child(view("div").styled(column)
+			.child(view("div").styled(footer_micro)
+				.child(view("span").text("© 2026 Reed Syllas"))
+				.child(view("span").text("MIT or Apache-2.0"))))
 }

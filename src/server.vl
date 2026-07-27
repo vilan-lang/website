@@ -8,7 +8,7 @@ import std::http::{ Request, Response, Server };
 import std::option::Option::{ None, Some, self };
 import std::print;
 import std::process::env;
-import std::reactive::{ Owner, run_with_owner };
+import std::reactive::{ Owner, Signal, run_with_owner };
 import std::ui::render;
 import pkg::page::page;
 
@@ -36,7 +36,9 @@ async fun main() {
 				let owner = Owner::new();
 				mut markup = "";
 				run_with_owner(owner, || {
-					markup = render(page());
+					// The toolbar's scroll signal is a client concern; the
+					// served page starts un-scrolled by definition.
+					markup = render(page(Signal::new(false)));
 				});
 				Response::builder().set_header("Content-Type", "text/html").body(shell.replace("<!--ssr-->", markup)).build()
 			}

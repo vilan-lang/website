@@ -1,10 +1,42 @@
 // The client entry: build the same `page()` and mount it. On boot `mount_root`
 // clears the container — the server-rendered markup — and appends the freshly
 // built live UI: render, then replace.
+//
+// This is also where the page's one browser-only enhancement lives: the
+// sticky toolbar's scroll state. The externs are declared here, not in
+// page.vl, so the shared page stays platform-neutral; the server just passes
+// a constant `false`.
 
+import std::reactive::{ FlushPolicy, Signal, turn };
 import std::ui::mount_root;
 import pkg::page::page;
 
+[extern("window.addEventListener")]
+external fun window_listen(event: str, handler: || void): void;
+
+/// `document.querySelector` typed at the one selector we use: `html` is the
+/// scrolling element in standards mode, and its `scrollTop` is the page's
+/// scroll position. (A global *property* like `document.scrollingElement`
+/// has no function form — same reason std::router reads the path through a
+/// helper.)
+[extern("document.querySelector")]
+external fun scroll_probe(selector: str): ScrollProbe;
+
+external struct ScrollProbe;
+
+impl ScrollProbe {
+	[extern(get, "scrollTop")]
+	external fun scroll_top(self): f64;
+}
+
 fun main() {
-	let _root = mount_root("app", || page());
+	let scrolled = Signal::new(false);
+	let _root = mount_root("app", || page(scrolled));
+
+	// A scroll arrives outside any vilan turn, exactly like `popstate` in
+	// std::router — wrap the write so it settles as one wave.
+	let probe = scroll_probe("html");
+	window_listen("scroll", || turn(FlushPolicy::AtSuspension, || {
+		scrolled.set(probe.scroll_top() > 24.0);
+	}));
 }
