@@ -33,19 +33,11 @@
 			src: url(https://vilan-lang.org/assets/fonts/raleway-600-latin.woff2) format("woff2");
 		}
 		html, body { margin: 0; height: 100%; background: #120004; }
-		/* The hero bloom's drift (the patches reference these by name). Small
-		   amplitudes on purpose — weather, not motion. */
+		/* The hero bloom's drift (the wrapper references this by name). Small
+		   amplitude on purpose — weather, not motion. */
 		@keyframes bloom-drift-a {
 			from { transform: translate(0, 0) scale(1); }
-			to { transform: translate(1.6%, 2.4%) scale(1.045); }
-		}
-		@keyframes bloom-drift-b {
-			from { transform: translate(0, 0) scale(1.03); }
-			to { transform: translate(-1.8%, 1.2%) scale(1); }
-		}
-		@keyframes bloom-drift-c {
-			from { transform: translate(0, 0) scale(1); }
-			to { transform: translate(1.2%, -2%) scale(1.04); }
+			to { transform: translate(0.8%, 1.6%) scale(1.035); }
 		}
 		@media (prefers-reduced-motion: reduce) {
 			* { animation: none !important; }

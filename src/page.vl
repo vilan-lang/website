@@ -59,9 +59,14 @@ let no_drag = const style().raw("user-select", "none").raw("-webkit-user-drag", 
 
 let section_block = const style().padding_y(space(24));
 
+// Every section lays its children out the same way: a flex column with one
+// gap — no per-child margins to fight it. (The one exception is art
+// internals, which keep their own composition.)
+let stack = const style().display(Display::Flex).flex_direction(FlexDirection::Column).gap(space(4));
+
 let heading = const style().raw("font-family", display_face).font_size(Length::px(32.0)).raw("line-height", "48px").font_weight(600).margin(space(0));
 
-let lead = const style().opacity(0.82).max_width(Length::rem(36.0)).margin_y(space(3));
+let lead = const style().opacity(0.82).max_width(Length::rem(36.0)).margin(space(0));
 
 let rule_line = const style().height(Length::px(1.0)).raw("background", "rgba(249, 223, 231, 0.10)");
 
@@ -162,53 +167,31 @@ fun top_bar(scrolled: Signal<bool>): View {
 
 // --- masthead: the CSS bloom and the 1016px hero ---
 
-// The bloom is built from stacked elliptical gradient patches (the canonical
-// anchors) on a stage that scales exactly as the old baked image did: the
-// 1920x1080 design box tracks the viewport with an 1100px floor, anchored
-// 135px above the page top (64px of which is the toolbar, now a sibling).
-// Patch geometry is % of the stage; softness scales with it.
+// The bloom is the designer's own construction, in CSS: the canonical
+// gradient shown through the Figma-exported mask (assets/bloom_mask.svg as a
+// data-URI — its layer blur rides inside the SVG filter), with the Duo Noise
+// recipe on top (0.5px speckle mapping to #262324 at 100% and #FF5900 at
+// 57%, the same masked region). The band is the 1920x1039 design box under
+// the toolbar, tracking the viewport with an 1100px floor; the drift
+// animates the wrapper so mask and gradient move as one.
 let masthead_wrap = const style().position(Position::Relative).overflow(Overflow::Hidden);
 
-// The stage is the 1920x1080 design box: anchored at the page top (64px of
-// which is the toolbar, a sibling above), scaling with the viewport down to
-// an 1100px floor. The scratch composition this ports from was tuned against
-// exactly this box.
-let bloom_stage = const (style().position(Position::Absolute).raw("left", "0").width(Length::pct(100.0)).raw("top", "-64px").raw("height", "calc(max(100vw, 1100px) * 0.5625)").raw("pointer-events", "none") + no_select);
+let bloom_mask_uri = "url(\"data:image/svg+xml,%3Csvg width='1878' height='1016' viewBox='0 0 1878 1016' fill='none' xmlns='http://www.w3.org/2000/svg'%3E %3Cg filter='url(%23filter0_f_51_26)'%3E %3Cpath d='M708.762 806.63C717.203 788.527 770.245 793.449 798.513 806.63C826.78 819.811 819.569 836.26 811.127 854.363C802.685 872.466 737.029 877.819 708.762 864.638C680.494 851.456 700.32 824.733 708.762 806.63Z' fill='%23D9D9D9'/%3E %3Cpath d='M1196.04 124.964C1286.06 124.964 1359.04 189.435 1359.04 268.964C1359.03 296.719 1350.14 322.638 1334.74 344.625C1351.59 383.759 1357.54 431.665 1357.54 489.334C1357.54 534.115 1357.52 568.181 1353.65 594.069C1505.65 471.69 1705.07 359.683 1504.42 524.754C1392.08 633.435 1709.16 555.443 1675.16 702.715C1631.58 790.249 1402.9 657.226 1406.64 823.488C1245.88 908.901 1198.47 792.736 1219.88 735.235C1226.55 717.315 1244.29 694.6 1268.59 669.77C1211.94 677.661 1119.22 674.039 967.451 674.039C837.02 674.039 741.487 667.658 672.1 651.83C602.114 708.686 502.736 737.543 407.269 742.508C227.5 767.999 218.763 641.243 207.5 512.5C270 442.5 361.5 454.932 447.5 334.323C465.97 332.707 484.168 331.352 501.937 330.399C512.635 216.95 571.044 199.869 889.93 199.869C950.307 199.869 1003.2 201.81 1049.48 205.865C1075.95 157.963 1131.63 124.964 1196.04 124.964Z' fill='%23D9D9D9'/%3E %3Cpath d='M202.603 243.749C212.325 222.901 246.437 218.231 278.794 233.319C311.151 248.408 329.5 277.54 319.778 298.389C310.056 319.237 275.945 323.907 243.588 308.818C211.231 293.73 192.882 264.597 202.603 243.749Z' fill='%23D9D9D9'/%3E %3Cpath d='M1397.41 130.335C1407.02 109.717 1433.28 101.615 1456.07 112.239C1478.85 122.864 1489.53 148.19 1479.91 168.808C1470.3 189.427 1444.03 197.528 1421.25 186.904C1398.47 176.28 1387.79 150.953 1397.41 130.335Z' fill='%23D9D9D9'/%3E %3C/g%3E %3Cdefs%3E %3Cfilter id='filter0_f_51_26' x='0' y='-92.4345' width='1877.72' height='1164.39' filterUnits='userSpaceOnUse' color-interpolation-filters='sRGB'%3E %3CfeFlood flood-opacity='0' result='BackgroundImageFix'/%3E %3CfeBlend mode='normal' in='SourceGraphic' in2='BackgroundImageFix' result='shape'/%3E %3CfeGaussianBlur stdDeviation='100' result='effect1_foregroundBlur_51_26'/%3E %3C/filter%3E %3C/defs%3E %3C/svg%3E \")";
 
-let bloom_patch = const style().position(Position::Absolute).raw("border-radius", "50%").raw("filter", "blur(calc(max(100vw, 1100px) * 0.0208))");
+let duo_tile_uri = "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E %3Cfilter id='d' x='0' y='0' width='100%25' height='100%25'%3E %3CfeTurbulence type='fractalNoise' baseFrequency='1.8' numOctaves='2' result='n'/%3E %3CfeColorMatrix in='n' type='matrix' values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0.34 0.34 0.34 0 0' result='a'/%3E %3CfeComponentTransfer in='a' result='dark_mask'%3E%3CfeFuncA type='discrete' tableValues='1 0'/%3E%3C/feComponentTransfer%3E %3CfeFlood flood-color='%23262324' result='dark_fill'/%3E %3CfeComposite in='dark_fill' in2='dark_mask' operator='in' result='dark'/%3E %3CfeComponentTransfer in='a' result='orange_mask'%3E%3CfeFuncA type='discrete' tableValues='0 1'/%3E%3C/feComponentTransfer%3E %3CfeFlood flood-color='%23FF5900' flood-opacity='0.57' result='orange_fill'/%3E %3CfeComposite in='orange_fill' in2='orange_mask' operator='in' result='orange'/%3E %3CfeMerge%3E%3CfeMergeNode in='dark'/%3E%3CfeMergeNode in='orange'/%3E%3C/feMerge%3E %3C/filter%3E %3Crect width='120' height='120' filter='url(%23d)'/%3E %3C/svg%3E \")";
 
-let bloom_wash = const (bloom_patch + style().raw("left", "13.5%").raw("top", "18.5%").raw("width", "75%").raw("height", "51.9%").raw("background", "radial-gradient(closest-side, rgba(178, 48, 86, 0.85), rgba(178, 48, 86, 0.5) 55%, transparent 82%)").raw("animation", "bloom-drift-b 38s ease-in-out infinite alternate"));
+let bloom_wrap = const (style().position(Position::Absolute).raw("inset", "0").raw("pointer-events", "none").raw("animation", "bloom-drift-a 44s ease-in-out infinite alternate") + no_select);
 
-let bloom_orange_band = const (bloom_patch + style().raw("left", "26%").raw("top", "17.6%").raw("width", "52.1%").raw("height", "27.8%").raw("background", "radial-gradient(closest-side, rgba(235, 104, 46, 0.9), rgba(235, 104, 46, 0.6) 55%, transparent 80%)").raw("animation", "bloom-drift-b 34s ease-in-out infinite alternate"));
+let bloom_band = const style().position(Position::Absolute).raw("left", "50%").raw("transform", "translateX(-50%)").raw("top", "0").raw("width", "max(100vw, 1100px)").raw("height", "calc(max(100vw, 1100px) * 0.5411)").raw("-webkit-mask-image", bloom_mask_uri).raw("mask-image", bloom_mask_uri).raw("-webkit-mask-size", "100% 100%").raw("mask-size", "100% 100%");
 
-let bloom_red = const (bloom_patch + style().raw("left", "21.9%").raw("top", "30.6%").raw("width", "58.3%").raw("height", "37%").raw("background", "radial-gradient(closest-side, rgba(216, 71, 48, 0.95), rgba(216, 71, 48, 0.72) 60%, transparent 84%)").raw("animation", "bloom-drift-c 40s ease-in-out infinite alternate"));
+let bloom_gradient = const (bloom_band + style().raw("background", "radial-gradient(1300px 480px ellipse at 44% 2%, rgba(255, 240, 246, 0.98), rgba(229, 175, 217, 0.55) 52%, transparent 76%), radial-gradient(1400px 560px ellipse at 58% 26%, rgba(235, 104, 46, 0.95), transparent 76%), radial-gradient(1000px 640px ellipse at 12% 60%, rgba(139, 39, 134, 0.95), rgba(139, 39, 134, 0.6) 45%, transparent 75%), radial-gradient(1500px 680px ellipse at 55% 52%, rgba(216, 71, 48, 0.95), rgba(216, 71, 48, 0.7) 42%, transparent 78%), radial-gradient(950px 500px ellipse at 40% 88%, rgba(178, 48, 86, 0.75), transparent 76%), radial-gradient(640px 520px ellipse at 0% 106%, rgba(103, 34, 131, 0.95), transparent 72%), linear-gradient(115deg, #672283 0%, #B23056 40%, #D84730 70%, #EB682E 100%)"));
 
-let bloom_magenta = const (bloom_patch + style().raw("left", "7.3%").raw("top", "35.2%").raw("width", "37.5%").raw("height", "33.3%").raw("background", "radial-gradient(closest-side, rgba(139, 39, 134, 0.95), rgba(139, 39, 134, 0.6) 55%, transparent 80%)").raw("animation", "bloom-drift-a 44s ease-in-out infinite alternate"));
-
-let bloom_purple = const (bloom_patch + style().raw("left", "1%").raw("top", "50%").raw("width", "24%").raw("height", "27.8%").raw("background", "radial-gradient(closest-side, rgba(103, 34, 131, 0.85), transparent 78%)").raw("animation", "bloom-drift-c 46s ease-in-out infinite alternate"));
-
-let bloom_orange_right = const (bloom_patch + style().raw("left", "55.2%").raw("top", "14.8%").raw("width", "29.2%").raw("height", "37%").raw("background", "radial-gradient(closest-side, rgba(235, 104, 46, 0.95), rgba(235, 104, 46, 0.65) 55%, transparent 80%)").raw("animation", "bloom-drift-a 36s ease-in-out infinite alternate"));
-
-let bloom_ember_tail = const (bloom_patch + style().raw("left", "59.4%").raw("top", "48.1%").raw("width", "39.6%").raw("height", "35.2%").raw("background", "radial-gradient(closest-side, rgba(216, 71, 48, 0.65), transparent 80%)").raw("animation", "bloom-drift-b 48s ease-in-out infinite alternate"));
-
-let bloom_pale_wide = const (bloom_patch + style().raw("left", "19.8%").raw("top", "8.3%").raw("width", "56.3%").raw("height", "27.8%").raw("background", "radial-gradient(closest-side, rgba(229, 175, 217, 0.9), rgba(229, 175, 217, 0.55) 55%, transparent 80%)").raw("animation", "bloom-drift-a 42s ease-in-out infinite alternate"));
-
-let bloom_pale_core = const (bloom_patch + style().raw("left", "29.2%").raw("top", "10.2%").raw("width", "36.5%").raw("height", "20.4%").raw("background", "radial-gradient(closest-side, rgba(249, 223, 231, 0.95), transparent 76%)").raw("animation", "bloom-drift-c 38s ease-in-out infinite alternate"));
-
-let bloom_wisp = const (bloom_patch + style().raw("left", "7.8%").raw("top", "18.5%").raw("width", "13.5%").raw("height", "18.5%").raw("background", "radial-gradient(closest-side, rgba(229, 175, 217, 0.4), transparent 76%)").raw("animation", "bloom-drift-a 50s ease-in-out infinite alternate"));
+let bloom_duo = const (bloom_band + style().raw("background-image", duo_tile_uri).raw("background-size", "120px 120px").opacity(0.5).raw("mix-blend-mode", "overlay"));
 
 fun bloom(): View {
-	view("div").styled(bloom_stage)
-		.child(view("div").styled(bloom_wash))
-		.child(view("div").styled(bloom_orange_band))
-		.child(view("div").styled(bloom_red))
-		.child(view("div").styled(bloom_magenta))
-		.child(view("div").styled(bloom_purple))
-		.child(view("div").styled(bloom_ember_tail))
-		.child(view("div").styled(bloom_orange_right))
-		.child(view("div").styled(bloom_pale_wide))
-		.child(view("div").styled(bloom_pale_core))
-		.child(view("div").styled(bloom_wisp))
+	view("div").styled(bloom_wrap)
+		.child(view("div").styled(bloom_gradient))
+		.child(view("div").styled(bloom_duo))
 }
 
 // Hero: 1016px at the design width, scaling as 52.92vw below it. The stack
@@ -234,7 +217,7 @@ fun hero(): View {
 }
 
 fun masthead(): View {
-	view("div").styled(masthead_wrap).child(bloom()).child(grain()).child(hero())
+	view("div").styled(masthead_wrap).child(bloom()).child(hero())
 }
 
 // --- shared art vocabulary ---
@@ -486,7 +469,7 @@ fun toolchain_art(): View {
 
 // --- the dataflow strip (reactive section, desktop only) ---
 
-let df_wrap = const (style().position(Position::Relative).overflow(Overflow::Hidden).padding_y(space(8)).margin_y(space(4)).raw("display", "none").lg(style().raw("display", "block")) + no_select);
+let df_wrap = const (style().position(Position::Relative).overflow(Overflow::Hidden).padding_y(space(8)).raw("display", "none").lg(style().raw("display", "block")) + no_select);
 
 let df_blob_a = const (art_blob + style().raw("left", "2%").raw("top", "-30%").raw("width", "30%").raw("height", "120%").raw("background", "radial-gradient(closest-side, rgba(139, 39, 134, 0.45), transparent)"));
 
@@ -541,7 +524,7 @@ let install_command = const style().background(panel).radius(space(2)).padding_y
 // commands' pre-formatted min-content width blow the column open on phones.
 let install_grid = const style().display(Display::Flex).flex_direction(FlexDirection::Column).gap(space(4)).raw("min-width", "0");
 
-let install_split = const style().display(Display::Grid).gap(space(8)).raw("align-items", "center").margin_y(space(6)).lg(style().raw("grid-template-columns", "6fr 5fr"));
+let install_split = const style().display(Display::Grid).gap(space(8)).raw("align-items", "center").lg(style().raw("grid-template-columns", "6fr 5fr"));
 
 let install_art_cell = const (style().raw("display", "none").lg(style().raw("display", "block")) + no_select);
 
@@ -550,7 +533,7 @@ fun install_row(label: str, command: str): View {
 }
 
 fun install_section(): View {
-	view("section").attr("id", "install").styled(column + section_block)
+	view("section").attr("id", "install").styled(column + section_block + stack)
 		.child(view("h2").styled(heading).text("One command, the whole toolchain"))
 		.child(view("p").styled(lead).text("Compiler, dev server with hot reload, formatter, test runner, and language server — one small binary, no configuration to assemble. Update any time with vilan upgrade."))
 		.child(view("div").styled(install_split)
@@ -567,7 +550,7 @@ let showcase_grid = const style().display(Display::Grid).gap(space(8)).raw("alig
 
 let showcase_grid_flipped = const style().display(Display::Grid).gap(space(8)).raw("align-items", "center").lg(style().raw("grid-template-columns", "6fr 5fr"));
 
-let showcase_copy = const style().display(Display::Flex).flex_direction(FlexDirection::Column).gap(space(2));
+let showcase_copy = const style().display(Display::Flex).flex_direction(FlexDirection::Column).gap(space(3));
 
 fun showcase(prose: View, code: View): View {
 	view("div").styled(showcase_grid).child(prose).child(code)
@@ -596,7 +579,7 @@ fun counter_demo(): View {
 }
 
 fun showcase_reactive(): View {
-	view("section").styled(column + section_block)
+	view("section").styled(column + section_block + stack)
 		.child(showcase(
 			view("div").styled(showcase_copy)
 				.child(view("h2").styled(heading).text("UI that follows your data"))
@@ -624,7 +607,7 @@ fun showcase_reactive(): View {
 // and the mirror flowing between them.
 
 fun showcase_fullstack(): View {
-	view("section").styled(column + section_block)
+	view("section").styled(column + section_block + stack)
 		.child(view("h2").styled(heading).text("The server is a struct. The client is generated."))
 		.child(view("p").styled(lead).text("Mark a method [rpc] and the browser can call it — typed, checked, awaited like any other call. Mark a signal [expose] and every connected client holds a live mirror that updates when the server writes. No REST endpoints, no fetch calls, no JSON shapes drifting out of sync by hand."))
 		.child(diagram())
@@ -643,7 +626,7 @@ let diag_frame = const style().opacity(0.5);
 let diag_stack = const style().display(Display::Flex).flex_direction(FlexDirection::Column).gap(space(3)).raw("min-width", "0");
 
 fun showcase_compiler(): View {
-	view("section").styled(column + section_block)
+	view("section").styled(column + section_block + stack)
 		.child(showcase_flipped(
 			view("div").styled(diag_stack)
 				.child(code_panel([
@@ -677,7 +660,7 @@ fun showcase_compiler(): View {
 // --- the editor band ---
 
 fun editor_band(): View {
-	view("section").styled(column + section_block)
+	view("section").styled(column + section_block + stack)
 		.child(showcase_flipped(
 			editor_art(),
 			view("div").styled(showcase_copy)
@@ -692,7 +675,7 @@ fun editor_band(): View {
 // One breakpoint only: std::style emits media rules in an order that lets a
 // narrower min-width override a wider one on the same property (filed as a
 // backlog item), so sm(2col) + lg(3col) here would render 2-col on desktop.
-let cards_grid = const style().display(Display::Grid).gap(space(4)).margin_y(space(8)).lg(style().raw("grid-template-columns", "1fr 1fr 1fr"));
+let cards_grid = const style().display(Display::Grid).gap(space(4)).lg(style().raw("grid-template-columns", "1fr 1fr 1fr"));
 
 let card = const style().display(Display::Flex).flex_direction(FlexDirection::Column).gap(space(2)).padding(space(5)).radius(space(3)).background(panel).raw("border", hairline);
 
@@ -700,7 +683,7 @@ let card_title = const style().raw("font-family", display_face).font_size(Length
 
 let card_body = const style().margin(space(0)).opacity(0.78);
 
-let card_link = const style().color(ember).font_size(Length::px(13.0)).raw("text-decoration", "none").raw("user-select", "none").hover(style().raw("text-decoration", "underline"));
+let card_link = const style().raw("align-self", "flex-start").color(ember).font_size(Length::px(13.0)).raw("text-decoration", "none").raw("user-select", "none").hover(style().raw("text-decoration", "underline"));
 
 fun docs_link(href: str, label: str): View {
 	view("a").styled(card_link).attr("href", href).text(i"{label} →")
@@ -720,7 +703,7 @@ fun feature(icon: str, name: str, body: str, href: str): View {
 }
 
 fun feature_grid(): View {
-	view("section").styled(column + section_block)
+	view("section").styled(column + section_block + stack)
 		.child(view("h2").styled(heading).text("What the language holds"))
 		.child(view("div").styled(cards_grid)
 			.child(feature("shield-check", "No null, no exceptions", "Option and Result are the only ways out, and match makes you handle both arms. Errors are values you route, not surprises you catch.", "/docs/std/option-result.html"))
@@ -737,10 +720,10 @@ fun feature_grid(): View {
 // panel, no art, no columns.
 let dogfood_text = const style().margin(space(0)).font_size(Length::px(15.0)).text_align(TextAlign::Center);
 
-let dogfood_cta = const style().margin_y(space(3)).text_align(TextAlign::Center);
+let dogfood_cta = const style().margin(space(0)).text_align(TextAlign::Center);
 
 fun dogfood(): View {
-	view("section").styled(column + section_block)
+	view("section").styled(column + section_block + stack)
 		.child(view("p").styled(dogfood_text).text("This site is a vilan program — one package, two entries. The server rendered the markup you first saw; the browser rebuilt it live."))
 		.child(view("p").styled(dogfood_cta).child(docs_link("https://github.com/vilan-lang/website", "Read this page's source")))
 }
