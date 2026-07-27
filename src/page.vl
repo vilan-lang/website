@@ -24,8 +24,10 @@ import std::ui::{ View, view };
 let ink = const Color::hex("#120004");
 let blush = const Color::hex("#F9DFE7");
 let panel = const Color::hex("#1B060D");
-let ember = const Color::hex("#D3542D");
-let rose = const Color::hex("#D98BA4");
+// Accents are the two brightest canonical gradient anchors (the palette in
+// vilan-lang/branding: README.md, sampled from assets/gradient.png).
+let ember = const Color::hex("#EB682E");
+let rose = const Color::hex("#E5AFD9");
 
 let assets = "https://vilan-lang.org/assets";
 let repo = "https://github.com/vilan-lang/vilan";
@@ -39,8 +41,15 @@ let hairline = "1px solid rgba(249, 223, 231, 0.10)";
 
 let shell = const style().background(ink).color(blush).min_height(Length::pct(100.0)).raw("font-family", body_face).font_size(Length::px(14.0)).raw("line-height", "18px");
 
-// The content column: 1600px of content plus the 32px side padding.
-let column = const style().max_width(Length::px(1664.0)).margin_x(Length::auto()).padding_x(Length::px(32.0));
+// The content column: 1200px of content plus the 32px side padding.
+let column = const style().max_width(Length::px(1264.0)).margin_x(Length::auto()).padding_x(Length::px(32.0));
+
+// Chrome (logos, art, buttons, nav/footer links) is not selectable text;
+// body copy and code stay selectable, and the install commands stay
+// deliberately select-all.
+let no_select = const style().raw("user-select", "none");
+
+let no_drag = const style().raw("user-select", "none").raw("-webkit-user-drag", "none");
 
 let section_block = const style().padding_y(space(24));
 
@@ -104,7 +113,7 @@ let masthead_wrap = const style().position(Position::Relative).overflow(Overflow
 // The bloom scales with the viewport but never below 1100px — narrower and
 // it would shrink away from under the stack, leaving dark ink on the dark
 // ground. Centered so the overflow crops evenly on phones.
-let bloom_layer = const style().position(Position::Absolute).raw("top", "calc(max(100vw, 1100px) * -0.0703)").raw("left", "50%").raw("transform", "translateX(-50%)").raw("width", "max(100vw, 1100px)").height(Length::auto()).raw("pointer-events", "none");
+let bloom_layer = const (style().position(Position::Absolute).raw("top", "calc(max(100vw, 1100px) * -0.0703)").raw("left", "50%").raw("transform", "translateX(-50%)").raw("width", "max(100vw, 1100px)").height(Length::auto()).raw("pointer-events", "none") + no_select);
 
 let nav_row = const style().position(Position::Relative).display(Display::Flex).align_items(AlignItems::Center).justify_content(JustifyContent::Between).height(Length::px(64.0));
 
@@ -112,7 +121,7 @@ let nav_brand = const style().display(Display::Flex).align_items(AlignItems::Cen
 
 let nav_links = const style().display(Display::Flex).gap(space(6));
 
-let nav_link = const style().color(blush).opacity(0.8).raw("text-decoration", "none").hover(style().opacity(1.0));
+let nav_link = const style().color(blush).opacity(0.8).raw("text-decoration", "none").raw("user-select", "none").hover(style().opacity(1.0));
 
 fun nav_bar(): View {
 	view("nav").styled(column + nav_row).child(view("a").styled(nav_brand + nav_link).attr("href", "/").child(view("img").attr("src", i"{assets}/mark.svg").attr("alt", "").attr("height", "22")).child(view("span").text("VILAN"))).child(view("div").styled(nav_links).child(view("a").styled(nav_link).attr("href", "#install").text("Install")).child(view("a").styled(nav_link).attr("href", "/docs/tour/hello-vilan.html").text("Learn")).child(view("a").styled(nav_link).attr("href", "/docs/").text("Docs")))
@@ -124,9 +133,9 @@ fun nav_bar(): View {
 // gets a visually-hidden text twin for readers and robots.
 let hero_block = const style().position(Position::Relative).display(Display::Flex).flex_direction(FlexDirection::Column).align_items(AlignItems::Center).raw("height", "clamp(560px, 52.92vw, 1016px)").raw("padding-top", "clamp(180px, 15.21vw, 292px)").raw("gap", "clamp(40px, 3.333vw, 64px)").raw("box-sizing", "border-box");
 
-let hero_mark = const style().raw("width", "clamp(72px, 5.21vw, 100px)").height(Length::auto());
+let hero_mark = const (style().raw("width", "clamp(72px, 5.21vw, 100px)").height(Length::auto()) + no_drag);
 
-let hero_wordmark = const style().raw("width", "clamp(224px, 16.22vw, 311px)").height(Length::auto());
+let hero_wordmark = const (style().raw("width", "clamp(224px, 16.22vw, 311px)").height(Length::auto()) + no_drag);
 
 let hero_tagline = const style().raw("font-family", display_face).raw("font-size", "clamp(22px, 1.667vw, 32px)").raw("line-height", "1.5").font_weight(600).color(ink).margin(space(0)).text_align(TextAlign::Center);
 
@@ -171,7 +180,7 @@ fun showcase(prose: View, code: View): View {
 
 let demo_box = const style().display(Display::Flex).align_items(AlignItems::Center).gap(space(4)).margin_y(space(4)).padding(space(4)).radius(space(3)).raw("border", hairline);
 
-let demo_button = const style().background(blush).color(ink).font_weight(600).padding_y(space(2)).padding_x(space(5)).radius(Length::px(999.0)).raw("border", "none").font_size(Length::px(14.0)).raw("font-family", body_face).cursor(Cursor::Pointer).hover(style().opacity(0.88));
+let demo_button = const style().background(blush).color(ink).font_weight(600).padding_y(space(2)).padding_x(space(5)).radius(Length::px(999.0)).raw("border", "none").font_size(Length::px(14.0)).raw("font-family", body_face).raw("user-select", "none").cursor(Cursor::Pointer).hover(style().opacity(0.88));
 
 let demo_label = const style().margin(space(0)).opacity(0.85);
 
@@ -216,18 +225,27 @@ let card_title = const style().raw("font-family", display_face).font_size(Length
 
 let card_body = const style().margin(space(0)).opacity(0.78);
 
-let card_link = const style().color(ember).font_size(Length::px(13.0)).raw("text-decoration", "none").hover(style().raw("text-decoration", "underline"));
+let card_link = const style().color(ember).font_size(Length::px(13.0)).raw("text-decoration", "none").raw("user-select", "none").hover(style().raw("text-decoration", "underline"));
 
 fun docs_link(href: str, label: str): View {
 	view("a").styled(card_link).attr("href", href).text(i"{label} →")
 }
 
-fun feature(name: str, body: str, href: str): View {
-	view("article").styled(card).child(view("h3").styled(card_title).text(name)).child(view("p").styled(card_body).text(body)).child(docs_link(href, "docs"))
+// Card icons are Lucide (lucide.dev, ISC), baked with the accent stroke and
+// served as plain images — `view("svg")` cannot render inline SVG today
+// (`create_element` has no SVG-namespace path).
+let card_icon = const (style().width(Length::px(28.0)).height(Length::px(28.0)) + no_drag);
+
+fun feature(icon: str, name: str, body: str, href: str): View {
+	view("article").styled(card)
+		.child(view("img").styled(card_icon).attr("src", i"{assets}/icons/{icon}.svg").attr("alt", ""))
+		.child(view("h3").styled(card_title).text(name))
+		.child(view("p").styled(card_body).text(body))
+		.child(docs_link(href, "docs"))
 }
 
 fun feature_grid(): View {
-	view("section").styled(column + section_block).child(view("h2").styled(heading).text("What the language holds")).child(view("div").styled(cards_grid).child(feature("No null, no exceptions", "Option and Result are the only ways out, and match makes you handle both arms. Errors are values you route, not surprises you catch.", "/docs/std/option-result.html")).child(feature("Values, not references", "Assignment copies. Sharing is explicit, borrowing is checked, and spooky action at a distance is a compile error.", "/docs/tour/memory-model.html")).child(feature("Async without the ceremony", "await is implicit — call an async function and the machinery is the compiler's problem. Structured concurrency with tasks and nurseries when you want it.", "/docs/tour/async.html")).child(feature("One program, two platforms", "One workspace compiles the node server and the browser client. The compiler tracks which code needs which platform and keeps each bundle honest.", "/docs/tour/platforms.html")).child(feature("Rendered before it ships", "std::ui renders on the server too: first paint is real markup, then the client rebuilds it live. View source on this page — it is already there.", "/docs/guide/ssr.html")).child(feature("A dev loop that keeps up", "vilan run . --watch rebuilds in milliseconds and hot-reloads the browser. Format, test, and language server ship in the same binary.", "/docs/guide/dev-loop.html")))
+	view("section").styled(column + section_block).child(view("h2").styled(heading).text("What the language holds")).child(view("div").styled(cards_grid).child(feature("shield-check", "No null, no exceptions", "Option and Result are the only ways out, and match makes you handle both arms. Errors are values you route, not surprises you catch.", "/docs/std/option-result.html")).child(feature("copy", "Values, not references", "Assignment copies. Sharing is explicit, borrowing is checked, and spooky action at a distance is a compile error.", "/docs/tour/memory-model.html")).child(feature("zap", "Async without the ceremony", "await is implicit — call an async function and the machinery is the compiler's problem. Structured concurrency with tasks and nurseries when you want it.", "/docs/tour/async.html")).child(feature("layers", "One program, two platforms", "One workspace compiles the node server and the browser client. The compiler tracks which code needs which platform and keeps each bundle honest.", "/docs/tour/platforms.html")).child(feature("server", "Rendered before it ships", "std::ui renders on the server too: first paint is real markup, then the client rebuilds it live. View source on this page — it is already there.", "/docs/guide/ssr.html")).child(feature("refresh-cw", "A dev loop that keeps up", "vilan run . --watch rebuilds in milliseconds and hot-reloads the browser. Format, test, and language server ship in the same binary.", "/docs/guide/dev-loop.html")))
 }
 
 // --- dogfood + footer ---
@@ -242,7 +260,7 @@ fun dogfood(): View {
 	view("section").styled(column + section_block).child(view("div").styled(dogfood_panel).child(view("p").styled(dogfood_text).text("This site is a vilan program — one package, two entries. The server rendered the markup you first saw; the browser rebuilt it live.")).child(view("p").styled(dogfood_cta).child(docs_link("https://github.com/vilan-lang/website", "Read this page's source"))))
 }
 
-let footer_block = const style().raw("border-top", hairline).padding_y(space(12));
+let footer_block = const style().raw("border-top", hairline).padding_y(space(16));
 
 let footer_grid = const style().display(Display::Grid).gap(space(8)).lg(style().raw("grid-template-columns", "2fr 1fr 1fr 1fr"));
 
@@ -250,9 +268,9 @@ let footer_head = const style().font_weight(600).margin_y(space(2));
 
 let footer_list = const style().display(Display::Flex).flex_direction(FlexDirection::Column).gap(space(2));
 
-let footer_link = const style().color(blush).opacity(0.7).raw("text-decoration", "none").hover(style().opacity(1.0).raw("text-decoration", "underline"));
+let footer_link = const style().color(blush).opacity(0.7).raw("text-decoration", "none").raw("user-select", "none").hover(style().opacity(1.0).raw("text-decoration", "underline"));
 
-let footer_mark = const style().raw("align-self", "center").raw("justify-self", "center");
+let footer_mark = const (style().raw("align-self", "center").raw("justify-self", "center") + no_drag);
 
 fun footer_column(title: str, links: List<View>): View {
 	view("div").child(view("p").styled(footer_head).text(title)).child(view("div").styled(footer_list).children(links))
