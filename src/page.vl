@@ -4,11 +4,16 @@
 // here reaches for `std::dom`, so the same source compiles on both platforms.
 //
 // Layout and art direction follow the landing concept in the brand repository
-// (`vilan-lang/branding`, `assets/landing_page_concept.png`): the bloom hero
-// and the footer are the concept's own; the sections between them are the
-// content the concept leaves blank. Images are served from the production
-// asset space (vilan-lang.org/assets) so dev and deployed builds see the
-// same bytes.
+// (`vilan-lang/branding`, `assets/landing_page_concept.png` — a 1920-logical
+// design at 4x) to the user's measurements: 64px toolbar; 1016px hero with
+// the mark, wordmark, and tagline 64px-gapped (stack top at 292, measured
+// from the concept); content column 1600px max with 32px side padding;
+// 1px dividers at 10% blush between sections; Raleway SemiBold 32/48 for
+// display text, Inter 14/18 for body. Below 1920 the hero scales
+// proportionally (vw-derived clamps), grids collapse at breakpoints.
+//
+// Images and fonts are served from the production asset space
+// (vilan-lang.org/assets) so dev and deployed builds see the same bytes.
 
 import std::reactive::Signal;
 import std::style::{ AlignItems, Color, Cursor, Display, FlexDirection, JustifyContent, Length, Overflow, Position, TextAlign, space, style };
@@ -25,29 +30,37 @@ let rose = const Color::hex("#D98BA4");
 let assets = "https://vilan-lang.org/assets";
 let repo = "https://github.com/vilan-lang/vilan";
 
-// --- shared styles ---
-
-let shell = const style().background(ink).color(blush).min_height(Length::pct(100.0)).raw("font-family", "system-ui, -apple-system, 'Segoe UI', sans-serif").line_height(1.6);
-
-let column = const style().max_width(Length::rem(68.0)).margin_x(Length::auto()).padding_x(space(6));
-
-let section_block = const style().padding_y(space(16));
-
-let heading = const style().font_size(Length::rem(1.9)).font_weight(700).margin(space(0)).raw("letter-spacing", "0.01em");
-
-let lead = const style().font_size(Length::rem(1.1)).opacity(0.82).max_width(Length::rem(42.0)).margin_y(space(3));
-
+let body_face = "'Inter', system-ui, -apple-system, sans-serif";
+let display_face = "'Raleway', system-ui, -apple-system, sans-serif";
+let mono = "ui-monospace, SFMono-Regular, Menlo, Consolas, monospace";
 let hairline = "1px solid rgba(249, 223, 231, 0.10)";
 
-let mono = "ui-monospace, SFMono-Regular, Menlo, Consolas, monospace";
+// --- shared styles ---
+
+let shell = const style().background(ink).color(blush).min_height(Length::pct(100.0)).raw("font-family", body_face).font_size(Length::px(14.0)).raw("line-height", "18px");
+
+// The content column: 1600px of content plus the 32px side padding.
+let column = const style().max_width(Length::px(1664.0)).margin_x(Length::auto()).padding_x(Length::px(32.0));
+
+let section_block = const style().padding_y(space(24));
+
+let heading = const style().raw("font-family", display_face).font_size(Length::px(32.0)).raw("line-height", "48px").font_weight(600).margin(space(0));
+
+let lead = const style().opacity(0.82).max_width(Length::rem(36.0)).margin_y(space(3));
+
+// The 1px section rule, 10% blush, content-wide.
+let rule_line = const style().height(Length::px(1.0)).raw("background", "rgba(249, 223, 231, 0.10)");
+
+fun divider(): View {
+	view("div").styled(column).child(view("div").styled(rule_line))
+}
 
 // --- code panels ---
 
-let code_pre = const style().background(panel).radius(space(3)).padding(space(5)).margin(space(0)).overflow(Overflow::Auto).font_size(Length::rem(0.85)).line_height(1.65).raw("font-family", mono).raw("border", hairline).raw("white-space", "pre");
+let code_pre = const style().background(panel).radius(space(3)).padding(space(5)).margin(space(0)).overflow(Overflow::Auto).font_size(Length::px(13.0)).line_height(1.65).raw("font-family", mono).raw("border", hairline).raw("white-space", "pre");
 
 let tk_keyword = const style().color(ember);
 let tk_string = const style().color(rose);
-let tk_comment = const style().opacity(0.45);
 let tk_plain = const style().opacity(0.92);
 
 fun kw(text: str): View {
@@ -56,10 +69,6 @@ fun kw(text: str): View {
 
 fun st(text: str): View {
 	view("span").styled(tk_string).text(text)
-}
-
-fun cm(text: str): View {
-	view("span").styled(tk_comment).text(text)
 }
 
 fun t(text: str): View {
@@ -81,49 +90,61 @@ fun code_panel(lines: List<View>): View {
 // --- the page ---
 
 fun page(): View {
-	view("div").styled(shell).child(nav_bar()).child(hero()).child(install_section()).child(showcase_reactive()).child(showcase_fullstack()).child(showcase_compiler()).child(feature_grid()).child(dogfood()).child(page_footer())
+	view("div").styled(shell).child(masthead()).child(divider()).child(install_section()).child(divider()).child(showcase_reactive()).child(divider()).child(showcase_fullstack()).child(divider()).child(showcase_compiler()).child(divider()).child(feature_grid()).child(divider()).child(dogfood()).child(page_footer())
 }
 
-// --- nav ---
+// --- masthead: the bloom, the 64px toolbar, and the 1016px hero ---
 
-let nav_row = const style().display(Display::Flex).align_items(AlignItems::Center).justify_content(JustifyContent::Between).padding_y(space(4)).raw("border-bottom", hairline);
+// One positioned wrapper so the bloom can sit behind both the toolbar and
+// the hero. The bloom layer's design placement is 135px above the page top
+// (measured against the concept), and everything scales with the viewport
+// below the 1920 design width.
+let masthead_wrap = const style().position(Position::Relative).overflow(Overflow::Hidden);
 
-let nav_brand = const style().display(Display::Flex).align_items(AlignItems::Center).gap(space(3)).font_weight(700).raw("letter-spacing", "0.35em").font_size(Length::rem(0.95));
+// The bloom scales with the viewport but never below 1100px — narrower and
+// it would shrink away from under the stack, leaving dark ink on the dark
+// ground. Centered so the overflow crops evenly on phones.
+let bloom_layer = const style().position(Position::Absolute).raw("top", "calc(max(100vw, 1100px) * -0.0703)").raw("left", "50%").raw("transform", "translateX(-50%)").raw("width", "max(100vw, 1100px)").height(Length::auto()).raw("pointer-events", "none");
+
+let nav_row = const style().position(Position::Relative).display(Display::Flex).align_items(AlignItems::Center).justify_content(JustifyContent::Between).height(Length::px(64.0));
+
+let nav_brand = const style().display(Display::Flex).align_items(AlignItems::Center).gap(space(3)).font_weight(600).raw("letter-spacing", "0.35em").font_size(Length::px(13.0));
 
 let nav_links = const style().display(Display::Flex).gap(space(6));
 
 let nav_link = const style().color(blush).opacity(0.8).raw("text-decoration", "none").hover(style().opacity(1.0));
 
 fun nav_bar(): View {
-	view("nav").styled(column + nav_row).child(view("a").styled(nav_brand + nav_link).attr("href", "/").child(view("img").attr("src", i"{assets}/mark.svg").attr("alt", "").attr("height", "20")).child(view("span").text("VILAN"))).child(view("div").styled(nav_links).child(view("a").styled(nav_link).attr("href", "#install").text("Install")).child(view("a").styled(nav_link).attr("href", "/docs/tour/hello-vilan.html").text("Learn")).child(view("a").styled(nav_link).attr("href", "/docs/").text("Docs")))
+	view("nav").styled(column + nav_row).child(view("a").styled(nav_brand + nav_link).attr("href", "/").child(view("img").attr("src", i"{assets}/mark.svg").attr("alt", "").attr("height", "22")).child(view("span").text("VILAN"))).child(view("div").styled(nav_links).child(view("a").styled(nav_link).attr("href", "#install").text("Install")).child(view("a").styled(nav_link).attr("href", "/docs/tour/hello-vilan.html").text("Learn")).child(view("a").styled(nav_link).attr("href", "/docs/").text("Docs")))
 }
 
-// --- hero ---
+// Hero: 1016px at the design width, scaling as 52.92vw below it. The stack
+// (mark, wordmark, tagline) starts 292px in and is gapped 64px — all
+// vw-proportional with floors so phones stay legible. The headline artwork
+// gets a visually-hidden text twin for readers and robots.
+let hero_block = const style().position(Position::Relative).display(Display::Flex).flex_direction(FlexDirection::Column).align_items(AlignItems::Center).raw("height", "clamp(560px, 52.92vw, 1016px)").raw("padding-top", "clamp(180px, 15.21vw, 292px)").raw("gap", "clamp(40px, 3.333vw, 64px)").raw("box-sizing", "border-box");
 
-// The headline lives in the artwork (the wordmark is the brand's letterforms,
-// not a web font), so a visually-hidden twin carries it for readers, robots,
-// and anyone with images off.
+let hero_mark = const style().raw("width", "clamp(72px, 5.21vw, 100px)").height(Length::auto());
+
+let hero_wordmark = const style().raw("width", "clamp(224px, 16.22vw, 311px)").height(Length::auto());
+
+let hero_tagline = const style().raw("font-family", display_face).raw("font-size", "clamp(22px, 1.667vw, 32px)").raw("line-height", "1.5").font_weight(600).color(ink).margin(space(0)).text_align(TextAlign::Center);
+
 let visually_hidden = const style().position(Position::Absolute).width(Length::px(1.0)).height(Length::px(1.0)).overflow(Overflow::Hidden).raw("clip-path", "inset(50%)");
 
-let hero_art = const style().width(Length::pct(100.0)).height(Length::auto()).raw("display", "block");
-
-let cta_row = const style().display(Display::Flex).gap(space(4)).justify_content(JustifyContent::Center).raw("flex-wrap", "wrap").margin_y(space(2));
-
-let cta_primary = const style().background(blush).color(ink).font_weight(700).padding_y(space(3)).padding_x(space(6)).radius(Length::px(999.0)).raw("text-decoration", "none").hover(style().opacity(0.88));
-
-let cta_ghost = const style().color(blush).padding_y(space(3)).padding_x(space(6)).radius(Length::px(999.0)).raw("border", "1px solid rgba(249, 223, 231, 0.35)").raw("text-decoration", "none").hover(style().raw("border-color", "rgba(249, 223, 231, 0.8)"));
-
-let hero_note = const style().text_align(TextAlign::Center).opacity(0.6).font_size(Length::rem(0.9)).margin_y(space(4));
-
 fun hero(): View {
-	view("header").child(view("h1").styled(visually_hidden).text("Vilan — the modern web language")).child(view("img").styled(hero_art).attr("src", i"{assets}/hero.webp").attr("alt", "VILAN — The Modern Web Language")).child(view("div").styled(cta_row).child(view("a").styled(cta_primary).attr("href", "#install").text("Get started")).child(view("a").styled(cta_ghost).attr("href", "/docs/").text("Read the docs"))).child(view("p").styled(hero_note).text("Free and open source · MIT or Apache-2.0"))
+	view("header").styled(hero_block).child(view("h1").styled(visually_hidden).text("Vilan — The Modern Web Language")).child(view("img").styled(hero_mark).attr("src", i"{assets}/dark_logo_flat.svg").attr("alt", "")).child(view("img").styled(hero_wordmark).attr("src", i"{assets}/wordmark_hero.svg").attr("alt", "VILAN")).child(view("p").styled(hero_tagline).attr("aria-hidden", "true").text("The Modern Web Language"))
+}
+
+fun masthead(): View {
+	view("div").styled(masthead_wrap).child(view("img").styled(bloom_layer).attr("src", i"{assets}/bloom.webp").attr("alt", "")).child(nav_bar()).child(hero())
 }
 
 // --- install ---
 
-let install_label = const style().color(ember).font_size(Length::rem(0.78)).font_weight(700).raw("letter-spacing", "0.12em").raw("text-transform", "uppercase").margin_y(space(1));
+let install_label = const style().color(ember).font_size(Length::px(12.0)).font_weight(600).raw("letter-spacing", "0.12em").raw("text-transform", "uppercase").margin_y(space(1));
 
-let install_command = const style().background(panel).radius(space(2)).padding_y(space(3)).padding_x(space(4)).font_size(Length::rem(0.9)).raw("font-family", mono).raw("border", hairline).raw("user-select", "all").overflow(Overflow::Auto).raw("white-space", "pre");
+let install_command = const style().background(panel).radius(space(2)).padding_y(space(3)).padding_x(space(4)).font_size(Length::px(13.0)).raw("font-family", mono).raw("border", hairline).raw("user-select", "all").overflow(Overflow::Auto).raw("white-space", "pre");
 
 let install_grid = const style().display(Display::Flex).flex_direction(FlexDirection::Column).gap(space(4)).margin_y(space(6));
 
@@ -150,7 +171,7 @@ fun showcase(prose: View, code: View): View {
 
 let demo_box = const style().display(Display::Flex).align_items(AlignItems::Center).gap(space(4)).margin_y(space(4)).padding(space(4)).radius(space(3)).raw("border", hairline);
 
-let demo_button = const style().background(blush).color(ink).font_weight(700).padding_y(space(2)).padding_x(space(5)).radius(Length::px(999.0)).raw("border", "none").font_size(Length::rem(1.0)).cursor(Cursor::Pointer).hover(style().opacity(0.88));
+let demo_button = const style().background(blush).color(ink).font_weight(600).padding_y(space(2)).padding_x(space(5)).radius(Length::px(999.0)).raw("border", "none").font_size(Length::px(14.0)).raw("font-family", body_face).cursor(Cursor::Pointer).hover(style().opacity(0.88));
 
 let demo_label = const style().margin(space(0)).opacity(0.85);
 
@@ -169,9 +190,10 @@ fun showcase_fullstack(): View {
 	view("section").styled(column + section_block).child(showcase(view("div").styled(showcase_copy).child(view("h2").styled(heading).text("The server is a struct. The client is generated.")).child(view("p").styled(lead).text("Mark a method [rpc] and the browser can call it — typed, checked, awaited like any other call. Mark a signal [expose] and every connected client holds a live mirror that updates when the server writes.")).child(view("p").styled(lead).text("No REST endpoints, no fetch calls, no JSON shapes drifting out of sync by hand. The compiler knows both sides, and it also knows which code runs where: server-only code can never leak into the browser bundle.")).child(docs_link("/docs/guide/services.html", "Services & RPC in the guide")), code_panel([ln([t("["), kw("derive"), t("(Wire, PartialEq)]")]), ln([kw("struct"), t(" Note {")]), ln([t("    id: i32,")]), ln([t("    text: str,")]), ln([t("}")]), blank(), ln([t("["), kw("service"), t("(NotesClient)]")]), ln([kw("struct"), t(" Notes {")]), ln([t("    ["), kw("expose"), t("] entries: Signal<List<Note>>,")]), ln([t("    next_id: Shared<i32>,")]), ln([t("}")]), blank(), ln([kw("impl"), t(" Notes {")]), ln([t("    ["), kw("rpc"), t("]")]), ln([t("    "), kw("fun"), t(" add(self, text: str): i32 {")]), ln([t("        "), kw("let"), t(" id = self.next_id.read();")]), ln([t("        self.next_id.write() = id + 1;")]), ln([t("        self.entries.set_with(|list| {")]), ln([t("            "), kw("mut"), t(" updated = list;")]), ln([t("            updated.push(Note { id = id, text = text });")]), ln([t("            updated")]), ln([t("        });")]), ln([t("        id")]), ln([t("    }")]), ln([t("}")])])))
 }
 
-// The compiler — a real mistake and the real diagnostic, byte for byte.
+// The compiler — a real mistake and the real diagnostic. The snippet is the
+// diagnosed file, byte for byte, so the line numbers agree.
 
-let diag_pre = const style().background(panel).radius(space(3)).padding(space(5)).margin(space(0)).overflow(Overflow::Auto).font_size(Length::rem(0.85)).line_height(1.65).raw("font-family", mono).raw("border", "1px solid rgba(211, 84, 45, 0.35)").raw("white-space", "pre");
+let diag_pre = const style().background(panel).radius(space(3)).padding(space(5)).margin(space(0)).overflow(Overflow::Auto).font_size(Length::px(13.0)).line_height(1.65).raw("font-family", mono).raw("border", "1px solid rgba(211, 84, 45, 0.35)").raw("white-space", "pre");
 
 let diag_error = const style().color(ember).font_weight(700);
 let diag_frame = const style().opacity(0.5);
@@ -183,15 +205,18 @@ fun showcase_compiler(): View {
 
 // --- feature grid ---
 
-let cards_grid = const style().display(Display::Grid).gap(space(4)).margin_y(space(8)).sm(style().raw("grid-template-columns", "1fr 1fr")).lg(style().raw("grid-template-columns", "1fr 1fr 1fr"));
+// One breakpoint only: std::style emits media rules in an order that lets a
+// narrower min-width override a wider one on the same property (filed as a
+// backlog item), so sm(2col) + lg(3col) here would render 2-col on desktop.
+let cards_grid = const style().display(Display::Grid).gap(space(4)).margin_y(space(8)).lg(style().raw("grid-template-columns", "1fr 1fr 1fr"));
 
 let card = const style().display(Display::Flex).flex_direction(FlexDirection::Column).gap(space(2)).padding(space(5)).radius(space(3)).background(panel).raw("border", hairline);
 
-let card_title = const style().font_size(Length::rem(1.05)).font_weight(700).margin(space(0));
+let card_title = const style().raw("font-family", display_face).font_size(Length::px(20.0)).raw("line-height", "28px").font_weight(600).margin(space(0));
 
-let card_body = const style().margin(space(0)).opacity(0.78).font_size(Length::rem(0.95));
+let card_body = const style().margin(space(0)).opacity(0.78);
 
-let card_link = const style().color(ember).font_size(Length::rem(0.9)).raw("text-decoration", "none").hover(style().raw("text-decoration", "underline"));
+let card_link = const style().color(ember).font_size(Length::px(13.0)).raw("text-decoration", "none").hover(style().raw("text-decoration", "underline"));
 
 fun docs_link(href: str, label: str): View {
 	view("a").styled(card_link).attr("href", href).text(i"{label} →")
@@ -209,7 +234,7 @@ fun feature_grid(): View {
 
 let dogfood_panel = const style().padding(space(6)).radius(space(3)).background(panel).raw("border", hairline).text_align(TextAlign::Center);
 
-let dogfood_text = const style().margin(space(0)).font_size(Length::rem(1.05));
+let dogfood_text = const style().margin(space(0)).font_size(Length::px(15.0));
 
 let dogfood_cta = const style().margin_y(space(2));
 
@@ -217,11 +242,11 @@ fun dogfood(): View {
 	view("section").styled(column + section_block).child(view("div").styled(dogfood_panel).child(view("p").styled(dogfood_text).text("This site is a vilan program — one package, two entries. The server rendered the markup you first saw; the browser rebuilt it live.")).child(view("p").styled(dogfood_cta).child(docs_link("https://github.com/vilan-lang/website", "Read this page's source"))))
 }
 
-let footer_block = const style().raw("border-top", hairline).padding_y(space(12)).raw("margin-top", "2rem");
+let footer_block = const style().raw("border-top", hairline).padding_y(space(12));
 
 let footer_grid = const style().display(Display::Grid).gap(space(8)).lg(style().raw("grid-template-columns", "2fr 1fr 1fr 1fr"));
 
-let footer_head = const style().font_weight(700).margin_y(space(2));
+let footer_head = const style().font_weight(600).margin_y(space(2));
 
 let footer_list = const style().display(Display::Flex).flex_direction(FlexDirection::Column).gap(space(2));
 

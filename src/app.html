@@ -15,7 +15,25 @@
 	<meta property="og:type" content="website">
 	<meta name="twitter:card" content="summary_large_image">
 	<link rel="stylesheet" href="/client.css">
-	<style>html, body { margin: 0; height: 100%; background: #120004; }</style>
+	<style>
+		/* Self-hosted webfonts (OFL): Inter is the variable file, one face for
+		   every weight; Raleway ships the one weight the design uses. */
+		@font-face {
+			font-family: "Inter";
+			font-style: normal;
+			font-weight: 100 900;
+			font-display: swap;
+			src: url(https://vilan-lang.org/assets/fonts/inter-latin.woff2) format("woff2");
+		}
+		@font-face {
+			font-family: "Raleway";
+			font-style: normal;
+			font-weight: 600;
+			font-display: swap;
+			src: url(https://vilan-lang.org/assets/fonts/raleway-600-latin.woff2) format("woff2");
+		}
+		html, body { margin: 0; height: 100%; background: #120004; }
+	</style>
 </head>
 <body>
 	<div id="app"><!--ssr--></div>
