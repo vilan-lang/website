@@ -67,11 +67,12 @@ let stack = const style().display(Display::Flex).flex_direction(FlexDirection::C
 // Rise-in on viewport entry. The 1ms duration is the no-support fallback:
 // without animation-timeline the animation completes instantly and the
 // element is simply visible; with it, the timeline replaces the duration.
-// Longhands only: the `animation` shorthand RESETS animation-timeline to
-// auto, and shorthand + timeline live in separate emitted rules whose
-// cascade order is not guaranteed (the backlog-35 hazard) - longhands
-// cannot collide.
-let reveal = const style().raw("animation-name", "reveal-rise").raw("animation-duration", "1ms").raw("animation-fill-mode", "both").raw("animation-timeline", "view()").raw("animation-range", "entry 0% entry 55%");
+// A pure marker: the client finds every element carrying this class and
+// drives the scroll-in reveal with inline transitions (see client.vl) —
+// scroll-driven CSS animations scrub imperceptibly for short elements, break
+// down with smooth scrolling off, and lack Safari/Firefox support. Server
+// markup ships fully visible; no JS, no hiding.
+let reveal = const style().raw("--reveal", "1");
 
 let heading = const (style().raw("font-family", display_face).font_size(Length::px(32.0)).raw("line-height", "48px").font_weight(600).margin(space(0)) + reveal);
 
@@ -123,13 +124,13 @@ fun code_panel(lines: List<View>): View {
 
 // --- the page ---
 
-fun page(scroll_fade: Signal<str>): View {
+fun page(scroll_fade: Signal<str>, copy: |str| void): View {
 	view("div").styled(shell)
 		.child(bloom())
 		.child(top_bar(scroll_fade))
 		.child(masthead())
 		.child(divider())
-		.child(install_section())
+		.child(install_section(copy))
 		.child(divider())
 		.child(showcase_reactive())
 		.child(divider())
@@ -556,29 +557,41 @@ fun dataflow_art(): View {
 
 let install_label = const style().color(ember).font_size(Length::px(12.0)).font_weight(600).raw("letter-spacing", "0.12em").raw("text-transform", "uppercase").margin_y(space(1));
 
-let install_command = const style().background(panel).radius(space(2)).padding_y(space(3)).padding_x(space(4)).font_size(Length::px(13.0)).raw("font-family", mono).raw("border", hairline).raw("user-select", "all").overflow(Overflow::Auto).raw("white-space", "pre");
+let install_command = const style().raw("flex", "1").raw("min-width", "0").background(panel).radius(space(2)).padding_y(space(3)).padding_x(space(4)).font_size(Length::px(13.0)).raw("font-family", mono).raw("border", hairline).raw("user-select", "all").overflow(Overflow::Auto).raw("white-space", "pre");
 
 // min-width 0: as a grid item, the default min-width:auto would let the
 // commands' pre-formatted min-content width blow the column open on phones.
+let install_command_row = const style().display(Display::Flex).align_items(AlignItems::Center).gap(space(3));
+
+let copy_button = const style().raw("flex-shrink", "0").background(panel).color(blush).font_size(Length::px(12.0)).raw("font-family", body_face).padding_y(space(2)).padding_x(space(4)).radius(Length::px(999.0)).raw("border", hairline).raw("user-select", "none").cursor(Cursor::Pointer).transition("border-color 140ms ease, transform 120ms ease").hover(style().raw("border-color", "rgba(235, 104, 46, 0.6)")).active(style().raw("transform", "scale(0.94)"));
+
 let install_grid = const style().display(Display::Flex).flex_direction(FlexDirection::Column).gap(space(4)).raw("min-width", "0");
 
 let install_split = const (style().display(Display::Grid).gap(space(8)).raw("align-items", "center").lg(style().raw("grid-template-columns", "6fr 5fr")) + reveal);
 
 let install_art_cell = const (style().raw("display", "none").lg(style().raw("display", "block")) + no_select);
 
-fun install_row(label: str, command: str): View {
-	view("div").child(view("p").styled(install_label).text(label)).child(view("div").styled(install_command).text(command))
+fun install_row(label: str, command: str, copy: |str| void): View {
+	let copied = Signal::new("Copy");
+	view("div")
+		.child(view("p").styled(install_label).text(label))
+		.child(view("div").styled(install_command_row)
+			.child(view("div").styled(install_command).text(command))
+			.child(view("button").styled(copy_button).bind_text(copied).on("click", || {
+				copy(command);
+				copied.set("Copied ✓");
+			})))
 }
 
-fun install_section(): View {
+fun install_section(copy: |str| void): View {
 	view("section").attr("id", "install").styled(column + section_block + stack)
 		.child(view("h2").styled(heading).text("One command, the whole toolchain"))
 		.child(view("p").styled(lead).child(pt("Compiler, dev server with hot reload, formatter, test runner, and language server — one small binary, no configuration to assemble. Update any time with ")).child(leaf("vilan upgrade")).child(pt(".")))
 		.child(view("div").styled(install_split)
 			.child(view("div").styled(install_grid)
-				.child(install_row("macOS / Linux", "curl -fsSL https://github.com/vilan-lang/vilan/releases/latest/download/install.sh | sh"))
-				.child(install_row("Windows (PowerShell)", "irm https://github.com/vilan-lang/vilan/releases/latest/download/install.ps1 | iex"))
-				.child(install_row("Homebrew", "brew install vilan-lang/vilan/vilan")))
+				.child(install_row("macOS / Linux", "curl -fsSL https://github.com/vilan-lang/vilan/releases/latest/download/install.sh | sh", copy))
+				.child(install_row("Windows (PowerShell)", "irm https://github.com/vilan-lang/vilan/releases/latest/download/install.ps1 | iex", copy))
+				.child(install_row("Homebrew", "brew install vilan-lang/vilan/vilan", copy)))
 			.child(view("div").styled(install_art_cell).child(toolchain_art())))
 }
 
@@ -713,7 +726,7 @@ fun editor_band(): View {
 // One breakpoint only: std::style emits media rules in an order that lets a
 // narrower min-width override a wider one on the same property (filed as a
 // backlog item), so sm(2col) + lg(3col) here would render 2-col on desktop.
-let cards_grid = const (style().display(Display::Grid).gap(space(4)).lg(style().raw("grid-template-columns", "1fr 1fr 1fr")) + reveal);
+let cards_grid = const (style().display(Display::Grid).gap(space(4)).raw("background", "radial-gradient(340px circle at var(--glow-x, -999px) var(--glow-y, -999px), rgba(235, 104, 46, 0.10), transparent 70%)").lg(style().raw("grid-template-columns", "1fr 1fr 1fr")) + reveal);
 
 let card = const style().display(Display::Flex).flex_direction(FlexDirection::Column).gap(space(2)).padding(space(5)).radius(space(3)).background(panel).raw("border", hairline).transition("transform 180ms ease, border-color 180ms ease, box-shadow 180ms ease").hover(style().raw("transform", "translateY(-3px)").raw("border-color", "rgba(249, 223, 231, 0.22)").raw("box-shadow", "0 10px 32px rgba(0, 0, 0, 0.4)"));
 
@@ -769,7 +782,7 @@ fun feature(icon: str, name: str, body: List<View>, href: str): View {
 fun feature_grid(): View {
 	view("section").styled(column + section_block + stack)
 		.child(view("h2").styled(heading).text("What the language holds"))
-		.child(view("div").styled(cards_grid)
+		.child(view("div").styled(cards_grid).attr("data-glow", "")
 			.child(feature("shield-check", "No null, no exceptions", [leaf_link("/docs/std/option-result.html#optiont", "Option"), pt(" and "), leaf_link("/docs/std/option-result.html#resultt-e", "Result"), pt(" are the only ways out, and "), leaf("match"), pt(" makes you handle both arms. Errors are values you route, not surprises you catch.")], "/docs/std/option-result.html"))
 			.child(feature("copy", "Values, not references", [pt("Assignment copies. Sharing is explicit, borrowing is checked, and spooky action at a distance is a compile error.")], "/docs/tour/memory-model.html"))
 			.child(feature("zap", "Async without the ceremony", [leaf_link("/docs/tour/async.html#opting-out-of-waiting-async-and-await", "await"), pt(" is implicit — call an async function and the machinery is the compiler's problem. Structured concurrency with tasks and "), leaf_link("/docs/tour/async.html#nurseries-structured-spawning", "nurseries"), pt(" when you want it.")], "/docs/tour/async.html"))

@@ -2,23 +2,39 @@
 // clears the container — the server-rendered markup — and appends the freshly
 // built live UI: render, then replace.
 //
-// This is also where the page's one browser-only enhancement lives: the
-// sticky toolbar's scroll state. The externs are declared here, not in
-// page.vl, so the shared page stays platform-neutral; the server just passes
-// a constant `false`.
+// This is also where every browser-only enhancement lives, so the shared page
+// stays platform-neutral: the sticky toolbar's scroll fade, the scroll-in
+// reveals (a passive scroll listener + inline transitions — deliberately NOT
+// scroll-driven CSS animations: those scrub with scroll position, which is
+// imperceptible for short elements and choppy with smooth scrolling off, and
+// Safari/Firefox support is limited), the install strip's clipboard, and the
+// feature grid's cursor glow. The server passes inert stand-ins for all of it.
 
+import std::json::{ JsonValue, parse_json_value };
 import std::reactive::{ FlushPolicy, Signal, turn };
 import std::ui::mount_root;
-import pkg::page::page;
+import pkg::page::{ page, reveal };
 
+// `window.addEventListener(type, handler, { passive: true })` — the options
+// object is a parsed JSON literal (a plain JS object at runtime). A passive
+// listener never blocks the scroll thread.
 [extern("window.addEventListener")]
-external fun window_listen(event: str, handler: || void): void;
+external fun window_listen(event: str, handler: || void, options: JsonValue): void;
 
-/// `document.querySelector` typed at the one selector we use: `html` is the
-/// scrolling element in standards mode, and its `scrollTop` is the page's
-/// scroll position. (A global *property* like `document.scrollingElement`
-/// has no function form — same reason std::router reads the path through a
-/// helper.)
+[extern("window.matchMedia")]
+external fun match_media(query: str): MediaProbe;
+
+external struct MediaProbe;
+
+impl MediaProbe {
+	[extern(get, "matches")]
+	external fun matches(self): bool;
+}
+
+/// `document.querySelector` typed at `html`: the scrolling element in
+/// standards mode — `scrollTop` is the page's scroll position and
+/// `clientHeight` the viewport height. (A global *property* like
+/// `document.scrollingElement` has no function form.)
 [extern("document.querySelector")]
 external fun scroll_probe(selector: str): ScrollProbe;
 
@@ -27,20 +43,127 @@ external struct ScrollProbe;
 impl ScrollProbe {
 	[extern(get, "scrollTop")]
 	external fun scroll_top(self): f64;
+
+	[extern(get, "clientHeight")]
+	external fun client_height(self): f64;
+}
+
+/// The reveal candidates (every element carrying the `reveal` marker style),
+/// as probes that can be measured and styled directly.
+[extern("document.querySelectorAll")]
+external fun reveal_targets(selector: str): List<RevealProbe>;
+
+external struct RevealProbe;
+
+impl RevealProbe {
+	[extern(method, "getBoundingClientRect")]
+	external fun rect(self): DomRect;
+
+	[extern(method, "style.setProperty")]
+	external fun set_style(self, name: str, value: str): void;
+}
+
+external struct DomRect;
+
+impl DomRect {
+	[extern(get, "top")]
+	external fun top(self): f64;
+}
+
+/// `navigator.clipboard.writeText` — the member call keeps its receiver, the
+/// same shape as std::router's `history.pushState`.
+[extern("navigator.clipboard.writeText")]
+external fun clipboard_write(text: str): void;
+
+/// The feature grid, for the cursor glow: mousemove coordinates flow into
+/// the `--glow-x/--glow-y` custom properties its background reads.
+[extern("document.querySelector")]
+external fun glow_target(selector: str): GlowProbe;
+
+external struct GlowProbe;
+
+impl GlowProbe {
+	[extern(method, "addEventListener")]
+	external fun on_mouse(self, event: str, handler: |MouseProbe| void, options: JsonValue): void;
+
+	[extern(method, "getBoundingClientRect")]
+	external fun rect(self): DomRect2;
+
+	[extern(method, "style.setProperty")]
+	external fun set_style(self, name: str, value: str): void;
+}
+
+external struct DomRect2;
+
+impl DomRect2 {
+	[extern(get, "top")]
+	external fun top(self): f64;
+
+	[extern(get, "left")]
+	external fun left(self): f64;
+}
+
+external struct MouseProbe;
+
+impl MouseProbe {
+	[extern(get, "clientX")]
+	external fun client_x(self): f64;
+
+	[extern(get, "clientY")]
+	external fun client_y(self): f64;
 }
 
 fun main() {
 	let scroll_fade = Signal::new("0");
-	let _root = mount_root("app", || page(scroll_fade));
+	let _root = mount_root("app", || page(scroll_fade, |text| clipboard_write(text)));
 
-	// The toolbar's --nav-fade: scroll/64 clamped to [0,1], linked 1:1 to
-	// scroll position. A scroll arrives outside any vilan turn, exactly like
-	// `popstate` in std::router — wrap the write so it settles as one wave.
+	let passive = parse_json_value("{\"passive\": true}");
 	let probe = scroll_probe("html");
+	let reduced_motion = match_media("(prefers-reduced-motion: reduce)").matches();
+
+	// One selector finds every element the page marked with the `reveal`
+	// style — the marker's hashed class is knowable at runtime.
+	let targets = reveal_targets(i".{reveal.class_list()}");
+	let viewport = probe.client_height();
+
+	// Below-fold candidates start hidden (no transition yet, so the hide is
+	// instant); everything already on screen is left untouched — the
+	// server-rendered first paint never flashes.
+	if !reduced_motion {
+		for target in targets {
+			if target.rect().top() > viewport - 40.0 {
+				target.set_style("opacity", "0");
+				target.set_style("transform", "translateY(28px)");
+			}
+		}
+	}
+
+	// The one passive scroll handler: publish the toolbar fade, and reveal
+	// whatever has entered the viewport. Reveal writes are idempotent —
+	// re-setting the same value retriggers nothing — so no bookkeeping.
 	let publish = || turn(FlushPolicy::AtSuspension, || {
 		let progress = (probe.scroll_top() / 64.0).min(1.0).max(0.0);
 		scroll_fade.set(i"{progress}");
+
+		if !reduced_motion {
+			let line = probe.client_height() * 0.92;
+			for target in targets {
+				if target.rect().top() < line {
+					target.set_style("transition", "opacity 600ms ease, transform 600ms ease");
+					target.set_style("opacity", "1");
+					target.set_style("transform", "none");
+				}
+			}
+		}
 	});
 	publish();
-	window_listen("scroll", publish);
+	window_listen("scroll", publish, passive);
+
+	// The cursor glow on the feature grid.
+	let grid = glow_target("[data-glow]");
+	grid.on_mouse("mousemove", |mouse| {
+		let bounds = grid.rect();
+		grid.set_style("--glow-x", i"{mouse.client_x() - bounds.left()}px");
+		grid.set_style("--glow-y", i"{mouse.client_y() - bounds.top()}px");
+	}, parse_json_value("{\"passive\": true}"));
 }
