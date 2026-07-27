@@ -2,52 +2,237 @@
 // first paint (view source — the content is already there), the client rebuilds
 // it as live DOM and replaces it on boot. Build pure, bind reactive: nothing
 // here reaches for `std::dom`, so the same source compiles on both platforms.
+//
+// Layout and art direction follow the landing concept in the brand repository
+// (`vilan-lang/branding`, `assets/landing_page_concept.png`): the bloom hero
+// and the footer are the concept's own; the sections between them are the
+// content the concept leaves blank. Images are served from the production
+// asset space (vilan-lang.org/assets) so dev and deployed builds see the
+// same bytes.
 
-import std::style::{ AlignItems, Color, Display, FlexDirection, Length, TextAlign, space, style };
+import std::reactive::Signal;
+import std::style::{ AlignItems, Color, Cursor, Display, FlexDirection, JustifyContent, Length, Overflow, Position, TextAlign, space, style };
 import std::ui::{ View, view };
 
-// --- the brand palette ---
+// --- the brand palette (vilan-lang/branding: README.md) ---
 
-let ink = const Color::hex("#110C31");
-let lavender = const Color::hex("#D4CDFF");
-let pink = const Color::hex("#F3145B");
+let ink = const Color::hex("#120004");
+let blush = const Color::hex("#F9DFE7");
+let panel = const Color::hex("#1B060D");
+let ember = const Color::hex("#D3542D");
+let rose = const Color::hex("#D98BA4");
 
-// --- styles ---
+let assets = "https://vilan-lang.org/assets";
+let repo = "https://github.com/vilan-lang/vilan";
 
-let shell = const style().display(Display::Flex).flex_direction(FlexDirection::Column).align_items(AlignItems::Center).gap(space(12)).min_height(Length::pct(100.0)).padding_y(space(20)).padding_x(space(6)).background(ink).color(lavender).text_align(TextAlign::Center).raw("font-family", "system-ui, sans-serif");
+// --- shared styles ---
 
-let title = const style().font_size(Length::rem(4.0)).font_weight(800).margin(space(0)).color(lavender);
+let shell = const style().background(ink).color(blush).min_height(Length::pct(100.0)).raw("font-family", "system-ui, -apple-system, 'Segoe UI', sans-serif").line_height(1.6);
 
-let tagline = const style().font_size(Length::rem(1.25)).line_height(1.6).max_width(Length::rem(38.0)).margin_y(space(4));
+let column = const style().max_width(Length::rem(68.0)).margin_x(Length::auto()).padding_x(space(6));
 
-let accent = const style().color(pink);
+let section_block = const style().padding_y(space(16));
 
-let feature_row = const style().display(Display::Flex).flex_direction(FlexDirection::Row).gap(space(6)).raw("flex-wrap", "wrap").raw("justify-content", "center");
+let heading = const style().font_size(Length::rem(1.9)).font_weight(700).margin(space(0)).raw("letter-spacing", "0.01em");
 
-let card = const style().display(Display::Flex).flex_direction(FlexDirection::Column).gap(space(2)).padding(space(6)).radius(space(2)).max_width(Length::rem(20.0)).background(Color::hex("#1B1546")).text_align(TextAlign::Left);
+let lead = const style().font_size(Length::rem(1.1)).opacity(0.82).max_width(Length::rem(42.0)).margin_y(space(3));
 
-let card_title = const style().color(pink).font_weight(700).margin(space(0));
+let hairline = "1px solid rgba(249, 223, 231, 0.10)";
 
-let card_body = const style().line_height(1.5).margin(space(0));
+let mono = "ui-monospace, SFMono-Regular, Menlo, Consolas, monospace";
+
+// --- code panels ---
+
+let code_pre = const style().background(panel).radius(space(3)).padding(space(5)).margin(space(0)).overflow(Overflow::Auto).font_size(Length::rem(0.85)).line_height(1.65).raw("font-family", mono).raw("border", hairline).raw("white-space", "pre");
+
+let tk_keyword = const style().color(ember);
+let tk_string = const style().color(rose);
+let tk_comment = const style().opacity(0.45);
+let tk_plain = const style().opacity(0.92);
+
+fun kw(text: str): View {
+	view("span").styled(tk_keyword).text(text)
+}
+
+fun st(text: str): View {
+	view("span").styled(tk_string).text(text)
+}
+
+fun cm(text: str): View {
+	view("span").styled(tk_comment).text(text)
+}
+
+fun t(text: str): View {
+	view("span").styled(tk_plain).text(text)
+}
+
+fun ln(spans: List<View>): View {
+	view("div").children(spans)
+}
+
+fun blank(): View {
+	view("div").text(" ")
+}
+
+fun code_panel(lines: List<View>): View {
+	view("pre").styled(code_pre).children(lines)
+}
 
 // --- the page ---
 
 fun page(): View {
-	view("main").styled(shell).child(hero()).child(features()).child(footer())
+	view("div").styled(shell).child(nav_bar()).child(hero()).child(install_section()).child(showcase_reactive()).child(showcase_fullstack()).child(showcase_compiler()).child(feature_grid()).child(dogfood()).child(page_footer())
 }
+
+// --- nav ---
+
+let nav_row = const style().display(Display::Flex).align_items(AlignItems::Center).justify_content(JustifyContent::Between).padding_y(space(4)).raw("border-bottom", hairline);
+
+let nav_brand = const style().display(Display::Flex).align_items(AlignItems::Center).gap(space(3)).font_weight(700).raw("letter-spacing", "0.35em").font_size(Length::rem(0.95));
+
+let nav_links = const style().display(Display::Flex).gap(space(6));
+
+let nav_link = const style().color(blush).opacity(0.8).raw("text-decoration", "none").hover(style().opacity(1.0));
+
+fun nav_bar(): View {
+	view("nav").styled(column + nav_row).child(view("a").styled(nav_brand + nav_link).attr("href", "/").child(view("img").attr("src", i"{assets}/mark.svg").attr("alt", "").attr("height", "20")).child(view("span").text("VILAN"))).child(view("div").styled(nav_links).child(view("a").styled(nav_link).attr("href", "#install").text("Install")).child(view("a").styled(nav_link).attr("href", "/docs/tour/hello-vilan.html").text("Learn")).child(view("a").styled(nav_link).attr("href", "/docs/").text("Docs")))
+}
+
+// --- hero ---
+
+// The headline lives in the artwork (the wordmark is the brand's letterforms,
+// not a web font), so a visually-hidden twin carries it for readers, robots,
+// and anyone with images off.
+let visually_hidden = const style().position(Position::Absolute).width(Length::px(1.0)).height(Length::px(1.0)).overflow(Overflow::Hidden).raw("clip-path", "inset(50%)");
+
+let hero_art = const style().width(Length::pct(100.0)).height(Length::auto()).raw("display", "block");
+
+let cta_row = const style().display(Display::Flex).gap(space(4)).justify_content(JustifyContent::Center).raw("flex-wrap", "wrap").margin_y(space(2));
+
+let cta_primary = const style().background(blush).color(ink).font_weight(700).padding_y(space(3)).padding_x(space(6)).radius(Length::px(999.0)).raw("text-decoration", "none").hover(style().opacity(0.88));
+
+let cta_ghost = const style().color(blush).padding_y(space(3)).padding_x(space(6)).radius(Length::px(999.0)).raw("border", "1px solid rgba(249, 223, 231, 0.35)").raw("text-decoration", "none").hover(style().raw("border-color", "rgba(249, 223, 231, 0.8)"));
+
+let hero_note = const style().text_align(TextAlign::Center).opacity(0.6).font_size(Length::rem(0.9)).margin_y(space(4));
 
 fun hero(): View {
-	view("header").child(view("h1").styled(title).text("vilan")).child(view("p").styled(tagline).text("One language for the whole stack — typed, reactive, and compiled to fast JavaScript for the server and the browser alike."))
+	view("header").child(view("h1").styled(visually_hidden).text("Vilan — the modern web language")).child(view("img").styled(hero_art).attr("src", i"{assets}/hero.webp").attr("alt", "VILAN — The Modern Web Language")).child(view("div").styled(cta_row).child(view("a").styled(cta_primary).attr("href", "#install").text("Get started")).child(view("a").styled(cta_ghost).attr("href", "/docs/").text("Read the docs"))).child(view("p").styled(hero_note).text("Free and open source · MIT or Apache-2.0"))
 }
 
-fun features(): View {
-	view("section").styled(feature_row).child(feature("Fullstack by design", "One workspace compiles a node server and a browser client that share types and code.")).child(feature("Reactive UI", "Signals and views, no virtual DOM — updates land exactly where the data changed.")).child(feature("Server-side rendered", "This page is rendered by the vilan server that serves it. View source: the markup is already there."))
+// --- install ---
+
+let install_label = const style().color(ember).font_size(Length::rem(0.78)).font_weight(700).raw("letter-spacing", "0.12em").raw("text-transform", "uppercase").margin_y(space(1));
+
+let install_command = const style().background(panel).radius(space(2)).padding_y(space(3)).padding_x(space(4)).font_size(Length::rem(0.9)).raw("font-family", mono).raw("border", hairline).raw("user-select", "all").overflow(Overflow::Auto).raw("white-space", "pre");
+
+let install_grid = const style().display(Display::Flex).flex_direction(FlexDirection::Column).gap(space(4)).margin_y(space(6));
+
+fun install_row(label: str, command: str): View {
+	view("div").child(view("p").styled(install_label).text(label)).child(view("div").styled(install_command).text(command))
 }
 
-fun feature(name: str, body: str): View {
-	view("article").styled(card).child(view("h2").styled(card_title).text(name)).child(view("p").styled(card_body).text(body))
+fun install_section(): View {
+	view("section").attr("id", "install").styled(column + section_block).child(view("h2").styled(heading).text("One command, the whole toolchain")).child(view("p").styled(lead).text("Compiler, dev server with hot reload, formatter, test runner, and language server — one small binary, no configuration to assemble. Update any time with vilan upgrade.")).child(view("div").styled(install_grid).child(install_row("macOS / Linux", "curl -fsSL https://github.com/vilan-lang/vilan/releases/latest/download/install.sh | sh")).child(install_row("Windows (PowerShell)", "irm https://github.com/vilan-lang/vilan/releases/latest/download/install.ps1 | iex")).child(install_row("Homebrew", "brew install vilan-lang/vilan/vilan")))
 }
 
-fun footer(): View {
-	view("footer").child(view("p").styled(accent).text("Built with vilan."))
+// --- showcases ---
+
+let showcase_grid = const style().display(Display::Grid).gap(space(8)).raw("align-items", "center").lg(style().raw("grid-template-columns", "5fr 6fr"));
+
+let showcase_copy = const style().display(Display::Flex).flex_direction(FlexDirection::Column).gap(space(2));
+
+fun showcase(prose: View, code: View): View {
+	view("div").styled(showcase_grid).child(prose).child(code)
+}
+
+// Reactive UI — the guide's own counter, and a live copy of it: the snippet
+// on this page is the program running beside it.
+
+let demo_box = const style().display(Display::Flex).align_items(AlignItems::Center).gap(space(4)).margin_y(space(4)).padding(space(4)).radius(space(3)).raw("border", hairline);
+
+let demo_button = const style().background(blush).color(ink).font_weight(700).padding_y(space(2)).padding_x(space(5)).radius(Length::px(999.0)).raw("border", "none").font_size(Length::rem(1.0)).cursor(Cursor::Pointer).hover(style().opacity(0.88));
+
+let demo_label = const style().margin(space(0)).opacity(0.85);
+
+fun counter_demo(): View {
+	let count = Signal::new(0);
+	view("div").styled(demo_box).child(view("button").styled(demo_button).text("+1").on("click", || count.set_with(|n: i32| n + 1))).child(view("p").styled(demo_label).bind_text(count.map(|n: i32| i"clicked {n} times")))
+}
+
+fun showcase_reactive(): View {
+	view("section").styled(column + section_block).child(showcase(view("div").styled(showcase_copy).child(view("h2").styled(heading).text("UI that follows your data")).child(view("p").styled(lead).text("A view is a value and a binding is a subscription: bind_text sets the one text node now and re-sets it whenever the signal changes. No virtual DOM, no render loop, no dependency arrays — updates land exactly where the data changed.")).child(view("p").styled(lead).text("The snippet is the whole program. This one runs — it is running right here:")).child(counter_demo()), code_panel([ln([kw("import"), t(" std::ui::{ view, mount_root };")]), ln([kw("import"), t(" std::reactive::Signal;")]), blank(), ln([kw("fun"), t(" main() {")]), ln([t("    "), kw("let"), t(" count = Signal::new(0);")]), ln([t("    "), kw("let"), t(" _root = mount_root("), st("\"app\""), t(", || {")]), ln([t("        view("), st("\"div\""), t(")")]), ln([t("            .child(view("), st("\"p\""), t(").bind_text(count.map(|n: i32| "), st("i\"clicked {n} times\""), t(")))")]), ln([t("            .child(view("), st("\"button\""), t(").text("), st("\"+1\""), t(").on("), st("\"click\""), t(", || count.set_with(|n| n + 1)))")]), ln([t("    });")]), ln([t("}")])])))
+}
+
+// Fullstack — the services guide's Notes server, trimmed to its shape.
+
+fun showcase_fullstack(): View {
+	view("section").styled(column + section_block).child(showcase(view("div").styled(showcase_copy).child(view("h2").styled(heading).text("The server is a struct. The client is generated.")).child(view("p").styled(lead).text("Mark a method [rpc] and the browser can call it — typed, checked, awaited like any other call. Mark a signal [expose] and every connected client holds a live mirror that updates when the server writes.")).child(view("p").styled(lead).text("No REST endpoints, no fetch calls, no JSON shapes drifting out of sync by hand. The compiler knows both sides, and it also knows which code runs where: server-only code can never leak into the browser bundle.")).child(docs_link("/docs/guide/services.html", "Services & RPC in the guide")), code_panel([ln([t("["), kw("derive"), t("(Wire, PartialEq)]")]), ln([kw("struct"), t(" Note {")]), ln([t("    id: i32,")]), ln([t("    text: str,")]), ln([t("}")]), blank(), ln([t("["), kw("service"), t("(NotesClient)]")]), ln([kw("struct"), t(" Notes {")]), ln([t("    ["), kw("expose"), t("] entries: Signal<List<Note>>,")]), ln([t("    next_id: Shared<i32>,")]), ln([t("}")]), blank(), ln([kw("impl"), t(" Notes {")]), ln([t("    ["), kw("rpc"), t("]")]), ln([t("    "), kw("fun"), t(" add(self, text: str): i32 {")]), ln([t("        "), kw("let"), t(" id = self.next_id.read();")]), ln([t("        self.next_id.write() = id + 1;")]), ln([t("        self.entries.set_with(|list| {")]), ln([t("            "), kw("mut"), t(" updated = list;")]), ln([t("            updated.push(Note { id = id, text = text });")]), ln([t("            updated")]), ln([t("        });")]), ln([t("        id")]), ln([t("    }")]), ln([t("}")])])))
+}
+
+// The compiler — a real mistake and the real diagnostic, byte for byte.
+
+let diag_pre = const style().background(panel).radius(space(3)).padding(space(5)).margin(space(0)).overflow(Overflow::Auto).font_size(Length::rem(0.85)).line_height(1.65).raw("font-family", mono).raw("border", "1px solid rgba(211, 84, 45, 0.35)").raw("white-space", "pre");
+
+let diag_error = const style().color(ember).font_weight(700);
+let diag_frame = const style().opacity(0.5);
+let diag_stack = const style().display(Display::Flex).flex_direction(FlexDirection::Column).gap(space(3));
+
+fun showcase_compiler(): View {
+	view("section").styled(column + section_block).child(showcase(view("div").styled(showcase_copy).child(view("h2").styled(heading).text("Find out at compile time")).child(view("p").styled(lead).text("There is no null and there are no exceptions. A value that might be missing is an Option, a call that might fail returns a Result, and the compiler makes you look inside before you use one — so the failure below is a build error, not a production incident.")).child(view("p").styled(lead).text("Values are copied, never silently shared, so two names cannot fight over one object. The mistakes JavaScript saves for runtime are mostly not expressible.")).child(docs_link("/docs/std/option-result.html", "Option & Result in the reference")), view("div").styled(diag_stack).child(code_panel([ln([kw("import"), t(" std::print;")]), ln([kw("import"), t(" std::option::Option::{ self, Some, None };")]), ln([kw("fun"), t(" find_user(id: i32): Option<str> {")]), ln([t("    "), kw("if"), t(" id == 1 { Some("), st("\"Ada\""), t(") } "), kw("else"), t(" { None }")]), ln([t("}")]), ln([kw("fun"), t(" greet(name: str): str {")]), ln([t("    "), st("i\"hello {name}\"")]), ln([t("}")]), ln([kw("fun"), t(" main() {")]), ln([t("    print(greet(find_user(2)));")]), ln([t("}")])])).child(view("pre").styled(diag_pre).child(ln([view("span").styled(diag_error).text("Error:"), t(" Expected str, but got Option<str> instead.")])).child(ln([view("span").styled(diag_frame).text("    ╭─[ demo.vl:10:14 ]")])).child(ln([view("span").styled(diag_frame).text("    │")])).child(ln([view("span").styled(diag_frame).text(" 10 │     print(greet(find_user(2)));")])).child(ln([view("span").styled(diag_frame).text("    │                 ──────┬────")])).child(ln([view("span").styled(diag_frame).text("    │                       ╰─────── Expected str, but got Option<str> instead.")])).child(ln([view("span").styled(diag_frame).text("────╯")])))))
+}
+
+// --- feature grid ---
+
+let cards_grid = const style().display(Display::Grid).gap(space(4)).margin_y(space(8)).sm(style().raw("grid-template-columns", "1fr 1fr")).lg(style().raw("grid-template-columns", "1fr 1fr 1fr"));
+
+let card = const style().display(Display::Flex).flex_direction(FlexDirection::Column).gap(space(2)).padding(space(5)).radius(space(3)).background(panel).raw("border", hairline);
+
+let card_title = const style().font_size(Length::rem(1.05)).font_weight(700).margin(space(0));
+
+let card_body = const style().margin(space(0)).opacity(0.78).font_size(Length::rem(0.95));
+
+let card_link = const style().color(ember).font_size(Length::rem(0.9)).raw("text-decoration", "none").hover(style().raw("text-decoration", "underline"));
+
+fun docs_link(href: str, label: str): View {
+	view("a").styled(card_link).attr("href", href).text(i"{label} →")
+}
+
+fun feature(name: str, body: str, href: str): View {
+	view("article").styled(card).child(view("h3").styled(card_title).text(name)).child(view("p").styled(card_body).text(body)).child(docs_link(href, "docs"))
+}
+
+fun feature_grid(): View {
+	view("section").styled(column + section_block).child(view("h2").styled(heading).text("What the language holds")).child(view("div").styled(cards_grid).child(feature("No null, no exceptions", "Option and Result are the only ways out, and match makes you handle both arms. Errors are values you route, not surprises you catch.", "/docs/std/option-result.html")).child(feature("Values, not references", "Assignment copies. Sharing is explicit, borrowing is checked, and spooky action at a distance is a compile error.", "/docs/tour/memory-model.html")).child(feature("Async without the ceremony", "await is implicit — call an async function and the machinery is the compiler's problem. Structured concurrency with tasks and nurseries when you want it.", "/docs/tour/async.html")).child(feature("One program, two platforms", "One workspace compiles the node server and the browser client. The compiler tracks which code needs which platform and keeps each bundle honest.", "/docs/tour/platforms.html")).child(feature("Rendered before it ships", "std::ui renders on the server too: first paint is real markup, then the client rebuilds it live. View source on this page — it is already there.", "/docs/guide/ssr.html")).child(feature("A dev loop that keeps up", "vilan run . --watch rebuilds in milliseconds and hot-reloads the browser. Format, test, and language server ship in the same binary.", "/docs/guide/dev-loop.html")))
+}
+
+// --- dogfood + footer ---
+
+let dogfood_panel = const style().padding(space(6)).radius(space(3)).background(panel).raw("border", hairline).text_align(TextAlign::Center);
+
+let dogfood_text = const style().margin(space(0)).font_size(Length::rem(1.05));
+
+let dogfood_cta = const style().margin_y(space(2));
+
+fun dogfood(): View {
+	view("section").styled(column + section_block).child(view("div").styled(dogfood_panel).child(view("p").styled(dogfood_text).text("This site is a vilan program — one package, two entries. The server rendered the markup you first saw; the browser rebuilt it live.")).child(view("p").styled(dogfood_cta).child(docs_link("https://github.com/vilan-lang/website", "Read this page's source"))))
+}
+
+let footer_block = const style().raw("border-top", hairline).padding_y(space(12)).raw("margin-top", "2rem");
+
+let footer_grid = const style().display(Display::Grid).gap(space(8)).lg(style().raw("grid-template-columns", "2fr 1fr 1fr 1fr"));
+
+let footer_head = const style().font_weight(700).margin_y(space(2));
+
+let footer_list = const style().display(Display::Flex).flex_direction(FlexDirection::Column).gap(space(2));
+
+let footer_link = const style().color(blush).opacity(0.7).raw("text-decoration", "none").hover(style().opacity(1.0).raw("text-decoration", "underline"));
+
+let footer_mark = const style().raw("align-self", "center").raw("justify-self", "center");
+
+fun footer_column(title: str, links: List<View>): View {
+	view("div").child(view("p").styled(footer_head).text(title)).child(view("div").styled(footer_list).children(links))
+}
+
+fun page_footer(): View {
+	view("footer").styled(footer_block).child(view("div").styled(column + footer_grid).child(view("img").attr("src", i"{assets}/footer_mark.webp").attr("alt", "The vilan mark").attr("width", "200").styled(footer_mark)).child(footer_column("Using Vilan", [view("a").styled(footer_link).attr("href", "#install").text("Install"), view("a").styled(footer_link).attr("href", "/docs/tour/hello-vilan.html").text("Learn"), view("a").styled(footer_link).attr("href", "/docs/").text("Documentation")])).child(footer_column("Community", [view("a").styled(footer_link).attr("href", i"{repo}/issues").text("Issues"), view("a").styled(footer_link).attr("href", i"{repo}/discussions").text("Discussions"), view("a").styled(footer_link).attr("href", "https://github.com/vilan-lang").text("GitHub")])).child(footer_column("Terms & policies", [view("a").styled(footer_link).attr("href", i"{repo}/blob/main/CODE_OF_CONDUCT.md").text("Code of Conduct"), view("a").styled(footer_link).attr("href", i"{repo}#license").text("Licences"), view("a").styled(footer_link).attr("href", i"{repo}/blob/main/assets/branding/LICENSE").text("Logo Policy")])))
 }

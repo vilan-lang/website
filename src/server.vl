@@ -5,7 +5,10 @@
 
 import std::fs;
 import std::http::{ Request, Response, Server };
+import std::option::Option::{ None, Some, self };
 import std::print;
+import std::process::env;
+import std::reactive::{ Owner, run_with_owner };
 import std::ui::render;
 import pkg::page::page;
 
@@ -15,11 +18,28 @@ async fun main() {
 	let client_css = fs::read_file_to_str("dist/client.css");
 	let shell = fs::read_file_to_str("src/app.html");
 
-	Server::builder().port(3000).on_request(|request| {
+	// 3000 is every tool's favourite port; PORT overrides for the day
+	// something else is squatting on it.
+	let port = match env("PORT") {
+		Some(let value) => value.parse_i32().unwrap_or(3000),
+		None => 3000,
+	};
+
+	Server::builder().port(port).on_request(|request| {
 		match request.path() {
 			"/client.js" => Response::builder().set_header("Content-Type", "text/javascript").body(client_js).build(),
 			"/client.css" => Response::builder().set_header("Content-Type", "text/css").body(client_css).build(),
-			_ => Response::builder().set_header("Content-Type", "text/html").body(shell.replace("<!--ssr-->", render(page()))).build(),
+			_ => {
+				// The page holds live state (the counter demo), so each render
+				// gets its own owner: created, serialized, and discarded —
+				// dropping the owner tears the subscriptions down with it.
+				let owner = Owner::new();
+				mut markup = "";
+				run_with_owner(owner, || {
+					markup = render(page());
+				});
+				Response::builder().set_header("Content-Type", "text/html").body(shell.replace("<!--ssr-->", markup)).build()
+			}
 		}
-	}).on_start(|server| print("vilan website: http://localhost:3000/")).build().start();
+	}).on_start(|server| print(i"vilan website: {server.url()}")).build().start();
 }
