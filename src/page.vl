@@ -454,9 +454,9 @@ let led = const style().width(Length::px(7.0)).height(Length::px(7.0)).raw("bord
 
 // An ink fade behind the wordmark so the spokes read as arriving at it, not
 // crossing through it.
-let tc_center_mask = const style().position(Position::Absolute).raw("left", "50%").raw("top", "50%").raw("transform", "translate(-50%, -50%)").width(Length::px(250.0)).height(Length::px(140.0)).raw("background", "radial-gradient(closest-side, #120004 55%, transparent)");
+let tc_center_mask = const style().position(Position::Absolute).raw("left", "50%").raw("top", "50%").raw("transform", "translate(-50%, -50%)").width(Length::px(250.0)).height(Length::px(140.0)).raw("background", "radial-gradient(closest-side, #120004d6 35%, transparent)");
 
-let tc_center = const (style().position(Position::Absolute).raw("left", "50%").raw("top", "50%").raw("transform", "translate(-50%, -50%)").width(Length::px(180.0)).height(Length::auto()) + no_drag);
+let tc_center = const (style().position(Position::Absolute).raw("left", "50%").raw("top", "50%").raw("transform", "translate(-50%, -50%)").width(Length::px(140.0)).height(Length::auto()) + no_drag);
 
 fun tc_chip_at(left: str, top: str, color: str, label: str): View {
 	view("div").styled(tc_chip).attr("style", i"left: {left}; top: {top}")
@@ -477,7 +477,7 @@ fun toolchain_art(): View {
 		.child(view("div").styled(tc_center_mask))
 		.child(view("img").styled(tc_center).attr("src", i"{assets}/wordmark_hero_light.svg").attr("alt", "vilan"))
 		.child(tc_chip_at("210px", "70px", "#EB682E", "vilan build"))
-		.child(tc_chip_at("346px", "142px", "#D84730", "vilan run . --watch"))
+		.child(tc_chip_at("346px", "142px", "#D84730", "vilan run --watch"))
 		.child(tc_chip_at("344px", "288px", "#E5AFD9", "vilan fmt"))
 		.child(tc_chip_at("210px", "360px", "#B23056", "vilan test"))
 		.child(tc_chip_at("78px", "288px", "#8B2786", "vilan-lsp"))
@@ -779,7 +779,7 @@ fun page_footer(): View {
 			]))
 			.child(footer_column("Terms & policies", [
 				view("a").styled(footer_link).attr("href", i"{repo}/blob/main/CODE_OF_CONDUCT.md").text("Code of Conduct"),
-				view("a").styled(footer_link).attr("href", i"{repo}#license").text("Licences"),
+				view("a").styled(footer_link).attr("href", i"{repo}#license").text("Licenses"),
 				view("a").styled(footer_link).attr("href", i"{repo}/blob/main/assets/branding/LICENSE").text("Logo Policy"),
 			])))
 		.child(view("div").styled(column)
