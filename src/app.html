@@ -3,6 +3,8 @@
 <head>
 	<meta charset="utf-8">
 	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<meta name="color-scheme" content="dark">
+	<meta name="theme-color" content="#120004">
 	<title>Vilan — The Modern Web Language</title>
 	<meta name="description" content="Vilan is a language for building full-stack web apps: one small toolchain, reactive UI, and a compiler that checks what you usually find out at runtime.">
 	<link rel="icon" href="https://vilan-lang.org/favicon.ico" sizes="48x48">
@@ -38,6 +40,20 @@
 		@keyframes bloom-drift-a {
 			from { transform: translate(0, 0) scale(1); }
 			to { transform: translate(0.8%, 1.6%) scale(1.035); }
+		}
+		/* Content rises in as it enters the viewport (scroll-driven). */
+		@keyframes reveal-rise {
+			from { opacity: 0; transform: translateY(28px); }
+			to { opacity: 1; transform: none; }
+		}
+		/* The diagram's mirror line flows toward its arrow. */
+		@keyframes dash-flow {
+			to { background-position: 22px 0; }
+		}
+		/* The editor art's caret. */
+		@keyframes caret-blink {
+			0%, 49% { opacity: 1; }
+			50%, 100% { opacity: 0; }
 		}
 		@media (prefers-reduced-motion: reduce) {
 			* { animation: none !important; }
