@@ -99,7 +99,7 @@ fun code_panel(lines: List<View>): View {
 // --- the page ---
 
 fun page(): View {
-	view("div").styled(shell).child(masthead()).child(divider()).child(install_section()).child(divider()).child(showcase_reactive()).child(divider()).child(showcase_fullstack()).child(divider()).child(showcase_compiler()).child(divider()).child(feature_grid()).child(divider()).child(dogfood()).child(page_footer())
+	view("div").styled(shell).child(masthead()).child(divider()).child(install_section()).child(divider()).child(showcase_reactive()).child(divider()).child(showcase_fullstack()).child(divider()).child(showcase_compiler()).child(divider()).child(editor_band()).child(divider()).child(feature_grid()).child(divider()).child(dogfood()).child(page_footer())
 }
 
 // --- masthead: the bloom, the 64px toolbar, and the 1016px hero ---
@@ -155,24 +155,45 @@ let install_label = const style().color(ember).font_size(Length::px(12.0)).font_
 
 let install_command = const style().background(panel).radius(space(2)).padding_y(space(3)).padding_x(space(4)).font_size(Length::px(13.0)).raw("font-family", mono).raw("border", hairline).raw("user-select", "all").overflow(Overflow::Auto).raw("white-space", "pre");
 
-let install_grid = const style().display(Display::Flex).flex_direction(FlexDirection::Column).gap(space(4)).margin_y(space(6));
+let install_grid = const style().display(Display::Flex).flex_direction(FlexDirection::Column).gap(space(4));
+
+// The authored section art (baked in the brand language, HTML sources in the
+// site repo's assets/art-sources/). Full-bleed within its container, never
+// draggable or selectable.
+let art_img = const (style().width(Length::pct(100.0)).height(Length::auto()).raw("display", "block") + no_drag);
+
+let art_block = const (style().width(Length::pct(100.0)).height(Length::auto()).raw("display", "block").margin_y(space(6)) + no_drag);
+
+// Supplementary art whose labels depend on size: shown from lg up, hidden on
+// phones where it would scale to unreadable.
+let art_desktop = const (style().width(Length::pct(100.0)).height(Length::auto()).margin_y(space(6)).raw("display", "none").lg(style().raw("display", "block")) + no_drag);
+
+let install_split = const style().display(Display::Grid).gap(space(8)).raw("align-items", "center").margin_y(space(6)).lg(style().raw("grid-template-columns", "6fr 5fr"));
 
 fun install_row(label: str, command: str): View {
 	view("div").child(view("p").styled(install_label).text(label)).child(view("div").styled(install_command).text(command))
 }
 
 fun install_section(): View {
-	view("section").attr("id", "install").styled(column + section_block).child(view("h2").styled(heading).text("One command, the whole toolchain")).child(view("p").styled(lead).text("Compiler, dev server with hot reload, formatter, test runner, and language server — one small binary, no configuration to assemble. Update any time with vilan upgrade.")).child(view("div").styled(install_grid).child(install_row("macOS / Linux", "curl -fsSL https://github.com/vilan-lang/vilan/releases/latest/download/install.sh | sh")).child(install_row("Windows (PowerShell)", "irm https://github.com/vilan-lang/vilan/releases/latest/download/install.ps1 | iex")).child(install_row("Homebrew", "brew install vilan-lang/vilan/vilan")))
+	view("section").attr("id", "install").styled(column + section_block).child(view("h2").styled(heading).text("One command, the whole toolchain")).child(view("p").styled(lead).text("Compiler, dev server with hot reload, formatter, test runner, and language server — one small binary, no configuration to assemble. Update any time with vilan upgrade.")).child(view("div").styled(install_split).child(view("div").styled(install_grid).child(install_row("macOS / Linux", "curl -fsSL https://github.com/vilan-lang/vilan/releases/latest/download/install.sh | sh")).child(install_row("Windows (PowerShell)", "irm https://github.com/vilan-lang/vilan/releases/latest/download/install.ps1 | iex")).child(install_row("Homebrew", "brew install vilan-lang/vilan/vilan"))).child(view("img").styled(art_desktop).attr("src", i"{assets}/art_toolchain.webp").attr("alt", "The vilan toolchain: build, run --watch, fmt, test, the language server, and upgrade — one binary")))
 }
 
 // --- showcases ---
 
 let showcase_grid = const style().display(Display::Grid).gap(space(8)).raw("align-items", "center").lg(style().raw("grid-template-columns", "5fr 6fr"));
 
+let showcase_grid_flipped = const style().display(Display::Grid).gap(space(8)).raw("align-items", "center").lg(style().raw("grid-template-columns", "6fr 5fr"));
+
 let showcase_copy = const style().display(Display::Flex).flex_direction(FlexDirection::Column).gap(space(2));
 
 fun showcase(prose: View, code: View): View {
 	view("div").styled(showcase_grid).child(prose).child(code)
+}
+
+// The mirrored arm: code left, prose right — the showcases alternate so the
+// page doesn't read as the same section three times.
+fun showcase_flipped(code: View, prose: View): View {
+	view("div").styled(showcase_grid_flipped).child(code).child(prose)
 }
 
 // Reactive UI — the guide's own counter, and a live copy of it: the snippet
@@ -190,13 +211,15 @@ fun counter_demo(): View {
 }
 
 fun showcase_reactive(): View {
-	view("section").styled(column + section_block).child(showcase(view("div").styled(showcase_copy).child(view("h2").styled(heading).text("UI that follows your data")).child(view("p").styled(lead).text("A view is a value and a binding is a subscription: bind_text sets the one text node now and re-sets it whenever the signal changes. No virtual DOM, no render loop, no dependency arrays — updates land exactly where the data changed.")).child(view("p").styled(lead).text("The snippet is the whole program. This one runs — it is running right here:")).child(counter_demo()), code_panel([ln([kw("import"), t(" std::ui::{ view, mount_root };")]), ln([kw("import"), t(" std::reactive::Signal;")]), blank(), ln([kw("fun"), t(" main() {")]), ln([t("    "), kw("let"), t(" count = Signal::new(0);")]), ln([t("    "), kw("let"), t(" _root = mount_root("), st("\"app\""), t(", || {")]), ln([t("        view("), st("\"div\""), t(")")]), ln([t("            .child(view("), st("\"p\""), t(").bind_text(count.map(|n: i32| "), st("i\"clicked {n} times\""), t(")))")]), ln([t("            .child(view("), st("\"button\""), t(").text("), st("\"+1\""), t(").on("), st("\"click\""), t(", || count.set_with(|n| n + 1)))")]), ln([t("    });")]), ln([t("}")])])))
+	view("section").styled(column + section_block).child(showcase(view("div").styled(showcase_copy).child(view("h2").styled(heading).text("UI that follows your data")).child(view("p").styled(lead).text("A view is a value and a binding is a subscription: bind_text sets the one text node now and re-sets it whenever the signal changes. No virtual DOM, no render loop, no dependency arrays — updates land exactly where the data changed.")).child(view("p").styled(lead).text("The snippet is the whole program. This one runs — it is running right here:")).child(counter_demo()), code_panel([ln([kw("import"), t(" std::ui::{ view, mount_root };")]), ln([kw("import"), t(" std::reactive::Signal;")]), blank(), ln([kw("fun"), t(" main() {")]), ln([t("    "), kw("let"), t(" count = Signal::new(0);")]), ln([t("    "), kw("let"), t(" _root = mount_root("), st("\"app\""), t(", || {")]), ln([t("        view("), st("\"div\""), t(")")]), ln([t("            .child(view("), st("\"p\""), t(").bind_text(count.map(|n: i32| "), st("i\"clicked {n} times\""), t(")))")]), ln([t("            .child(view("), st("\"button\""), t(").text("), st("\"+1\""), t(").on("), st("\"click\""), t(", || count.set_with(|n| n + 1)))")]), ln([t("    });")]), ln([t("}")])]))).child(view("img").styled(art_desktop).attr("src", i"{assets}/art_dataflow.webp").attr("alt", "count.set(2) notifies the signal, which re-sets exactly one text node"))
 }
 
-// Fullstack — the services guide's Notes server, trimmed to its shape.
+// Fullstack — the services guide's Notes server as the authored diagram:
+// the one definition at top, the built server and generated client below,
+// the call and the mirror flowing between them.
 
 fun showcase_fullstack(): View {
-	view("section").styled(column + section_block).child(showcase(view("div").styled(showcase_copy).child(view("h2").styled(heading).text("The server is a struct. The client is generated.")).child(view("p").styled(lead).text("Mark a method [rpc] and the browser can call it — typed, checked, awaited like any other call. Mark a signal [expose] and every connected client holds a live mirror that updates when the server writes.")).child(view("p").styled(lead).text("No REST endpoints, no fetch calls, no JSON shapes drifting out of sync by hand. The compiler knows both sides, and it also knows which code runs where: server-only code can never leak into the browser bundle.")).child(docs_link("/docs/guide/services.html", "Services & RPC in the guide")), code_panel([ln([t("["), kw("derive"), t("(Wire, PartialEq)]")]), ln([kw("struct"), t(" Note {")]), ln([t("    id: i32,")]), ln([t("    text: str,")]), ln([t("}")]), blank(), ln([t("["), kw("service"), t("(NotesClient)]")]), ln([kw("struct"), t(" Notes {")]), ln([t("    ["), kw("expose"), t("] entries: Signal<List<Note>>,")]), ln([t("    next_id: Shared<i32>,")]), ln([t("}")]), blank(), ln([kw("impl"), t(" Notes {")]), ln([t("    ["), kw("rpc"), t("]")]), ln([t("    "), kw("fun"), t(" add(self, text: str): i32 {")]), ln([t("        "), kw("let"), t(" id = self.next_id.read();")]), ln([t("        self.next_id.write() = id + 1;")]), ln([t("        self.entries.set_with(|list| {")]), ln([t("            "), kw("mut"), t(" updated = list;")]), ln([t("            updated.push(Note { id = id, text = text });")]), ln([t("            updated")]), ln([t("        });")]), ln([t("        id")]), ln([t("    }")]), ln([t("}")])])))
+	view("section").styled(column + section_block).child(view("h2").styled(heading).text("The server is a struct. The client is generated.")).child(view("p").styled(lead).text("Mark a method [rpc] and the browser can call it — typed, checked, awaited like any other call. Mark a signal [expose] and every connected client holds a live mirror that updates when the server writes. No REST endpoints, no fetch calls, no JSON shapes drifting out of sync by hand.")).child(view("img").styled(art_block).attr("src", i"{assets}/art_diagram.webp").attr("alt", "One notes.vl source compiles into the node server and the generated browser client; the client calls notes.add over rpc and holds a live mirror of the exposed entries signal")).child(docs_link("/docs/guide/services.html", "Services & RPC in the guide"))
 }
 
 // The compiler — a real mistake and the real diagnostic. The snippet is the
@@ -209,7 +232,17 @@ let diag_frame = const style().opacity(0.5);
 let diag_stack = const style().display(Display::Flex).flex_direction(FlexDirection::Column).gap(space(3));
 
 fun showcase_compiler(): View {
-	view("section").styled(column + section_block).child(showcase(view("div").styled(showcase_copy).child(view("h2").styled(heading).text("Find out at compile time")).child(view("p").styled(lead).text("There is no null and there are no exceptions. A value that might be missing is an Option, a call that might fail returns a Result, and the compiler makes you look inside before you use one — so the failure below is a build error, not a production incident.")).child(view("p").styled(lead).text("Values are copied, never silently shared, so two names cannot fight over one object. The mistakes JavaScript saves for runtime are mostly not expressible.")).child(docs_link("/docs/std/option-result.html", "Option & Result in the reference")), view("div").styled(diag_stack).child(code_panel([ln([kw("import"), t(" std::print;")]), ln([kw("import"), t(" std::option::Option::{ self, Some, None };")]), ln([kw("fun"), t(" find_user(id: i32): Option<str> {")]), ln([t("    "), kw("if"), t(" id == 1 { Some("), st("\"Ada\""), t(") } "), kw("else"), t(" { None }")]), ln([t("}")]), ln([kw("fun"), t(" greet(name: str): str {")]), ln([t("    "), st("i\"hello {name}\"")]), ln([t("}")]), ln([kw("fun"), t(" main() {")]), ln([t("    print(greet(find_user(2)));")]), ln([t("}")])])).child(view("pre").styled(diag_pre).child(ln([view("span").styled(diag_error).text("Error:"), t(" Expected str, but got Option<str> instead.")])).child(ln([view("span").styled(diag_frame).text("    ╭─[ demo.vl:10:14 ]")])).child(ln([view("span").styled(diag_frame).text("    │")])).child(ln([view("span").styled(diag_frame).text(" 10 │     print(greet(find_user(2)));")])).child(ln([view("span").styled(diag_frame).text("    │                 ──────┬────")])).child(ln([view("span").styled(diag_frame).text("    │                       ╰─────── Expected str, but got Option<str> instead.")])).child(ln([view("span").styled(diag_frame).text("────╯")])))))
+	view("section").styled(column + section_block).child(showcase_flipped(view("div").styled(diag_stack).child(code_panel([ln([kw("import"), t(" std::print;")]), ln([kw("import"), t(" std::option::Option::{ self, Some, None };")]), ln([kw("fun"), t(" find_user(id: i32): Option<str> {")]), ln([t("    "), kw("if"), t(" id == 1 { Some("), st("\"Ada\""), t(") } "), kw("else"), t(" { None }")]), ln([t("}")]), ln([kw("fun"), t(" greet(name: str): str {")]), ln([t("    "), st("i\"hello {name}\"")]), ln([t("}")]), ln([kw("fun"), t(" main() {")]), ln([t("    print(greet(find_user(2)));")]), ln([t("}")])])).child(view("pre").styled(diag_pre).child(ln([view("span").styled(diag_error).text("Error:"), t(" Expected str, but got Option<str> instead.")])).child(ln([view("span").styled(diag_frame).text("    ╭─[ demo.vl:10:14 ]")])).child(ln([view("span").styled(diag_frame).text("    │")])).child(ln([view("span").styled(diag_frame).text(" 10 │     print(greet(find_user(2)));")])).child(ln([view("span").styled(diag_frame).text("    │                 ──────┬────")])).child(ln([view("span").styled(diag_frame).text("    │                       ╰─────── Expected str, but got Option<str> instead.")])).child(ln([view("span").styled(diag_frame).text("────╯")]))), view("div").styled(showcase_copy).child(view("h2").styled(heading).text("Find out at compile time")).child(view("p").styled(lead).text("There is no null and there are no exceptions. A value that might be missing is an Option, a call that might fail returns a Result, and the compiler makes you look inside before you use one — so the failure here is a build error, not a production incident.")).child(view("p").styled(lead).text("Values are copied, never silently shared, so two names cannot fight over one object. The mistakes JavaScript saves for runtime are mostly not expressible.")).child(docs_link("/docs/std/option-result.html", "Option & Result in the reference"))))
+}
+
+// --- the editor band ---
+
+// The language server's story is otherwise absent from the page: the same
+// binary that compiles serves the editor, and the diagnostic shown in the
+// compiler section is the one the editor draws live.
+
+fun editor_band(): View {
+	view("section").styled(column + section_block).child(showcase_flipped(view("img").styled(art_img).attr("src", i"{assets}/art_editor.webp").attr("alt", "An editor window with a vilan file: a squiggle under find_user(2) and a hover reading: Expected str, but got Option<str> instead"), view("div").styled(showcase_copy).child(view("h2").styled(heading).text("The editor is in on it")).child(view("p").styled(lead).text("vilan-lsp ships in the same binary as the compiler, so the editor and the build never disagree: diagnostics as you type, hover types and docs, completion with signatures, rename, formatting, and Organize Imports — in VS Code today, and anywhere else LSP reaches.")).child(view("p").styled(lead).text("Errors are resilient, not modal: a broken line keeps the rest of the file compiling, serving hovers, and completing.")).child(docs_link("https://github.com/vilan-lang/vilan/tree/main/editors/vscode", "The VS Code extension"))))
 }
 
 // --- feature grid ---
