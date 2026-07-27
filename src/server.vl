@@ -38,7 +38,7 @@ async fun main() {
 				run_with_owner(owner, || {
 					// The toolbar's scroll signal is a client concern; the
 					// served page starts un-scrolled by definition.
-					markup = render(page(Signal::new(false)));
+					markup = render(page(Signal::new("0")));
 				});
 				Response::builder().set_header("Content-Type", "text/html").body(shell.replace("<!--ssr-->", markup)).build()
 			}

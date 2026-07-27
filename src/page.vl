@@ -2,8 +2,8 @@
 // first paint (view source — the content is already there), the client rebuilds
 // it as live DOM and replaces it on boot. Build pure, bind reactive: nothing
 // here reaches for `std::dom`, so the same source compiles on both platforms.
-// The client passes a live `scrolled` signal (wired to the window in
-// client.vl); the server passes a constant `false`.
+// The client passes a live `scroll_fade` signal (the toolbar's --nav-fade,
+// wired to the window in client.vl); the server passes a constant "0".
 //
 // Layout and art direction follow the landing concept in the brand repository
 // (`vilan-lang/branding`, a 1920-logical design at 4x) to the user's
@@ -114,9 +114,10 @@ fun code_panel(lines: List<View>): View {
 
 // --- the page ---
 
-fun page(scrolled: Signal<bool>): View {
+fun page(scroll_fade: Signal<str>): View {
 	view("div").styled(shell)
-		.child(top_bar(scrolled))
+		.child(bloom())
+		.child(top_bar(scroll_fade))
 		.child(masthead())
 		.child(divider())
 		.child(install_section())
@@ -137,12 +138,12 @@ fun page(scrolled: Signal<bool>): View {
 
 // --- the sticky toolbar ---
 
-// Sticky across the whole page. Transparent at the top; once the page
-// scrolls, a background, blur, and divider fade in (the client toggles the
-// class set; the transition on the base style animates both ways).
-let topbar = const style().position(Position::Sticky).raw("top", "0").raw("z-index", "100").raw("background", "rgba(18, 0, 4, 0)").raw("border-bottom", "1px solid transparent").transition("background-color 240ms ease, border-color 240ms ease, backdrop-filter 240ms ease");
-
-let topbar_scrolled = const (topbar + style().raw("background", "rgba(18, 0, 4, 0.86)").raw("backdrop-filter", "blur(14px)").raw("border-bottom", hairline));
+// Sticky across the whole page, its chrome linked 1:1 to scroll position:
+// the client publishes --nav-fade as scroll/64 clamped to [0,1] (0 = page
+// top, 1 = a full toolbar-height down), and background, divider, and blur
+// are all that variable times their full value. No transition - the fade IS
+// the scroll, which also serves users with smooth scrolling off.
+let topbar = const style().position(Position::Sticky).raw("top", "0").raw("z-index", "100").raw("background", "rgba(18, 0, 4, calc(var(--nav-fade, 0) * 0.86))").raw("border-bottom", "1px solid rgba(249, 223, 231, calc(var(--nav-fade, 0) * 0.10))").raw("backdrop-filter", "blur(calc(var(--nav-fade, 0) * 14px))");
 
 let nav_row = const style().display(Display::Flex).align_items(AlignItems::Center).justify_content(JustifyContent::Between).height(Length::px(64.0));
 
@@ -152,9 +153,10 @@ let nav_links = const style().display(Display::Flex).gap(space(6));
 
 let nav_link = const style().color(blush).opacity(0.8).raw("text-decoration", "none").raw("user-select", "none").hover(style().opacity(1.0));
 
-fun top_bar(scrolled: Signal<bool>): View {
+fun top_bar(scroll_fade: Signal<str>): View {
 	view("nav")
-		.bind_class(scrolled.map(|is_scrolled: bool| if is_scrolled { topbar_scrolled.class_list() } else { topbar.class_list() }))
+		.styled(topbar)
+		.style_var("--nav-fade", scroll_fade)
 		.child(view("div").styled(column + nav_row)
 			.child(view("a").styled(nav_brand + nav_link).attr("href", "/")
 				.child(view("img").styled(no_drag).attr("src", i"{assets}/mark.svg").attr("alt", "").attr("height", "18"))
@@ -167,44 +169,69 @@ fun top_bar(scrolled: Signal<bool>): View {
 
 // --- masthead: the CSS bloom and the 1016px hero ---
 
-// The bloom is the designer's own construction, in CSS: the canonical
-// gradient shown through the Figma-exported mask (assets/bloom_mask.svg as a
-// data-URI — its layer blur rides inside the SVG filter), with the Duo Noise
-// recipe on top (0.5px speckle mapping to #262324 at 100% and #FF5900 at
-// 57%, the same masked region). The band is the 1920x1039 design box under
-// the toolbar, tracking the viewport with an 1100px floor; the drift
-// animates the wrapper so mask and gradient move as one.
-let masthead_wrap = const style().position(Position::Relative).overflow(Overflow::Hidden);
+// One scale rules the whole masthead: s = clamp(1100px, 100vw, 1920px).
+// Every hero and bloom dimension is s times a design ratio, so the mask, the
+// gradient, and the text stack scale in exact lockstep and stay centered on
+// each other at every width (capped at the 1920 design, floored at 1100).
+let hero_scale = "clamp(1100px, 100vw, 1920px)";
 
-let bloom_mask_uri = "url(\"data:image/svg+xml,%3Csvg width='1878' height='1016' viewBox='0 0 1878 1016' fill='none' xmlns='http://www.w3.org/2000/svg'%3E %3Cg filter='url(%23filter0_f_51_26)'%3E %3Cpath d='M708.762 806.63C717.203 788.527 770.245 793.449 798.513 806.63C826.78 819.811 819.569 836.26 811.127 854.363C802.685 872.466 737.029 877.819 708.762 864.638C680.494 851.456 700.32 824.733 708.762 806.63Z' fill='%23D9D9D9'/%3E %3Cpath d='M1196.04 124.964C1286.06 124.964 1359.04 189.435 1359.04 268.964C1359.03 296.719 1350.14 322.638 1334.74 344.625C1351.59 383.759 1357.54 431.665 1357.54 489.334C1357.54 534.115 1357.52 568.181 1353.65 594.069C1505.65 471.69 1705.07 359.683 1504.42 524.754C1392.08 633.435 1709.16 555.443 1675.16 702.715C1631.58 790.249 1402.9 657.226 1406.64 823.488C1245.88 908.901 1198.47 792.736 1219.88 735.235C1226.55 717.315 1244.29 694.6 1268.59 669.77C1211.94 677.661 1119.22 674.039 967.451 674.039C837.02 674.039 741.487 667.658 672.1 651.83C602.114 708.686 502.736 737.543 407.269 742.508C227.5 767.999 218.763 641.243 207.5 512.5C270 442.5 361.5 454.932 447.5 334.323C465.97 332.707 484.168 331.352 501.937 330.399C512.635 216.95 571.044 199.869 889.93 199.869C950.307 199.869 1003.2 201.81 1049.48 205.865C1075.95 157.963 1131.63 124.964 1196.04 124.964Z' fill='%23D9D9D9'/%3E %3Cpath d='M202.603 243.749C212.325 222.901 246.437 218.231 278.794 233.319C311.151 248.408 329.5 277.54 319.778 298.389C310.056 319.237 275.945 323.907 243.588 308.818C211.231 293.73 192.882 264.597 202.603 243.749Z' fill='%23D9D9D9'/%3E %3Cpath d='M1397.41 130.335C1407.02 109.717 1433.28 101.615 1456.07 112.239C1478.85 122.864 1489.53 148.19 1479.91 168.808C1470.3 189.427 1444.03 197.528 1421.25 186.904C1398.47 176.28 1387.79 150.953 1397.41 130.335Z' fill='%23D9D9D9'/%3E %3C/g%3E %3Cdefs%3E %3Cfilter id='filter0_f_51_26' x='0' y='-92.4345' width='1877.72' height='1164.39' filterUnits='userSpaceOnUse' color-interpolation-filters='sRGB'%3E %3CfeFlood flood-opacity='0' result='BackgroundImageFix'/%3E %3CfeBlend mode='normal' in='SourceGraphic' in2='BackgroundImageFix' result='shape'/%3E %3CfeGaussianBlur stdDeviation='100' result='effect1_foregroundBlur_51_26'/%3E %3C/filter%3E %3C/defs%3E %3C/svg%3E \")";
+// The bloom is the designer's construction: the tiled gradient (the Figma
+// fill was gradient.png at 1500x1500, repeating) shown through the exported
+// mask (its layer blur rides inside the SVG filter; the viewBox is expanded
+// to the filter region so the glow renders under the toolbar instead of
+// cutting off at it), with the Duo Noise recipe over the same masked region.
+let bloom_mask_uri = "url(\"data:image/svg+xml,%3Csvg width='1877.72' height='1164.39' viewBox='0 -92.4345 1877.72 1164.39' fill='none' xmlns='http://www.w3.org/2000/svg'%3E %3Cg filter='url(%23filter0_f_51_26)'%3E %3Cpath d='M708.762 806.63C717.203 788.527 770.245 793.449 798.513 806.63C826.78 819.811 819.569 836.26 811.127 854.363C802.685 872.466 737.029 877.819 708.762 864.638C680.494 851.456 700.32 824.733 708.762 806.63Z' fill='%23D9D9D9'/%3E %3Cpath d='M1196.04 124.964C1286.06 124.964 1359.04 189.435 1359.04 268.964C1359.03 296.719 1350.14 322.638 1334.74 344.625C1351.59 383.759 1357.54 431.665 1357.54 489.334C1357.54 534.115 1357.52 568.181 1353.65 594.069C1505.65 471.69 1705.07 359.683 1504.42 524.754C1392.08 633.435 1709.16 555.443 1675.16 702.715C1631.58 790.249 1402.9 657.226 1406.64 823.488C1245.88 908.901 1198.47 792.736 1219.88 735.235C1226.55 717.315 1244.29 694.6 1268.59 669.77C1211.94 677.661 1119.22 674.039 967.451 674.039C837.02 674.039 741.487 667.658 672.1 651.83C602.114 708.686 502.736 737.543 407.269 742.508C227.5 767.999 218.763 641.243 207.5 512.5C270 442.5 361.5 454.932 447.5 334.323C465.97 332.707 484.168 331.352 501.937 330.399C512.635 216.95 571.044 199.869 889.93 199.869C950.307 199.869 1003.2 201.81 1049.48 205.865C1075.95 157.963 1131.63 124.964 1196.04 124.964Z' fill='%23D9D9D9'/%3E %3Cpath d='M202.603 243.749C212.325 222.901 246.437 218.231 278.794 233.319C311.151 248.408 329.5 277.54 319.778 298.389C310.056 319.237 275.945 323.907 243.588 308.818C211.231 293.73 192.882 264.597 202.603 243.749Z' fill='%23D9D9D9'/%3E %3Cpath d='M1397.41 130.335C1407.02 109.717 1433.28 101.615 1456.07 112.239C1478.85 122.864 1489.53 148.19 1479.91 168.808C1470.3 189.427 1444.03 197.528 1421.25 186.904C1398.47 176.28 1387.79 150.953 1397.41 130.335Z' fill='%23D9D9D9'/%3E %3C/g%3E %3Cdefs%3E %3Cfilter id='filter0_f_51_26' x='0' y='-92.4345' width='1877.72' height='1164.39' filterUnits='userSpaceOnUse' color-interpolation-filters='sRGB'%3E %3CfeFlood flood-opacity='0' result='BackgroundImageFix'/%3E %3CfeBlend mode='normal' in='SourceGraphic' in2='BackgroundImageFix' result='shape'/%3E %3CfeGaussianBlur stdDeviation='100' result='effect1_foregroundBlur_51_26'/%3E %3C/filter%3E %3C/defs%3E %3C/svg%3E \")";
+
+let bloom_mask_sharp_uri = "url(\"data:image/svg+xml,%3Csvg width='1877.72' height='1164.39' viewBox='0 -92.4345 1877.72 1164.39' fill='none' xmlns='http://www.w3.org/2000/svg'%3E %3Cg%3E %3Cpath d='M708.762 806.63C717.203 788.527 770.245 793.449 798.513 806.63C826.78 819.811 819.569 836.26 811.127 854.363C802.685 872.466 737.029 877.819 708.762 864.638C680.494 851.456 700.32 824.733 708.762 806.63Z' fill='%23D9D9D9'/%3E %3Cpath d='M1196.04 124.964C1286.06 124.964 1359.04 189.435 1359.04 268.964C1359.03 296.719 1350.14 322.638 1334.74 344.625C1351.59 383.759 1357.54 431.665 1357.54 489.334C1357.54 534.115 1357.52 568.181 1353.65 594.069C1505.65 471.69 1705.07 359.683 1504.42 524.754C1392.08 633.435 1709.16 555.443 1675.16 702.715C1631.58 790.249 1402.9 657.226 1406.64 823.488C1245.88 908.901 1198.47 792.736 1219.88 735.235C1226.55 717.315 1244.29 694.6 1268.59 669.77C1211.94 677.661 1119.22 674.039 967.451 674.039C837.02 674.039 741.487 667.658 672.1 651.83C602.114 708.686 502.736 737.543 407.269 742.508C227.5 767.999 218.763 641.243 207.5 512.5C270 442.5 361.5 454.932 447.5 334.323C465.97 332.707 484.168 331.352 501.937 330.399C512.635 216.95 571.044 199.869 889.93 199.869C950.307 199.869 1003.2 201.81 1049.48 205.865C1075.95 157.963 1131.63 124.964 1196.04 124.964Z' fill='%23D9D9D9'/%3E %3Cpath d='M202.603 243.749C212.325 222.901 246.437 218.231 278.794 233.319C311.151 248.408 329.5 277.54 319.778 298.389C310.056 319.237 275.945 323.907 243.588 308.818C211.231 293.73 192.882 264.597 202.603 243.749Z' fill='%23D9D9D9'/%3E %3Cpath d='M1397.41 130.335C1407.02 109.717 1433.28 101.615 1456.07 112.239C1478.85 122.864 1489.53 148.19 1479.91 168.808C1470.3 189.427 1444.03 197.528 1421.25 186.904C1398.47 176.28 1387.79 150.953 1397.41 130.335Z' fill='%23D9D9D9'/%3E %3C/g%3E  %3C/svg%3E \")";
 
 let duo_tile_uri = "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E %3Cfilter id='d' x='0' y='0' width='100%25' height='100%25'%3E %3CfeTurbulence type='fractalNoise' baseFrequency='1.8' numOctaves='2' result='n'/%3E %3CfeColorMatrix in='n' type='matrix' values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0.34 0.34 0.34 0 0' result='a'/%3E %3CfeComponentTransfer in='a' result='dark_mask'%3E%3CfeFuncA type='discrete' tableValues='1 0'/%3E%3C/feComponentTransfer%3E %3CfeFlood flood-color='%23262324' result='dark_fill'/%3E %3CfeComposite in='dark_fill' in2='dark_mask' operator='in' result='dark'/%3E %3CfeComponentTransfer in='a' result='orange_mask'%3E%3CfeFuncA type='discrete' tableValues='0 1'/%3E%3C/feComponentTransfer%3E %3CfeFlood flood-color='%23FF5900' flood-opacity='0.57' result='orange_fill'/%3E %3CfeComposite in='orange_fill' in2='orange_mask' operator='in' result='orange'/%3E %3CfeMerge%3E%3CfeMergeNode in='dark'/%3E%3CfeMergeNode in='orange'/%3E%3C/feMerge%3E %3C/filter%3E %3Crect width='120' height='120' filter='url(%23d)'/%3E %3C/svg%3E \")";
 
-let bloom_wrap = const (style().position(Position::Absolute).raw("inset", "0").raw("pointer-events", "none").raw("animation", "bloom-drift-a 44s ease-in-out infinite alternate") + no_select);
+// The field clips horizontal overflow below the 1100px floor and spans the
+// toolbar + hero + blur tail; the drift wrapper animates inside it so mask
+// and gradient move as one.
+let bloom_field = const (style().position(Position::Absolute).raw("top", "0").raw("left", "0").width(Length::pct(100.0)).raw("height", i"calc(64px + {hero_scale} * 0.570864)").overflow(Overflow::Hidden).raw("pointer-events", "none") + no_select);
 
-let bloom_band = const style().position(Position::Absolute).raw("left", "50%").raw("transform", "translateX(-50%)").raw("top", "0").raw("width", "max(100vw, 1100px)").raw("height", "calc(max(100vw, 1100px) * 0.5411)").raw("-webkit-mask-image", bloom_mask_uri).raw("mask-image", bloom_mask_uri).raw("-webkit-mask-size", "100% 100%").raw("mask-size", "100% 100%");
+let bloom_drift = const style().position(Position::Absolute).raw("inset", "0").raw("animation", "bloom-drift-a 44s ease-in-out infinite alternate");
 
-let bloom_gradient = const (bloom_band + style().raw("background", "radial-gradient(1300px 480px ellipse at 44% 2%, rgba(255, 240, 246, 0.98), rgba(229, 175, 217, 0.55) 52%, transparent 76%), radial-gradient(1400px 560px ellipse at 58% 26%, rgba(235, 104, 46, 0.95), transparent 76%), radial-gradient(1000px 640px ellipse at 12% 60%, rgba(139, 39, 134, 0.95), rgba(139, 39, 134, 0.6) 45%, transparent 75%), radial-gradient(1500px 680px ellipse at 55% 52%, rgba(216, 71, 48, 0.95), rgba(216, 71, 48, 0.7) 42%, transparent 78%), radial-gradient(950px 500px ellipse at 40% 88%, rgba(178, 48, 86, 0.75), transparent 76%), radial-gradient(640px 520px ellipse at 0% 106%, rgba(103, 34, 131, 0.95), transparent 72%), linear-gradient(115deg, #672283 0%, #B23056 40%, #D84730 70%, #EB682E 100%)"));
+// Figma's layer blur, literally: the wrapper blurs the whole masked
+// gradient (which is also what melts the 1500px tile seam), while the noise
+// rides after the blur so the grain stays crisp - under the soft-edged mask
+// so its coverage matches the silhouette.
+let bloom_blurwrap = const style().position(Position::Absolute).raw("inset", "0").raw("filter", i"blur(calc({hero_scale} * 0.052))");
+
+let bloom_band_geometry = const style().position(Position::Absolute).raw("left", "50%").raw("transform", "translateX(-50%)").raw("top", i"calc(64px - {hero_scale} * 0.049226)").raw("width", hero_scale).raw("height", i"calc({hero_scale} * 0.62009)").raw("-webkit-mask-size", "100% 100%").raw("mask-size", "100% 100%");
+
+let bloom_band = const (bloom_band_geometry + style().raw("-webkit-mask-image", bloom_mask_uri).raw("mask-image", bloom_mask_uri));
+
+let bloom_band_sharp = const (bloom_band_geometry + style().raw("-webkit-mask-image", bloom_mask_sharp_uri).raw("mask-image", bloom_mask_sharp_uri));
+
+// The gradient tile: gradient.png's composition in tile space, sized to the
+// design's 1500px square and repeating - the second tile's purple edge
+// enters on the right exactly as it does in the Figma fill.
+let bloom_gradient = const (bloom_band_sharp + style().raw("background-image", "radial-gradient(60% 30% ellipse at 47% 8%, rgba(255, 240, 246, 0.95), rgba(229, 175, 217, 0.5) 55%, transparent 78%), radial-gradient(45% 38% ellipse at 98% 24%, rgba(235, 104, 46, 0.95), transparent 76%), radial-gradient(55% 42% ellipse at 88% 90%, rgba(216, 71, 48, 0.95), rgba(216, 71, 48, 0.7) 45%, transparent 80%), radial-gradient(48% 32% ellipse at 48% 102%, rgba(178, 48, 86, 0.8), transparent 76%), radial-gradient(38% 34% ellipse at 12% 58%, rgba(139, 39, 134, 0.95), rgba(139, 39, 134, 0.6) 40%, transparent 75%), radial-gradient(30% 28% ellipse at 0% 102%, rgba(103, 34, 131, 0.95), transparent 72%), linear-gradient(115deg, #672283 0%, #8B2786 25%, #B23056 50%, #D84730 78%, #EB682E 100%)").raw("background-size", i"calc({hero_scale} * 0.78125) calc({hero_scale} * 0.78125)"));
 
 let bloom_duo = const (bloom_band + style().raw("background-image", duo_tile_uri).raw("background-size", "120px 120px").opacity(0.5).raw("mix-blend-mode", "overlay"));
 
 fun bloom(): View {
-	view("div").styled(bloom_wrap)
-		.child(view("div").styled(bloom_gradient))
-		.child(view("div").styled(bloom_duo))
+	view("div").styled(bloom_field)
+		.child(view("div").styled(bloom_drift)
+			.child(view("div").styled(bloom_blurwrap).child(view("div").styled(bloom_gradient)))
+			.child(view("div").styled(bloom_duo)))
 }
+
+let masthead_wrap = const style().position(Position::Relative);
 
 // Hero: 1016px at the design width, scaling as 52.92vw below it. The stack
 // (mark, wordmark, tagline) starts 292px in and is gapped 64px — all
 // vw-proportional with floors so phones stay legible. The headline artwork
 // gets a visually-hidden text twin for readers and robots.
-let hero_block = const style().position(Position::Relative).display(Display::Flex).flex_direction(FlexDirection::Column).align_items(AlignItems::Center).raw("height", "clamp(560px, 52.92vw, 1016px)").raw("padding-top", "clamp(180px, 15.21vw, 292px)").raw("gap", "clamp(40px, 3.333vw, 64px)").raw("box-sizing", "border-box");
+let hero_block = const style().position(Position::Relative).display(Display::Flex).flex_direction(FlexDirection::Column).align_items(AlignItems::Center).raw("height", i"calc({hero_scale} * 0.52917)").raw("padding-top", i"calc({hero_scale} * 0.15208)").raw("gap", i"calc({hero_scale} * 0.03333)").raw("box-sizing", "border-box");
 
-let hero_mark = const (style().raw("width", "clamp(72px, 5.21vw, 100px)").height(Length::auto()) + no_drag);
+let hero_mark = const (style().raw("width", i"calc({hero_scale} * 0.05208)").height(Length::auto()) + no_drag);
 
-let hero_wordmark = const (style().raw("width", "clamp(224px, 16.22vw, 311px)").height(Length::auto()) + no_drag);
+let hero_wordmark = const (style().raw("width", i"calc({hero_scale} * 0.16198)").height(Length::auto()) + no_drag);
 
-let hero_tagline = const style().raw("font-family", display_face).raw("font-size", "clamp(22px, 1.667vw, 32px)").raw("line-height", "1.5").font_weight(600).color(ink).margin(space(0)).text_align(TextAlign::Center);
+let hero_tagline = const style().raw("font-family", display_face).raw("font-size", i"max(18px, {hero_scale} * 0.01667)").raw("line-height", "1.5").font_weight(600).color(ink).margin(space(0)).text_align(TextAlign::Center);
 
 let visually_hidden = const style().position(Position::Absolute).width(Length::px(1.0)).height(Length::px(1.0)).overflow(Overflow::Hidden).raw("clip-path", "inset(50%)");
 
@@ -217,7 +244,7 @@ fun hero(): View {
 }
 
 fun masthead(): View {
-	view("div").styled(masthead_wrap).child(bloom()).child(hero())
+	view("div").styled(masthead_wrap).child(hero())
 }
 
 // --- shared art vocabulary ---
@@ -535,7 +562,7 @@ fun install_row(label: str, command: str): View {
 fun install_section(): View {
 	view("section").attr("id", "install").styled(column + section_block + stack)
 		.child(view("h2").styled(heading).text("One command, the whole toolchain"))
-		.child(view("p").styled(lead).text("Compiler, dev server with hot reload, formatter, test runner, and language server — one small binary, no configuration to assemble. Update any time with vilan upgrade."))
+		.child(view("p").styled(lead).child(pt("Compiler, dev server with hot reload, formatter, test runner, and language server — one small binary, no configuration to assemble. Update any time with ")).child(leaf("vilan upgrade")).child(pt(".")))
 		.child(view("div").styled(install_split)
 			.child(view("div").styled(install_grid)
 				.child(install_row("macOS / Linux", "curl -fsSL https://github.com/vilan-lang/vilan/releases/latest/download/install.sh | sh"))
@@ -583,7 +610,7 @@ fun showcase_reactive(): View {
 		.child(showcase(
 			view("div").styled(showcase_copy)
 				.child(view("h2").styled(heading).text("UI that follows your data"))
-				.child(view("p").styled(lead).text("A view is a value and a binding is a subscription: bind_text sets the one text node now and re-sets it whenever the signal changes. No virtual DOM, no render loop, no dependency arrays — updates land exactly where the data changed."))
+				.child(view("p").styled(lead).child(pt("A view is a value and a binding is a subscription: ")).child(leaf("bind_text")).child(pt(" sets the one text node now and re-sets it whenever the signal changes. No virtual DOM, no render loop, no dependency arrays — updates land exactly where the data changed.")))
 				.child(view("p").styled(lead).text("The snippet is the whole program. This one runs — it is running right here:"))
 				.child(counter_demo()),
 			code_panel([
@@ -609,9 +636,9 @@ fun showcase_reactive(): View {
 fun showcase_fullstack(): View {
 	view("section").styled(column + section_block + stack)
 		.child(view("h2").styled(heading).text("The server is a struct. The client is generated."))
-		.child(view("p").styled(lead).text("Mark a method [rpc] and the browser can call it — typed, checked, awaited like any other call. Mark a signal [expose] and every connected client holds a live mirror that updates when the server writes. No REST endpoints, no fetch calls, no JSON shapes drifting out of sync by hand."))
+		.child(view("p").styled(lead).child(pt("Mark a method ")).child(leaf("[rpc]")).child(pt(" and the browser can call it — typed, checked, awaited like any other call. Mark a signal ")).child(leaf("[expose]")).child(pt(" and every connected client holds a live mirror that updates when the server writes. No REST endpoints, no fetch calls, no JSON shapes drifting out of sync by hand.")))
 		.child(diagram())
-		.child(docs_link("/docs/guide/services.html", "Services & RPC in the guide"))
+		.child(button_link("/docs/guide/services.html", "Services & RPC in the guide"))
 }
 
 // The compiler — a real mistake and the real diagnostic. The snippet is the
@@ -652,9 +679,9 @@ fun showcase_compiler(): View {
 					.child(ln([view("span").styled(diag_frame).text("────╯")]))),
 			view("div").styled(showcase_copy)
 				.child(view("h2").styled(heading).text("Find out at compile time"))
-				.child(view("p").styled(lead).text("There is no null and there are no exceptions. A value that might be missing is an Option, a call that might fail returns a Result, and the compiler makes you look inside before you use one — so the failure here is a build error, not a production incident."))
+				.child(view("p").styled(lead).child(pt("There is no null and there are no exceptions. A value that might be missing is an ")).child(leaf_link("/docs/std/option-result.html#optiont", "Option")).child(pt(", a call that might fail returns a ")).child(leaf_link("/docs/std/option-result.html#resultt-e", "Result")).child(pt(", and the compiler makes you look inside before you use one — so the failure here is a build error, not a production incident.")))
 				.child(view("p").styled(lead).text("Values are copied, never silently shared, so two names cannot fight over one object. The mistakes JavaScript saves for runtime are mostly not expressible."))
-				.child(docs_link("/docs/std/option-result.html", "Option & Result in the reference"))))
+				.child(button_link("/docs/std/option-result.html", "Option & Result in the reference"))))
 }
 
 // --- the editor band ---
@@ -665,9 +692,9 @@ fun editor_band(): View {
 			editor_art(),
 			view("div").styled(showcase_copy)
 				.child(view("h2").styled(heading).text("The editor is in on it"))
-				.child(view("p").styled(lead).text("vilan-lsp ships in the same binary as the compiler, so the editor and the build never disagree: diagnostics as you type, hover types and docs, completion with signatures, rename, formatting, and Organize Imports — in VS Code today, and anywhere else LSP reaches."))
+				.child(view("p").styled(lead).child(leaf("vilan-lsp")).child(pt(" ships in the same binary as the compiler, so the editor and the build never disagree: diagnostics as you type, hover types and docs, completion with signatures, rename, formatting, and Organize Imports — in VS Code today, and anywhere else LSP reaches.")))
 				.child(view("p").styled(lead).text("Errors are resilient, not modal: a broken line keeps the rest of the file compiling, serving hovers, and completing."))
-				.child(docs_link("https://github.com/vilan-lang/vilan/tree/main/editors/vscode", "The VS Code extension"))))
+				.child(button_link("https://github.com/vilan-lang/vilan/tree/main/editors/vscode", "The VS Code extension"))))
 }
 
 // --- feature grid ---
@@ -684,6 +711,32 @@ let card_title = const style().raw("font-family", display_face).font_size(Length
 let card_body = const style().margin(space(0)).opacity(0.78);
 
 let card_link = const style().raw("align-self", "flex-start").color(ember).font_size(Length::px(13.0)).raw("text-decoration", "none").raw("user-select", "none").hover(style().raw("text-decoration", "underline"));
+
+// The promoted form for a section's one important link: a quiet outline pill.
+let button_link_style = const style().raw("align-self", "flex-start").display(Display::Flex).align_items(AlignItems::Center).color(ember).font_size(Length::px(13.0)).font_weight(600).padding_y(space(2)).padding_x(space(5)).radius(Length::px(999.0)).raw("border", "1px solid rgba(235, 104, 46, 0.45)").raw("text-decoration", "none").raw("user-select", "none").transition("background-color 160ms ease, border-color 160ms ease").hover(style().raw("background", "rgba(235, 104, 46, 0.12)").raw("border-color", "rgba(235, 104, 46, 0.8)"));
+
+fun button_link(href: str, label: str): View {
+	view("a").styled(button_link_style).attr("href", href).text(i"{label} →")
+}
+
+// Inline code leaf — `[rpc]`, `vilan upgrade`, and friends read as code, not
+// bare prose. The linked flavor also jumps to the docs.
+let leaf_style = const style().raw("font-family", mono).font_size(Length::px(12.0)).raw("background", "rgba(27, 6, 13, 0.9)").raw("border", hairline).radius(Length::px(6.0)).raw("padding", "1px 6px").raw("white-space", "nowrap");
+
+let leaf_link_style = const (leaf_style + style().color(blush).raw("text-decoration", "underline dotted rgba(235, 104, 46, 0.7) 1px").raw("text-underline-offset", "3px").hover(style().raw("border-color", "rgba(235, 104, 46, 0.6)")));
+
+fun leaf(text: str): View {
+	view("code").styled(leaf_style).text(text)
+}
+
+fun leaf_link(href: str, text: str): View {
+	view("a").styled(leaf_link_style).attr("href", href).text(text)
+}
+
+/// A plain prose span, for paragraphs composed of text and leafs.
+fun pt(text: str): View {
+	view("span").text(text)
+}
 
 fun docs_link(href: str, label: str): View {
 	view("a").styled(card_link).attr("href", href).text(i"{label} →")
@@ -725,7 +778,7 @@ let dogfood_cta = const style().margin(space(0)).text_align(TextAlign::Center);
 fun dogfood(): View {
 	view("section").styled(column + section_block + stack)
 		.child(view("p").styled(dogfood_text).text("This site is a vilan program — one package, two entries. The server rendered the markup you first saw; the browser rebuilt it live."))
-		.child(view("p").styled(dogfood_cta).child(docs_link("https://github.com/vilan-lang/website", "Read this page's source")))
+		.child(view("p").styled(dogfood_cta).child(button_link("https://github.com/vilan-lang/website", "Read this page's source")))
 }
 
 let footer_block = const style().raw("border-top", hairline).padding_y(Length::px(128.0));

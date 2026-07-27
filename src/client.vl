@@ -30,13 +30,17 @@ impl ScrollProbe {
 }
 
 fun main() {
-	let scrolled = Signal::new(false);
-	let _root = mount_root("app", || page(scrolled));
+	let scroll_fade = Signal::new("0");
+	let _root = mount_root("app", || page(scroll_fade));
 
-	// A scroll arrives outside any vilan turn, exactly like `popstate` in
-	// std::router — wrap the write so it settles as one wave.
+	// The toolbar's --nav-fade: scroll/64 clamped to [0,1], linked 1:1 to
+	// scroll position. A scroll arrives outside any vilan turn, exactly like
+	// `popstate` in std::router — wrap the write so it settles as one wave.
 	let probe = scroll_probe("html");
-	window_listen("scroll", || turn(FlushPolicy::AtSuspension, || {
-		scrolled.set(probe.scroll_top() > 24.0);
-	}));
+	let publish = || turn(FlushPolicy::AtSuspension, || {
+		let progress = (probe.scroll_top() / 64.0).min(1.0).max(0.0);
+		scroll_fade.set(i"{progress}");
+	});
+	publish();
+	window_listen("scroll", publish);
 }
