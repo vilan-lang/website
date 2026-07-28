@@ -391,9 +391,11 @@ let card_title = const style()
 
 let card_body = const style().margin(space(0)).opacity(0.78);
 
+// inline-flex, not flex: the dogfood section centers this link with
+// text-align, which only reaches an inline-level box.
 let card_link = const style()
 	.raw("align-self", "flex-start")
-	.display(Display::Flex)
+	.raw("display", "inline-flex")
 	.align_items(AlignItems::Center)
 	.gap(space(1))
 	.color(ember)
