@@ -358,13 +358,15 @@ fun editor_band(): View {
 
 // --- feature grid ---
 
-// One breakpoint only: std::style emits media rules in an order that lets a
-// narrower min-width override a wider one on the same property (filed as a
-// backlog item), so sm(2col) + lg(3col) here would render 2-col on desktop.
+// Two breakpoints on one property, mobile-first: 1 column on phones,
+// 2 from sm, 3 from lg. Needs a toolchain with B35 (media rules emit in
+// ascending min-width order, fixed 2026-07-28) — older builds rendered
+// the sm value on desktop.
 let cards_grid = const (style()
 	.display(Display::Grid)
 	.gap(space(4))
 	.raw("background", "radial-gradient(340px circle at var(--glow-x, -999px) var(--glow-y, -999px), rgba(235, 104, 46, 0.10), transparent 70%)")
+	.sm(style().raw("grid-template-columns", "1fr 1fr"))
 	.lg(style().raw("grid-template-columns", "1fr 1fr 1fr"))
 	+ reveal);
 
