@@ -393,11 +393,18 @@ let card_body = const style().margin(space(0)).opacity(0.78);
 
 let card_link = const style()
 	.raw("align-self", "flex-start")
+	.display(Display::Flex)
+	.align_items(AlignItems::Center)
+	.gap(space(1))
 	.color(ember)
 	.font_size(Length::px(13.0))
 	.raw("text-decoration", "none")
 	.raw("user-select", "none")
 	.hover(style().raw("text-decoration", "underline"));
+
+// The links' arrow: Lucide move-right, baked ember like the card icons, so
+// every "go somewhere" affordance draws its arrow the same way.
+let link_arrow = const (style().width(Length::px(14.0)).height(Length::px(14.0)) + no_drag);
 
 // The promoted form for a section's one important link: a quiet outline pill.
 let button_link_style = const style()
@@ -409,6 +416,7 @@ let button_link_style = const style()
 	.font_weight(600)
 	.padding_y(space(2))
 	.padding_x(space(5))
+	.gap(space(1))
 	.radius(Length::px(999.0))
 	.raw("border", "1px solid rgba(235, 104, 46, 0.45)")
 	.raw("text-decoration", "none")
@@ -419,11 +427,25 @@ let button_link_style = const style()
 		.raw("border-color", "rgba(235, 104, 46, 0.8)"));
 
 fun button_link(href: str, label: str): View {
-	view("a").styled(button_link_style).attr("href", href).text(i"{label} →")
+	view("a")
+		.styled(button_link_style)
+		.attr("href", href)
+		.child(pt(label))
+		.child(view("img")
+			.styled(link_arrow)
+			.attr("src", i"{assets}/icons/move-right.svg")
+			.attr("alt", ""))
 }
 
 fun docs_link(href: str, label: str): View {
-	view("a").styled(card_link).attr("href", href).text(i"{label} →")
+	view("a")
+		.styled(card_link)
+		.attr("href", href)
+		.child(pt(label))
+		.child(view("img")
+			.styled(link_arrow)
+			.attr("src", i"{assets}/icons/move-right.svg")
+			.attr("alt", ""))
 }
 
 // Card icons are Lucide (lucide.dev, ISC), baked with the accent stroke and
