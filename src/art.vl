@@ -209,7 +209,7 @@ fun diagram(): View {
 		.child(grain())
 		.child(view("div")
 			.styled(dg_source)
-			.child(view("p").styled(art_tab).text("notes.vl — one source"))
+			.child(view("p").styled(art_tab).text("notes.vl · one source"))
 			.child(view("div")
 				.styled(art_code)
 				.child(ln([t("["), kw("service"), t("(NotesClient)]")]))
@@ -276,7 +276,7 @@ fun diagram(): View {
 					])))))
 		.child(view("p")
 			.styled(art_caption)
-			.text("one definition — the compiler builds both sides and keeps them honest"))
+			.text("one definition: the compiler builds both sides and keeps them honest"))
 }
 
 // --- the editor window (editor band) ---
@@ -695,5 +695,5 @@ fun dataflow_art(): View {
 			])))
 		.child(view("p")
 			.styled(art_caption)
-			.text("no virtual DOM, no re-render — the subscription updates exactly one node"))
+			.text("no virtual DOM, no re-render: the subscription updates exactly one node"))
 }

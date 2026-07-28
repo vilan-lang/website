@@ -155,7 +155,7 @@ fun install_section(copy: |str| void): View {
 		.child(view("h2").styled(heading).text("One command, the whole toolchain"))
 		.child(view("p")
 			.styled(lead)
-			.child(pt("Compiler, dev server with hot reload, formatter, test runner, and language server — one small binary, no configuration to assemble. Update any time with "))
+			.child(pt("The compiler, dev server with hot reload, formatter, test runner, and language server live in one small binary. There is nothing else to install and nothing to configure. Update any time with "))
 			.child(leaf("vilan upgrade"))
 			.child(pt(".")))
 		.child(view("div")
@@ -243,7 +243,7 @@ fun counter_demo(): View {
 fun showcase_reactive(): View {
 	view("section")
 		.styled(column + section_block + stack)
-		.child(showcase(view("div").styled(showcase_copy).child(view("h2").styled(heading).text("UI that follows your data")).child(view("p").styled(lead).child(pt("A view is a value and a binding is a subscription: ")).child(leaf("bind_text")).child(pt(" sets the one text node now and re-sets it whenever the signal changes. No virtual DOM, no render loop, no dependency arrays — updates land exactly where the data changed."))).child(view("p").styled(lead).text("The snippet is the whole program. This one runs — it is running right here:")).child(counter_demo()), code_panel([
+		.child(showcase(view("div").styled(showcase_copy).child(view("h2").styled(heading).text("UI that follows your data")).child(view("p").styled(lead).child(pt("A view is a value and a binding is a subscription: ")).child(leaf("bind_text")).child(pt(" sets the text node once, then sets it again whenever the signal changes. There is no virtual DOM, no render loop, and no dependency array to babysit. Updates land exactly where the data changed."))).child(view("p").styled(lead).text("The snippet is the whole program, and it runs. Try it right here:")).child(counter_demo()), code_panel([
 			ln([kw("import"), t(" std::ui::{ view, mount_root };")]),
 			ln([kw("import"), t(" std::reactive::Signal;")]),
 			blank(),
@@ -285,9 +285,9 @@ fun showcase_fullstack(): View {
 			.styled(lead)
 			.child(pt("Mark a method "))
 			.child(leaf_link("/docs/guide/services.html#what-rpc-calls-do", "[rpc]"))
-			.child(pt(" and the browser can call it — typed, checked, awaited like any other call. Mark a signal "))
+			.child(pt(" and the browser can call it like any other function, typed and checked. Mark a signal "))
 			.child(leaf_link("/docs/guide/services.html#mirrors", "[expose]"))
-			.child(pt(" and every connected client holds a live mirror that updates when the server writes. No REST endpoints, no fetch calls, no JSON shapes drifting out of sync by hand.")))
+			.child(pt(" and every connected client holds a live mirror that updates when the server writes. You never write REST endpoints, fetch calls, or the JSON shapes that drift out of sync between them.")))
 		.child(diagram())
 		.child(button_link("/docs/guide/services.html", "Services & RPC in the guide"))
 }
@@ -325,14 +325,14 @@ fun showcase_compiler(): View {
 			.child(view("h2").styled(heading).text("Find out at compile time"))
 			.child(view("p")
 				.styled(lead)
-				.child(pt("There is no null and there are no exceptions. A value that might be missing is an "))
+				.child(pt("Vilan has no null and no exceptions. A value that might be missing is an "))
 				.child(leaf_link("/docs/std/option-result.html#optiont", "Option"))
 				.child(pt(", a call that might fail returns a "))
 				.child(leaf_link("/docs/std/option-result.html#resultt-e", "Result"))
-				.child(pt(", and the compiler makes you look inside before you use one — so the failure here is a build error, not a production incident.")))
+				.child(pt(", and the compiler makes you look inside before you use either. The mistake in this snippet is a build error, not a production incident.")))
 			.child(view("p")
 				.styled(lead)
-				.text("Values are copied, never silently shared, so two names cannot fight over one object. The mistakes JavaScript saves for runtime are mostly not expressible."))
+				.text("Values are copied rather than silently shared, so two names never fight over one object. Most of the mistakes JavaScript saves for runtime cannot even be written."))
 			.child(button_link("/docs/std/option-result.html", "Option & Result in the reference"))))
 }
 
@@ -346,11 +346,13 @@ fun editor_band(): View {
 			.child(view("h2").styled(heading).text("The editor is in on it"))
 			.child(view("p")
 				.styled(lead)
+				.child(leaf("vilan"))
+				.child(pt(" and "))
 				.child(leaf("vilan-lsp"))
-				.child(pt(" ships in the same binary as the compiler, so the editor and the build never disagree: diagnostics as you type, hover types and docs, completion with signatures, rename, formatting, and Organize Imports — in VS Code today, and anywhere else LSP reaches.")))
+				.child(pt(" ship together so your editor and build never disagree. In-editor diagnostics, hover types and docs, autocompletion, Symbol Rename, formatting, and Organize Imports are all available in VS Code today.")))
 			.child(view("p")
 				.styled(lead)
-				.text("Errors are resilient, not modal: a broken line keeps the rest of the file compiling, serving hovers, and completing."))
+				.text("One broken line does not take the tooling down. The rest of the file keeps compiling, serving hovers, and completing while you fix it."))
 			.child(button_link("https://github.com/vilan-lang/vilan/tree/main/editors/vscode", "The VS Code extension"))))
 }
 
@@ -444,33 +446,34 @@ fun feature(icon: str, name: str, href: str, body: List<View>): View {
 fun feature_grid(): View {
 	view("section")
 		.styled(column + section_block + stack)
-		.child(view("h2").styled(heading).text("What the language holds"))
+		.child(view("h2").styled(heading).text("Built into the language"))
 		.child(view("div")
 			.styled(cards_grid)
 			.attr("data-glow", "")
 			.child(feature("shield-check", "No null, no exceptions", "/docs/std/option-result.html", [
+				pt("A missing value is an "),
 				leaf_link("/docs/std/option-result.html#optiont", "Option"),
-				pt(" and "),
+				pt(", a failure is a "),
 				leaf_link("/docs/std/option-result.html#resultt-e", "Result"),
-				pt(" are the only ways out, and "),
+				pt(", and "),
 				leaf("match"),
-				pt(" makes you handle both arms. Errors are values you route, not surprises you catch."),
+				pt(" makes you handle both arms. Errors are ordinary values you pass around like any other data."),
 			]))
 			.child(feature("copy", "Values, not references", "/docs/tour/memory-model.html", [
 				pt("Assignment copies. Sharing is explicit, borrowing is checked, and spooky action at a distance is a compile error."),
 			]))
 			.child(feature("zap", "Async without the ceremony", "/docs/tour/async.html", [
 				leaf_link("/docs/tour/async.html#opting-out-of-waiting-async-and-await", "await"),
-				pt(" is implicit — call an async function and the machinery is the compiler's problem. Structured concurrency with tasks and "),
+				pt(" is implicit. Call an async function and the machinery is the compiler's problem. When you want real concurrency, tasks and "),
 				leaf_link("/docs/tour/async.html#nurseries-structured-spawning", "nurseries"),
-				pt(" when you want it."),
+				pt(" give it structure."),
 			]))
 			.child(feature("layers", "One program, two platforms", "/docs/tour/platforms.html", [
 				pt("One workspace compiles the node server and the browser client. The compiler tracks which code needs which platform and keeps each bundle honest."),
 			]))
 			.child(feature("server", "Rendered before it ships", "/docs/guide/ssr.html", [
 				leaf("std::ui"),
-				pt(" renders on the server too: first paint is real markup, then the client rebuilds it live. View source on this page — it is already there."),
+				pt(" renders on the server too: first paint is real markup, then the client rebuilds it live. View source on this page and the content is already there."),
 			]))
 			.child(feature("refresh-cw", "A dev loop that keeps up", "/docs/guide/dev-loop.html", [
 				leaf("vilan run . --watch"),
@@ -494,7 +497,10 @@ fun dogfood(): View {
 		.styled(column + section_block + stack)
 		.child(view("p")
 			.styled(dogfood_text)
-			.text("This site is a vilan program — one package, two entries. The server rendered the markup you first saw; the browser rebuilt it live."))
+			.text("This site is a vilan program: one package, two entries. The server rendered the markup you first saw, and the browser rebuilt it live."))
+		.child(view("p")
+			.styled(dogfood_text)
+			.text("Vilan is built to last. Semantics are settled on paper before they are implemented, and pinned by tests after. A language is a foundation, and a foundation should not move under you."))
 		.child(view("p")
 			.styled(dogfood_cta)
 			.child(docs_link("https://github.com/vilan-lang/website", "Read this page's source")))
