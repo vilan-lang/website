@@ -13,7 +13,8 @@
 import std::json::{ JsonValue, parse_json_value };
 import std::reactive::{ FlushPolicy, Signal, turn };
 import std::ui::mount_root;
-import pkg::page::{ page, reveal };
+import pkg::page::page;
+import pkg::theme::reveal;
 
 // `window.addEventListener(type, handler, { passive: true })` — the options
 // object is a parsed JSON literal (a plain JS object at runtime). A passive

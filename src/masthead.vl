@@ -1,0 +1,116 @@
+// The page top: the sticky scroll-faded toolbar, the CSS-built bloom, and
+// the hero. One scale (`hero_scale`) rules every masthead dimension.
+
+import pkg::theme::{ assets, blush, column, display_face, ink, no_drag, no_select, visually_hidden };
+import std::reactive::Signal;
+import std::style::{ AlignItems, Color, Display, FlexDirection, JustifyContent, Length, Overflow, Position, TextAlign, space, style };
+import std::ui::{ View, view };
+
+// --- the sticky toolbar ---
+
+// Sticky across the whole page, its chrome linked 1:1 to scroll position:
+// the client publishes --nav-fade as scroll/64 clamped to [0,1] (0 = page
+// top, 1 = a full toolbar-height down), and background, divider, and blur
+// are all that variable times their full value. No transition - the fade IS
+// the scroll, which also serves users with smooth scrolling off.
+let topbar = const style().position(Position::Sticky).raw("top", "0").raw("z-index", "100").raw("background", "rgba(18, 0, 4, calc(var(--nav-fade, 0) * 0.86))").raw("border-bottom", "1px solid rgba(249, 223, 231, calc(var(--nav-fade, 0) * 0.10))").raw("backdrop-filter", "blur(calc(var(--nav-fade, 0) * 14px))");
+
+let nav_row = const style().display(Display::Flex).align_items(AlignItems::Center).justify_content(JustifyContent::Between).height(Length::px(64.0));
+
+let nav_brand = const style().display(Display::Flex).align_items(AlignItems::Center).gap(space(3)).font_weight(600).raw("letter-spacing", "0.35em").font_size(Length::px(13.0));
+
+let nav_links = const style().display(Display::Flex).gap(space(6));
+
+let nav_link = const style().color(blush).opacity(0.8).raw("text-decoration", "none").raw("user-select", "none").hover(style().opacity(1.0));
+
+fun top_bar(scroll_fade: Signal<str>): View {
+	view("nav")
+		.styled(topbar)
+		.style_var("--nav-fade", scroll_fade)
+		.child(view("div").styled(column + nav_row)
+			.child(view("a").styled(nav_brand + nav_link).attr("href", "/")
+				.child(view("img").styled(no_drag).attr("src", i"{assets}/mark.svg").attr("alt", "").attr("height", "18"))
+				.child(view("span").text("VILAN")))
+			.child(view("div").styled(nav_links)
+				.child(view("a").styled(nav_link).attr("href", "#install").text("Install"))
+				.child(view("a").styled(nav_link).attr("href", "/docs/tour/hello-vilan.html").text("Learn"))
+				.child(view("a").styled(nav_link).attr("href", "/docs/").text("Docs"))))
+}
+
+// --- masthead: the CSS bloom and the 1016px hero ---
+
+// One scale rules the whole masthead: s = clamp(1100px, 100vw, 1920px).
+// Every hero and bloom dimension is s times a design ratio, so the mask, the
+// gradient, and the text stack scale in exact lockstep and stay centered on
+// each other at every width (capped at the 1920 design, floored at 1100).
+let hero_scale = "clamp(1100px, 100vw, 1920px)";
+
+// The bloom is the designer's construction: the tiled gradient (the Figma
+// fill was gradient.png at 1500x1500, repeating) shown through the exported
+// mask (its layer blur rides inside the SVG filter; the viewBox is expanded
+// to the filter region so the glow renders under the toolbar instead of
+// cutting off at it), with the Duo Noise recipe over the same masked region.
+let bloom_mask_uri = "url(\"data:image/svg+xml,%3Csvg width='1877.72' height='1164.39' viewBox='0 -92.4345 1877.72 1164.39' fill='none' xmlns='http://www.w3.org/2000/svg'%3E %3Cg filter='url(%23filter0_f_51_26)'%3E %3Cpath d='M708.762 806.63C717.203 788.527 770.245 793.449 798.513 806.63C826.78 819.811 819.569 836.26 811.127 854.363C802.685 872.466 737.029 877.819 708.762 864.638C680.494 851.456 700.32 824.733 708.762 806.63Z' fill='%23D9D9D9'/%3E %3Cpath d='M1196.04 124.964C1286.06 124.964 1359.04 189.435 1359.04 268.964C1359.03 296.719 1350.14 322.638 1334.74 344.625C1351.59 383.759 1357.54 431.665 1357.54 489.334C1357.54 534.115 1357.52 568.181 1353.65 594.069C1505.65 471.69 1705.07 359.683 1504.42 524.754C1392.08 633.435 1709.16 555.443 1675.16 702.715C1631.58 790.249 1402.9 657.226 1406.64 823.488C1245.88 908.901 1198.47 792.736 1219.88 735.235C1226.55 717.315 1244.29 694.6 1268.59 669.77C1211.94 677.661 1119.22 674.039 967.451 674.039C837.02 674.039 741.487 667.658 672.1 651.83C602.114 708.686 502.736 737.543 407.269 742.508C227.5 767.999 218.763 641.243 207.5 512.5C270 442.5 361.5 454.932 447.5 334.323C465.97 332.707 484.168 331.352 501.937 330.399C512.635 216.95 571.044 199.869 889.93 199.869C950.307 199.869 1003.2 201.81 1049.48 205.865C1075.95 157.963 1131.63 124.964 1196.04 124.964Z' fill='%23D9D9D9'/%3E %3Cpath d='M202.603 243.749C212.325 222.901 246.437 218.231 278.794 233.319C311.151 248.408 329.5 277.54 319.778 298.389C310.056 319.237 275.945 323.907 243.588 308.818C211.231 293.73 192.882 264.597 202.603 243.749Z' fill='%23D9D9D9'/%3E %3Cpath d='M1397.41 130.335C1407.02 109.717 1433.28 101.615 1456.07 112.239C1478.85 122.864 1489.53 148.19 1479.91 168.808C1470.3 189.427 1444.03 197.528 1421.25 186.904C1398.47 176.28 1387.79 150.953 1397.41 130.335Z' fill='%23D9D9D9'/%3E %3C/g%3E %3Cdefs%3E %3Cfilter id='filter0_f_51_26' x='0' y='-92.4345' width='1877.72' height='1164.39' filterUnits='userSpaceOnUse' color-interpolation-filters='sRGB'%3E %3CfeFlood flood-opacity='0' result='BackgroundImageFix'/%3E %3CfeBlend mode='normal' in='SourceGraphic' in2='BackgroundImageFix' result='shape'/%3E %3CfeGaussianBlur stdDeviation='100' result='effect1_foregroundBlur_51_26'/%3E %3C/filter%3E %3C/defs%3E %3C/svg%3E \")";
+
+let bloom_mask_sharp_uri = "url(\"data:image/svg+xml,%3Csvg width='1877.72' height='1164.39' viewBox='0 -92.4345 1877.72 1164.39' fill='none' xmlns='http://www.w3.org/2000/svg'%3E %3Cg%3E %3Cpath d='M708.762 806.63C717.203 788.527 770.245 793.449 798.513 806.63C826.78 819.811 819.569 836.26 811.127 854.363C802.685 872.466 737.029 877.819 708.762 864.638C680.494 851.456 700.32 824.733 708.762 806.63Z' fill='%23D9D9D9'/%3E %3Cpath d='M1196.04 124.964C1286.06 124.964 1359.04 189.435 1359.04 268.964C1359.03 296.719 1350.14 322.638 1334.74 344.625C1351.59 383.759 1357.54 431.665 1357.54 489.334C1357.54 534.115 1357.52 568.181 1353.65 594.069C1505.65 471.69 1705.07 359.683 1504.42 524.754C1392.08 633.435 1709.16 555.443 1675.16 702.715C1631.58 790.249 1402.9 657.226 1406.64 823.488C1245.88 908.901 1198.47 792.736 1219.88 735.235C1226.55 717.315 1244.29 694.6 1268.59 669.77C1211.94 677.661 1119.22 674.039 967.451 674.039C837.02 674.039 741.487 667.658 672.1 651.83C602.114 708.686 502.736 737.543 407.269 742.508C227.5 767.999 218.763 641.243 207.5 512.5C270 442.5 361.5 454.932 447.5 334.323C465.97 332.707 484.168 331.352 501.937 330.399C512.635 216.95 571.044 199.869 889.93 199.869C950.307 199.869 1003.2 201.81 1049.48 205.865C1075.95 157.963 1131.63 124.964 1196.04 124.964Z' fill='%23D9D9D9'/%3E %3Cpath d='M202.603 243.749C212.325 222.901 246.437 218.231 278.794 233.319C311.151 248.408 329.5 277.54 319.778 298.389C310.056 319.237 275.945 323.907 243.588 308.818C211.231 293.73 192.882 264.597 202.603 243.749Z' fill='%23D9D9D9'/%3E %3Cpath d='M1397.41 130.335C1407.02 109.717 1433.28 101.615 1456.07 112.239C1478.85 122.864 1489.53 148.19 1479.91 168.808C1470.3 189.427 1444.03 197.528 1421.25 186.904C1398.47 176.28 1387.79 150.953 1397.41 130.335Z' fill='%23D9D9D9'/%3E %3C/g%3E  %3C/svg%3E \")";
+
+let duo_tile_uri = "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E %3Cfilter id='d' x='0' y='0' width='100%25' height='100%25' color-interpolation-filters='sRGB'%3E %3CfeTurbulence type='fractalNoise' baseFrequency='2' numOctaves='3' seed='3214' stitchTiles='stitch' result='n'/%3E %3CfeColorMatrix in='n' type='matrix' values='1 0 0 0 0 0 1 0 0 0 0 0 1 0 0 0 0 0 0 1' result='n1'/%3E %3CfeColorMatrix in='n1' type='luminanceToAlpha' result='a'/%3E %3CfeComponentTransfer in='a' result='m1'%3E%3CfeFuncA type='discrete' tableValues='1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0'/%3E%3C/feComponentTransfer%3E %3CfeFlood flood-color='%23262324' result='f1'/%3E %3CfeComposite in='f1' in2='m1' operator='in' result='dark'/%3E %3CfeComponentTransfer in='a' result='m2'%3E%3CfeFuncA type='discrete' tableValues='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1'/%3E%3C/feComponentTransfer%3E %3CfeFlood flood-color='rgba(255, 89, 0, 0.57)' result='f2'/%3E %3CfeComposite in='f2' in2='m2' operator='in' result='orange'/%3E %3CfeMerge%3E%3CfeMergeNode in='dark'/%3E%3CfeMergeNode in='orange'/%3E%3C/feMerge%3E %3C/filter%3E %3Crect width='120' height='120' filter='url(%2523d)'/%3E %3C/svg%3E\")";
+
+// The field clips horizontal overflow below the 1100px floor and spans the
+// toolbar + hero + blur tail; the drift wrapper animates inside it so mask
+// and gradient move as one.
+let bloom_field = const (style().position(Position::Absolute).raw("top", "0").raw("left", "0").width(Length::pct(100.0)).raw("height", i"calc(64px + {hero_scale} * 0.570864)").overflow(Overflow::Hidden).raw("pointer-events", "none") + no_select);
+
+let bloom_drift = const style().position(Position::Absolute).raw("inset", "0").raw("animation", "bloom-drift-a 44s ease-in-out infinite alternate");
+
+// Figma's layer blur, literally: the wrapper blurs the whole masked
+// gradient (which is also what melts the 1500px tile seam), while the noise
+// rides after the blur so the grain stays crisp - under the soft-edged mask
+// so its coverage matches the silhouette.
+let bloom_blurwrap = const style().position(Position::Absolute).raw("inset", "0").raw("filter", i"blur(calc({hero_scale} * 0.052)) saturate(1.25) brightness(1.12) url(#bloom-texture)");
+
+let bloom_band_geometry = const style().position(Position::Absolute).raw("left", "50%").raw("transform", "translateX(-50%)").raw("top", i"calc(64px - {hero_scale} * 0.049226)").raw("width", hero_scale).raw("height", i"calc({hero_scale} * 0.62009)").raw("-webkit-mask-size", "100% 100%").raw("mask-size", "100% 100%");
+
+let bloom_band = const (bloom_band_geometry + style().raw("-webkit-mask-image", bloom_mask_uri).raw("mask-image", bloom_mask_uri));
+
+let bloom_band_sharp = const (bloom_band_geometry + style().raw("-webkit-mask-image", bloom_mask_sharp_uri).raw("mask-image", bloom_mask_sharp_uri));
+
+// The gradient tile: gradient.png's composition in tile space, sized to the
+// design's 1500px square and repeating - the second tile's purple edge
+// enters on the right exactly as it does in the Figma fill.
+let bloom_gradient = const (bloom_band_sharp + style().raw("background-image", "radial-gradient(30% 10% ellipse at 61% 24%, rgb(226 184 231), rgb(247 229 249 / 70%) 74%, transparent 80%), radial-gradient(42% 40% ellipse at 62% 40%, rgb(255 106 0 / 95%), rgb(217 118 48 / 65%) 50%, transparent 78%), radial-gradient(61% 67% ellipse at 23% 48%, rgb(175 38 168 / 95%), rgb(237 64 7 / 60%) 45%, transparent 76%), radial-gradient(40% 46% ellipse at 92% 48%, rgba(216, 71, 48, 0.95), rgba(216, 71, 48, 0.7) 45%, transparent 78%), radial-gradient(26% 40% ellipse at 2% 50%, rgba(216, 71, 48, 0.9), transparent 74%), radial-gradient(36% 26% ellipse at 45% 78%, rgba(178, 48, 86, 0.7), transparent 76%), radial-gradient(22% 20% ellipse at 20% 84%, rgba(103, 34, 131, 0.8), transparent 74%), linear-gradient(100deg, #95304d 0%, #8B2786 25%, #EB682E 55%, #D84730 85%, #D84730 100%)").raw("background-size", i"calc({hero_scale} * 0.78125) calc({hero_scale} * 0.78125)"));
+
+let bloom_duo = const (bloom_band + style().raw("background-image", duo_tile_uri).raw("background-size", "120px 120px").raw("mix-blend-mode", "soft-light"));
+
+fun bloom(): View {
+	view("div").styled(bloom_field)
+		.child(view("div").styled(bloom_drift)
+			.child(view("div").styled(bloom_blurwrap).child(view("div").styled(bloom_gradient)))
+			.child(view("div").styled(bloom_duo)))
+}
+
+let masthead_wrap = const style().position(Position::Relative);
+
+// Hero: 1016px at the design width, scaling as 52.92vw below it. The stack
+// (mark, wordmark, tagline) starts 292px in and is gapped 64px — all
+// vw-proportional with floors so phones stay legible. The headline artwork
+// gets a visually-hidden text twin for readers and robots.
+let hero_block = const style().position(Position::Relative).display(Display::Flex).flex_direction(FlexDirection::Column).align_items(AlignItems::Center).raw("height", i"calc({hero_scale} * 0.52917)").raw("padding-top", i"calc({hero_scale} * 0.15208)").raw("gap", i"calc({hero_scale} * 0.03333)").raw("box-sizing", "border-box");
+
+let hero_mark = const (style().raw("width", i"calc({hero_scale} * 0.05208)").height(Length::auto()) + no_drag);
+
+let hero_wordmark = const (style().raw("width", i"calc({hero_scale} * 0.16198)").height(Length::auto()) + no_drag);
+
+let hero_tagline = const style().raw("font-family", display_face).raw("font-size", i"max(18px, {hero_scale} * 0.01667)").raw("line-height", "1.5").font_weight(600).color(ink).margin(space(0)).text_align(TextAlign::Center);
+
+fun hero(): View {
+	view("header").styled(hero_block)
+		.child(view("h1").styled(visually_hidden).text("Vilan — The Modern Web Language"))
+		.child(view("img").styled(hero_mark).attr("src", i"{assets}/dark_logo_flat.svg").attr("alt", ""))
+		.child(view("img").styled(hero_wordmark).attr("src", i"{assets}/wordmark_hero.svg").attr("alt", "VILAN"))
+		.child(view("p").styled(hero_tagline).attr("aria-hidden", "true").text("The Modern Web Language"))
+}
+
+fun masthead(): View {
+	view("div").styled(masthead_wrap).child(hero())
+}
