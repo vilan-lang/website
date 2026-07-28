@@ -19,10 +19,11 @@
 // assets left are the brand marks and fonts, served from
 // vilan-lang.org/assets so dev and deployed builds see the same bytes.
 
+import std::option::Option::{ self, None, Some };
 import std::reactive::Signal;
 import std::shared::Shared;
 import std::style::{ AlignItems, Color, Cursor, Display, FlexDirection, JustifyContent, Length, Overflow, Position, TextAlign, space, style };
-import std::time::sleep;
+import std::time::Timer;
 import std::ui::{ View, view };
 
 // --- the brand palette (vilan-lang/branding: README.md) ---
@@ -581,10 +582,9 @@ let install_art_cell = const (style().raw("display", "none").lg(style().raw("dis
 
 fun install_row(label: str, command: str, copy: |str| void): View {
 	let icon = Signal::new(i"{assets}/icons/copy.svg");
-	// Re-clicks must not let a stale revert fire early: per-task cancel
-	// handles are deliberately not a thing (nursery-scoped cancel is), so
-	// the revert checks a generation counter - old sleepers wake and no-op.
-	let generation = Shared::new(0);
+	// Re-clicks call the pending revert off before arming the next one -
+	// std::time::Timer, the API this very button drove into std.
+	let pending: Shared<Option<Timer>> = Shared::new(None);
 	view("div")
 		.child(view("p").styled(install_label).text(label))
 		.child(view("div").styled(install_command)
@@ -592,11 +592,14 @@ fun install_row(label: str, command: str, copy: |str| void): View {
 			.child(view("button").styled(copy_button).attr("aria-label", "Copy command").on("click", || {
 				copy(command);
 				icon.set(i"{assets}/icons/check.svg");
-				generation.write() = generation.read() + 1;
-				let mine = generation.read();
+				match pending.read() {
+					Some(let timer) => timer.cancel(),
+					None => {}
+				}
+				let timer = Timer::after(2400);
+				pending.write() = Some(timer);
 				let _ = async {
-					sleep(2400);
-					if generation.read() == mine {
+					if timer.wait() {
 						icon.set(i"{assets}/icons/copy.svg");
 					}
 				};
