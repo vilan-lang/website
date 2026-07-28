@@ -35,8 +35,14 @@ vilan fmt              # format the sources
 vilan-lang.org serves a static export of this site from the
 [vilan-lang.github.io](https://github.com/vilan-lang/vilan-lang.github.io)
 repository: the server-rendered markup is captured as `index.html` and copied
-over together with `dist/client.js` and `dist/client.css`. Manual for now —
-there is no deploy workflow yet.
+over together with `dist/client.js` and `dist/client.css`. Every push to
+`main` does this automatically. [deploy.yml](.github/workflows/deploy.yml)
+builds the toolchain from source, renders the page, and commits the export to
+the pages repository, touching only those three files (`docs/` and `assets/`
+there belong to other flows). The push authenticates with a write deploy key
+on the pages repository, stored as this repository's `PAGES_DEPLOY_KEY`
+secret. Redeploy by hand with `gh workflow run deploy.yml -R
+vilan-lang/website`.
 
 ## License
 

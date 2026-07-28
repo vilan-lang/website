@@ -1,0 +1,98 @@
+# Deploy the site to vilan-lang.org. Every push to main (and any manual
+# dispatch) rebuilds the package, captures the server-rendered page, and
+# commits the static export - index.html, client.js, client.css and nothing
+# else - to vilan-lang/vilan-lang.github.io, whose branch-based Pages build
+# publishes main as-is. docs/ there belongs to that repo's docs.yml and
+# assets/ to hand deploys, so the commit stages only the three site files.
+#
+# The toolchain builds from vilan-lang/vilan@main: the feature grid needs
+# B35 (media rules emit in ascending min-width order), which no tagged
+# release contains yet. Once one does, swap the toolchain checkout + cargo
+# build for the release tarball and drop the Rust toolchain and cache.
+#
+# The push authenticates with a write deploy key on the pages repo, stored
+# here as the PAGES_DEPLOY_KEY secret. Until that secret exists the workflow
+# still builds and renders (a deploy dry run on every push) and skips the
+# push with a notice, per the disabled-until-secret-exists convention.
+name: deploy
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: site-deploy
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+        with:
+          repository: vilan-lang/vilan
+          ref: main
+          path: toolchain
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: toolchain
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - name: Build the toolchain
+        run: cargo build --release -p vilan-cli --manifest-path toolchain/Cargo.toml
+      - name: Build the site
+        run: toolchain/target/release/vilan build .
+      - name: Render the page
+        run: |
+          mkdir export
+          node dist/server.js &
+          server=$!
+          curl -sS --fail --retry 30 --retry-delay 1 --retry-connrefused \
+            http://localhost:3000/ -o export/index.html
+          kill "$server"
+          if grep -q '<!--ssr-->' export/index.html; then
+            echo "::error::the render still contains the ssr marker - the page did not splice"
+            exit 1
+          fi
+          cp dist/client.js dist/client.css export/
+      - name: Is there a key to push with?
+        id: pages
+        # A job-level if: cannot read secrets, so the secret's presence
+        # becomes a step output the deploy steps condition on (the same gate
+        # as release.yml's publish jobs - the workflow lands green before the
+        # key exists and turns into a real deploy the moment it does).
+        env:
+          PAGES_DEPLOY_KEY: ${{ secrets.PAGES_DEPLOY_KEY }}
+        run: |
+          if [ -n "$PAGES_DEPLOY_KEY" ]; then
+            echo "deploy=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "deploy=false" >> "$GITHUB_OUTPUT"
+            echo "::notice title=Site not deployed::PAGES_DEPLOY_KEY is not configured - add a write deploy key for vilan-lang/vilan-lang.github.io as this repository's PAGES_DEPLOY_KEY secret."
+          fi
+      - uses: actions/checkout@v4
+        if: steps.pages.outputs.deploy == 'true'
+        with:
+          repository: vilan-lang/vilan-lang.github.io
+          ssh-key: ${{ secrets.PAGES_DEPLOY_KEY }}
+          path: site
+      - name: Commit if the site changed
+        if: steps.pages.outputs.deploy == 'true'
+        run: |
+          cp export/index.html export/client.js export/client.css site/
+          cd site
+          git add index.html client.js client.css
+          if git diff --cached --quiet; then
+            echo "::notice::the site is unchanged"
+            exit 0
+          fi
+          git -c user.name="site-builder" -c user.email="site@vilan-lang.org" \
+            commit -m "site: deploy vilan-lang/website@${GITHUB_SHA::7}"
+          git push || (git pull --rebase && git push)
