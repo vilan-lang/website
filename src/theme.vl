@@ -18,7 +18,7 @@ let assets = "https://vilan-lang.org/assets";
 let repo = "https://github.com/vilan-lang/vilan";
 
 let body_face = "'Inter', system-ui, -apple-system, sans-serif";
-let display_face = "'Raleway', system-ui, -apple-system, sans-serif";
+let display_face = "'Vilan Display', system-ui, -apple-system, sans-serif";
 let mono = "ui-monospace, SFMono-Regular, Menlo, Consolas, monospace";
 let hairline = "1px solid rgba(249, 223, 231, 0.10)";
 

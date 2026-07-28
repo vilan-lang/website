@@ -10,7 +10,7 @@
 // measurements: 64px sticky toolbar (background and divider fade in on
 // scroll); 1016px hero with the mark, wordmark, and tagline 64px-gapped
 // (stack top at 292); content column 1200px + 32px side padding; 1px 10%
-// dividers; Raleway SemiBold 32/48 display, Inter 14/18 body. Below 1920
+// dividers; Vilan Display (Raleway 600, renamed) 32/48, Inter 14/18 body. Below 1920
 // the hero scales proportionally; grids collapse at breakpoints.
 //
 // The bloom and every piece of section art are BUILT HERE as styled views —
