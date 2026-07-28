@@ -10,6 +10,7 @@
 #   vilan run . --watch    the dev loop (rebuild + HMR on save)
 [package]
 name = "website"
+description = "The vilan promo site (vilan-lang.org), a fullstack SSR vilan package"
 
 [entry.client]
 target = "browser"

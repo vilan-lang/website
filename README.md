@@ -19,9 +19,42 @@ sorts out what may run where by what each entry reaches.
 
 ## Develop
 
+You need the `vilan` CLI on your PATH — grab it from the
+[install instructions](https://vilan-lang.org/#install) or
+`brew install vilan-lang/vilan/vilan`.
+
 ```sh
 vilan run .            # build both entries and serve http://localhost:3000/
 vilan run . --watch    # the dev loop: rebuild + HMR on save
 vilan build .          # compile only (dist/client.js, dist/client.css, dist/server.js)
 vilan fmt              # format the sources
 ```
+
+## Deploy
+
+vilan-lang.org serves a static export of this site from the
+[vilan-lang.github.io](https://github.com/vilan-lang/vilan-lang.github.io)
+repository: the server-rendered markup is captured as `index.html` and copied
+over together with `dist/client.js` and `dist/client.css`. Manual for now —
+there is no deploy workflow yet.
+
+## License
+
+Licensed under either of
+
+- Apache License, Version 2.0 ([LICENSE-APACHE](LICENSE-APACHE))
+- MIT license ([LICENSE-MIT](LICENSE-MIT))
+
+at your option.
+
+The Vilan logo, wordmark, and the other brand assets this site displays are
+excluded from the above: all rights to them are reserved, per the
+[brand assets license](https://github.com/vilan-lang/vilan/blob/main/assets/branding/LICENSE).
+They are served from vilan-lang.org/assets and are not part of this
+repository. The brand system itself (palette, type, layout) lives in a
+private design upstream; this site consumes only its baked values.
+
+Unless you explicitly state otherwise, any contribution intentionally
+submitted for inclusion in the work by you, as defined in the Apache-2.0
+license, shall be dual licensed as above, without any additional terms or
+conditions.

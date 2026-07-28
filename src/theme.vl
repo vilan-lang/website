@@ -1,12 +1,11 @@
 // The design tokens and base vocabulary every module shares: the brand
-// palette (vilan-lang/branding: README.md), type faces, asset roots, and the
-// page-wide layout/texture styles (shell, column, stack, reveal, dividers,
-// grain).
+// palette, type faces, asset roots, and the page-wide layout/texture styles
+// (shell, column, stack, reveal, dividers, grain).
 
 import std::style::{ Color, Display, FlexDirection, Length, Overflow, Position, space, style };
 import std::ui::{ View, view };
 
-// --- the brand palette (vilan-lang/branding: README.md) ---
+// --- the brand palette ---
 
 let ink = const Color::hex("#120004");
 let blush = const Color::hex("#F9DFE7");

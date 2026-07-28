@@ -77,8 +77,8 @@ fun top_bar(scroll_fade: Signal<str>): View {
 // each other at every width (capped at the 1920 design, floored at 1100).
 let hero_scale = "clamp(1100px, 100vw, 1920px)";
 
-// The bloom is the designer's construction: the tiled gradient (the Figma
-// fill was gradient.png at 1500x1500, repeating) shown through the exported
+// The bloom is the designer's construction: the tiled gradient (the design's
+// fill is a 1500x1500 raster tile, repeating) shown through the design's
 // mask (its layer blur rides inside the SVG filter; the viewBox is expanded
 // to the filter region so the glow renders under the toolbar instead of
 // cutting off at it), with the Duo Noise recipe over the same masked region.
@@ -106,7 +106,7 @@ let bloom_drift = const style()
 	.raw("inset", "0")
 	.raw("animation", "bloom-drift-a 44s ease-in-out infinite alternate");
 
-// Figma's layer blur, literally: the wrapper blurs the whole masked
+// The design's layer blur, literally: the wrapper blurs the whole masked
 // gradient (which is also what melts the 1500px tile seam), while the noise
 // rides after the blur so the grain stays crisp - under the soft-edged mask
 // so its coverage matches the silhouette.
@@ -133,9 +133,9 @@ let bloom_band_sharp = const (bloom_band_geometry + style()
 	.raw("-webkit-mask-image", bloom_mask_sharp_uri)
 	.raw("mask-image", bloom_mask_sharp_uri));
 
-// The gradient tile: gradient.png's composition in tile space, sized to the
-// design's 1500px square and repeating - the second tile's purple edge
-// enters on the right exactly as it does in the Figma fill.
+// The gradient tile: the raster fill's composition rebuilt in tile space,
+// sized to the design's 1500px square and repeating - the second tile's
+// purple edge enters on the right exactly as it does in the design.
 let bloom_gradient = const (bloom_band_sharp + style()
 	.raw("background-image", "radial-gradient(30% 10% ellipse at 61% 24%, rgb(226 184 231), rgb(247 229 249 / 70%) 74%, transparent 80%), radial-gradient(42% 40% ellipse at 62% 40%, rgb(255 106 0 / 95%), rgb(217 118 48 / 65%) 50%, transparent 78%), radial-gradient(61% 67% ellipse at 23% 48%, rgb(175 38 168 / 95%), rgb(237 64 7 / 60%) 45%, transparent 76%), radial-gradient(40% 46% ellipse at 92% 48%, rgba(216, 71, 48, 0.95), rgba(216, 71, 48, 0.7) 45%, transparent 78%), radial-gradient(26% 40% ellipse at 2% 50%, rgba(216, 71, 48, 0.9), transparent 74%), radial-gradient(36% 26% ellipse at 45% 78%, rgba(178, 48, 86, 0.7), transparent 76%), radial-gradient(22% 20% ellipse at 20% 84%, rgba(103, 34, 131, 0.8), transparent 74%), linear-gradient(100deg, #95304d 0%, #8B2786 25%, #EB682E 55%, #D84730 85%, #D84730 100%)")
 	.raw("background-size", i"calc({hero_scale} * 0.78125) calc({hero_scale} * 0.78125)"));

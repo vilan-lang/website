@@ -5,8 +5,8 @@
 // The client passes a live `scroll_fade` signal (the toolbar's --nav-fade,
 // wired to the window in client.vl); the server passes a constant "0".
 //
-// Layout and art direction follow the landing concept in the brand repository
-// (`vilan-lang/branding`, a 1920-logical design at 4x) to the user's
+// Layout and art direction follow the brand's landing design (1920-logical,
+// drawn at 4x) to its exact
 // measurements: 64px sticky toolbar (background and divider fade in on
 // scroll); 1016px hero with the mark, wordmark, and tagline 64px-gapped
 // (stack top at 292); content column 1200px + 32px side padding; 1px 10%
@@ -359,8 +359,8 @@ fun editor_band(): View {
 // --- feature grid ---
 
 // Two breakpoints on one property, mobile-first: 1 column on phones,
-// 2 from sm, 3 from lg. Needs a toolchain with B35 (media rules emit in
-// ascending min-width order, fixed 2026-07-28) — older builds rendered
+// 2 from sm, 3 from lg. Needs a toolchain where media rules emit in
+// ascending min-width order (fixed 2026-07-28) — older builds rendered
 // the sm value on desktop.
 let cards_grid = const (style()
 	.display(Display::Grid)
