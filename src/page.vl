@@ -20,6 +20,7 @@
 // vilan-lang.org/assets so dev and deployed builds see the same bytes.
 
 import std::reactive::Signal;
+import std::shared::Shared;
 import std::style::{ AlignItems, Color, Cursor, Display, FlexDirection, JustifyContent, Length, Overflow, Position, TextAlign, space, style };
 import std::time::sleep;
 import std::ui::{ View, view };
@@ -568,7 +569,7 @@ let install_command_text = const style().raw("display", "block").overflow(Overfl
 // commands' pre-formatted min-content width blow the column open on phones.
 // The copy affordance lives inside the code block, docs-site style: an
 // icon button in the top-right that flips to a check for a moment.
-let copy_button = const (style().position(Position::Absolute).raw("top", "8px").raw("right", "8px").display(Display::Flex).align_items(AlignItems::Center).justify_content(JustifyContent::Center).width(Length::px(30.0)).height(Length::px(30.0)).radius(Length::px(8.0)).raw("background", "rgba(27, 6, 13, 0.85)").raw("border", hairline).cursor(Cursor::Pointer).transition("border-color 140ms ease, transform 120ms ease").hover(style().raw("border-color", "rgba(235, 104, 46, 0.6)")).active(style().raw("transform", "scale(0.92)")) + no_select);
+let copy_button = const (style().position(Position::Absolute).raw("top", "6px").raw("right", "8px").display(Display::Flex).align_items(AlignItems::Center).justify_content(JustifyContent::Center).width(Length::px(30.0)).height(Length::px(30.0)).radius(Length::px(8.0)).raw("background", "rgba(27, 6, 13, 0.85)").raw("border", hairline).cursor(Cursor::Pointer).transition("border-color 140ms ease, transform 120ms ease").hover(style().raw("border-color", "rgba(235, 104, 46, 0.6)")).active(style().raw("transform", "scale(0.92)")) + no_select);
 
 let copy_icon = const (style().width(Length::px(15.0)).height(Length::px(15.0)) + no_drag);
 
@@ -580,6 +581,10 @@ let install_art_cell = const (style().raw("display", "none").lg(style().raw("dis
 
 fun install_row(label: str, command: str, copy: |str| void): View {
 	let icon = Signal::new(i"{assets}/icons/copy.svg");
+	// Re-clicks must not let a stale revert fire early: per-task cancel
+	// handles are deliberately not a thing (nursery-scoped cancel is), so
+	// the revert checks a generation counter - old sleepers wake and no-op.
+	let generation = Shared::new(0);
 	view("div")
 		.child(view("p").styled(install_label).text(label))
 		.child(view("div").styled(install_command)
@@ -587,9 +592,13 @@ fun install_row(label: str, command: str, copy: |str| void): View {
 			.child(view("button").styled(copy_button).attr("aria-label", "Copy command").on("click", || {
 				copy(command);
 				icon.set(i"{assets}/icons/check.svg");
+				generation.write() = generation.read() + 1;
+				let mine = generation.read();
 				let _ = async {
 					sleep(2400);
-					icon.set(i"{assets}/icons/copy.svg");
+					if generation.read() == mine {
+						icon.set(i"{assets}/icons/copy.svg");
+					}
 				};
 			}).child(view("img").styled(copy_icon).attr("alt", "").bind_attr("src", icon))))
 }
