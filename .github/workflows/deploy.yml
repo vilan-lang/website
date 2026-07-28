@@ -10,10 +10,13 @@
 # release contains yet. Once one does, swap the toolchain checkout + cargo
 # build for the release tarball and drop the Rust toolchain and cache.
 #
-# The push authenticates with a write deploy key on the pages repo, stored
-# here as the PAGES_DEPLOY_KEY secret. Until that secret exists the workflow
-# still builds and renders (a deploy dry run on every push) and skips the
-# push with a notice, per the disabled-until-secret-exists convention.
+# The push authenticates as the vilan-site-deploy GitHub App (contents
+# read-write, installed on vilan-lang.github.io only): each run mints a
+# short-lived installation token from the app id + private key stored here
+# as the DEPLOY_APP_ID / DEPLOY_APP_PRIVATE_KEY secrets. Until those exist
+# the workflow still builds and renders (a deploy dry run on every push) and
+# skips the push with a notice, per the disabled-until-secret-exists
+# convention.
 name: deploy
 
 on:
@@ -62,26 +65,36 @@ jobs:
             exit 1
           fi
           cp dist/client.js dist/client.css export/
-      - name: Is there a key to push with?
+      - name: Is there an app to push with?
         id: pages
-        # A job-level if: cannot read secrets, so the secret's presence
+        # A job-level if: cannot read secrets, so the secrets' presence
         # becomes a step output the deploy steps condition on (the same gate
         # as release.yml's publish jobs - the workflow lands green before the
-        # key exists and turns into a real deploy the moment it does).
+        # app exists and turns into a real deploy the moment it does).
         env:
-          PAGES_DEPLOY_KEY: ${{ secrets.PAGES_DEPLOY_KEY }}
+          DEPLOY_APP_ID: ${{ secrets.DEPLOY_APP_ID }}
+          DEPLOY_APP_PRIVATE_KEY: ${{ secrets.DEPLOY_APP_PRIVATE_KEY }}
         run: |
-          if [ -n "$PAGES_DEPLOY_KEY" ]; then
+          if [ -n "$DEPLOY_APP_ID" ] && [ -n "$DEPLOY_APP_PRIVATE_KEY" ]; then
             echo "deploy=true" >> "$GITHUB_OUTPUT"
           else
             echo "deploy=false" >> "$GITHUB_OUTPUT"
-            echo "::notice title=Site not deployed::PAGES_DEPLOY_KEY is not configured - add a write deploy key for vilan-lang/vilan-lang.github.io as this repository's PAGES_DEPLOY_KEY secret."
+            echo "::notice title=Site not deployed::DEPLOY_APP_ID / DEPLOY_APP_PRIVATE_KEY are not configured - create a GitHub App with contents read-write installed on vilan-lang.github.io and store its id and private key as these secrets."
           fi
+      - name: Mint the pages-repo token
+        id: app
+        if: steps.pages.outputs.deploy == 'true'
+        uses: actions/create-github-app-token@v2
+        with:
+          app-id: ${{ secrets.DEPLOY_APP_ID }}
+          private-key: ${{ secrets.DEPLOY_APP_PRIVATE_KEY }}
+          owner: vilan-lang
+          repositories: vilan-lang.github.io
       - uses: actions/checkout@v4
         if: steps.pages.outputs.deploy == 'true'
         with:
           repository: vilan-lang/vilan-lang.github.io
-          ssh-key: ${{ secrets.PAGES_DEPLOY_KEY }}
+          token: ${{ steps.app.outputs.token }}
           path: site
       - name: Commit if the site changed
         if: steps.pages.outputs.deploy == 'true'
@@ -93,6 +106,7 @@ jobs:
             echo "::notice::the site is unchanged"
             exit 0
           fi
-          git -c user.name="site-builder" -c user.email="site@vilan-lang.org" \
+          git -c user.name="vilan-site-deploy[bot]" \
+              -c user.email="310328521+vilan-site-deploy[bot]@users.noreply.github.com" \
             commit -m "site: deploy vilan-lang/website@${GITHUB_SHA::7}"
           git push || (git pull --rebase && git push)

@@ -39,10 +39,11 @@ over together with `dist/client.js` and `dist/client.css`. Every push to
 `main` does this automatically. [deploy.yml](.github/workflows/deploy.yml)
 builds the toolchain from source, renders the page, and commits the export to
 the pages repository, touching only those three files (`docs/` and `assets/`
-there belong to other flows). The push authenticates with a write deploy key
-on the pages repository, stored as this repository's `PAGES_DEPLOY_KEY`
-secret. Redeploy by hand with `gh workflow run deploy.yml -R
-vilan-lang/website`.
+there belong to other flows). The push authenticates as the
+vilan-site-deploy GitHub App (contents read-write on the pages repository
+only), whose id and private key live in this repository's `DEPLOY_APP_ID`
+and `DEPLOY_APP_PRIVATE_KEY` secrets. Redeploy by hand with
+`gh workflow run deploy.yml -R vilan-lang/website`.
 
 ## License
 
