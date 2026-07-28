@@ -57,6 +57,15 @@
 </head>
 <body>
 	<div id="app"><!--ssr--></div>
+	<!-- Figma's Texture effect, from the design export (scale reduced: the export's 200 smears far beyond what Figma renders): fine noise
+	     displacing the blurred bloom (the page references it as a CSS filter).
+	     Outside #app so the client's render-and-replace never removes it. -->
+	<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+		<filter id="bloom-texture" x="-8%" y="-8%" width="116%" height="116%" color-interpolation-filters="sRGB">
+			<feTurbulence type="fractalNoise" baseFrequency="0.76923" numOctaves="3" seed="3030"/>
+			<feDisplacementMap in="SourceGraphic" scale="90" xChannelSelector="R" yChannelSelector="G"/>
+		</filter>
+	</svg>
 	<script type="module" src="/client.js"></script>
 </body>
 </html>
