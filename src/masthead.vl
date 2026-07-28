@@ -1,10 +1,10 @@
 // The page top: the sticky scroll-faded toolbar, the CSS-built bloom, and
 // the hero. One scale (`hero_scale`) rules every masthead dimension.
 
-import pkg::theme::{ assets, blush, column, display_face, ink, no_drag, no_select, visually_hidden };
 import std::reactive::Signal;
 import std::style::{ AlignItems, Color, Display, FlexDirection, JustifyContent, Length, Overflow, Position, TextAlign, space, style };
 import std::ui::{ View, view };
+import pkg::theme::{ assets, blush, column, display_face, ink, no_drag, no_select, visually_hidden };
 
 // --- the sticky toolbar ---
 
@@ -13,27 +13,59 @@ import std::ui::{ View, view };
 // top, 1 = a full toolbar-height down), and background, divider, and blur
 // are all that variable times their full value. No transition - the fade IS
 // the scroll, which also serves users with smooth scrolling off.
-let topbar = const style().position(Position::Sticky).raw("top", "0").raw("z-index", "100").raw("background", "rgba(18, 0, 4, calc(var(--nav-fade, 0) * 0.86))").raw("border-bottom", "1px solid rgba(249, 223, 231, calc(var(--nav-fade, 0) * 0.10))").raw("backdrop-filter", "blur(calc(var(--nav-fade, 0) * 14px))");
+let topbar = const style()
+	.position(Position::Sticky)
+	.raw("top", "0")
+	.raw("z-index", "100")
+	.raw("background", "rgba(18, 0, 4, calc(var(--nav-fade, 0) * 0.86))")
+	.raw("border-bottom", "1px solid rgba(249, 223, 231, calc(var(--nav-fade, 0) * 0.10))")
+	.raw("backdrop-filter", "blur(calc(var(--nav-fade, 0) * 14px))");
 
-let nav_row = const style().display(Display::Flex).align_items(AlignItems::Center).justify_content(JustifyContent::Between).height(Length::px(64.0));
+let nav_row = const style()
+	.display(Display::Flex)
+	.align_items(AlignItems::Center)
+	.justify_content(JustifyContent::Between)
+	.height(Length::px(64.0));
 
-let nav_brand = const style().display(Display::Flex).align_items(AlignItems::Center).gap(space(3)).font_weight(600).raw("letter-spacing", "0.35em").font_size(Length::px(13.0));
+let nav_brand = const style()
+	.display(Display::Flex)
+	.align_items(AlignItems::Center)
+	.gap(space(3))
+	.font_weight(600)
+	.raw("letter-spacing", "0.35em")
+	.font_size(Length::px(13.0));
 
 let nav_links = const style().display(Display::Flex).gap(space(6));
 
-let nav_link = const style().color(blush).opacity(0.8).raw("text-decoration", "none").raw("user-select", "none").hover(style().opacity(1.0));
+let nav_link = const style()
+	.color(blush)
+	.opacity(0.8)
+	.raw("text-decoration", "none")
+	.raw("user-select", "none")
+	.hover(style().opacity(1.0));
 
 fun top_bar(scroll_fade: Signal<str>): View {
 	view("nav")
 		.styled(topbar)
 		.style_var("--nav-fade", scroll_fade)
-		.child(view("div").styled(column + nav_row)
-			.child(view("a").styled(nav_brand + nav_link).attr("href", "/")
-				.child(view("img").styled(no_drag).attr("src", i"{assets}/mark.svg").attr("alt", "").attr("height", "18"))
+		.child(view("div")
+			.styled(column + nav_row)
+			.child(view("a")
+				.styled(nav_brand + nav_link)
+				.attr("href", "/")
+				.child(view("img")
+					.styled(no_drag)
+					.attr("src", i"{assets}/mark.svg")
+					.attr("alt", "")
+					.attr("height", "18"))
 				.child(view("span").text("VILAN")))
-			.child(view("div").styled(nav_links)
+			.child(view("div")
+				.styled(nav_links)
 				.child(view("a").styled(nav_link).attr("href", "#install").text("Install"))
-				.child(view("a").styled(nav_link).attr("href", "/docs/tour/hello-vilan.html").text("Learn"))
+				.child(view("a")
+					.styled(nav_link)
+					.attr("href", "/docs/tour/hello-vilan.html")
+					.text("Learn"))
 				.child(view("a").styled(nav_link).attr("href", "/docs/").text("Docs"))))
 }
 
@@ -59,32 +91,65 @@ let duo_tile_uri = "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/200
 // The field clips horizontal overflow below the 1100px floor and spans the
 // toolbar + hero + blur tail; the drift wrapper animates inside it so mask
 // and gradient move as one.
-let bloom_field = const (style().position(Position::Absolute).raw("top", "0").raw("left", "0").width(Length::pct(100.0)).raw("height", i"calc(64px + {hero_scale} * 0.570864)").overflow(Overflow::Hidden).raw("pointer-events", "none") + no_select);
+let bloom_field = const (style()
+	.position(Position::Absolute)
+	.raw("top", "0")
+	.raw("left", "0")
+	.width(Length::pct(100.0))
+	.raw("height", i"calc(64px + {hero_scale} * 0.570864)")
+	.overflow(Overflow::Hidden)
+	.raw("pointer-events", "none")
+	+ no_select);
 
-let bloom_drift = const style().position(Position::Absolute).raw("inset", "0").raw("animation", "bloom-drift-a 44s ease-in-out infinite alternate");
+let bloom_drift = const style()
+	.position(Position::Absolute)
+	.raw("inset", "0")
+	.raw("animation", "bloom-drift-a 44s ease-in-out infinite alternate");
 
 // Figma's layer blur, literally: the wrapper blurs the whole masked
 // gradient (which is also what melts the 1500px tile seam), while the noise
 // rides after the blur so the grain stays crisp - under the soft-edged mask
 // so its coverage matches the silhouette.
-let bloom_blurwrap = const style().position(Position::Absolute).raw("inset", "0").raw("filter", i"blur(calc({hero_scale} * 0.052)) saturate(1.25) brightness(1.12) url(#bloom-texture)");
+let bloom_blurwrap = const style()
+	.position(Position::Absolute)
+	.raw("inset", "0")
+	.raw("filter", i"blur(calc({hero_scale} * 0.052)) saturate(1.25) brightness(1.12) url(#bloom-texture)");
 
-let bloom_band_geometry = const style().position(Position::Absolute).raw("left", "50%").raw("transform", "translateX(-50%)").raw("top", i"calc(64px - {hero_scale} * 0.049226)").raw("width", hero_scale).raw("height", i"calc({hero_scale} * 0.62009)").raw("-webkit-mask-size", "100% 100%").raw("mask-size", "100% 100%");
+let bloom_band_geometry = const style()
+	.position(Position::Absolute)
+	.raw("left", "50%")
+	.raw("transform", "translateX(-50%)")
+	.raw("top", i"calc(64px - {hero_scale} * 0.049226)")
+	.raw("width", hero_scale)
+	.raw("height", i"calc({hero_scale} * 0.62009)")
+	.raw("-webkit-mask-size", "100% 100%")
+	.raw("mask-size", "100% 100%");
 
-let bloom_band = const (bloom_band_geometry + style().raw("-webkit-mask-image", bloom_mask_uri).raw("mask-image", bloom_mask_uri));
+let bloom_band = const (bloom_band_geometry + style()
+	.raw("-webkit-mask-image", bloom_mask_uri)
+	.raw("mask-image", bloom_mask_uri));
 
-let bloom_band_sharp = const (bloom_band_geometry + style().raw("-webkit-mask-image", bloom_mask_sharp_uri).raw("mask-image", bloom_mask_sharp_uri));
+let bloom_band_sharp = const (bloom_band_geometry + style()
+	.raw("-webkit-mask-image", bloom_mask_sharp_uri)
+	.raw("mask-image", bloom_mask_sharp_uri));
 
 // The gradient tile: gradient.png's composition in tile space, sized to the
 // design's 1500px square and repeating - the second tile's purple edge
 // enters on the right exactly as it does in the Figma fill.
-let bloom_gradient = const (bloom_band_sharp + style().raw("background-image", "radial-gradient(30% 10% ellipse at 61% 24%, rgb(226 184 231), rgb(247 229 249 / 70%) 74%, transparent 80%), radial-gradient(42% 40% ellipse at 62% 40%, rgb(255 106 0 / 95%), rgb(217 118 48 / 65%) 50%, transparent 78%), radial-gradient(61% 67% ellipse at 23% 48%, rgb(175 38 168 / 95%), rgb(237 64 7 / 60%) 45%, transparent 76%), radial-gradient(40% 46% ellipse at 92% 48%, rgba(216, 71, 48, 0.95), rgba(216, 71, 48, 0.7) 45%, transparent 78%), radial-gradient(26% 40% ellipse at 2% 50%, rgba(216, 71, 48, 0.9), transparent 74%), radial-gradient(36% 26% ellipse at 45% 78%, rgba(178, 48, 86, 0.7), transparent 76%), radial-gradient(22% 20% ellipse at 20% 84%, rgba(103, 34, 131, 0.8), transparent 74%), linear-gradient(100deg, #95304d 0%, #8B2786 25%, #EB682E 55%, #D84730 85%, #D84730 100%)").raw("background-size", i"calc({hero_scale} * 0.78125) calc({hero_scale} * 0.78125)"));
+let bloom_gradient = const (bloom_band_sharp + style()
+	.raw("background-image", "radial-gradient(30% 10% ellipse at 61% 24%, rgb(226 184 231), rgb(247 229 249 / 70%) 74%, transparent 80%), radial-gradient(42% 40% ellipse at 62% 40%, rgb(255 106 0 / 95%), rgb(217 118 48 / 65%) 50%, transparent 78%), radial-gradient(61% 67% ellipse at 23% 48%, rgb(175 38 168 / 95%), rgb(237 64 7 / 60%) 45%, transparent 76%), radial-gradient(40% 46% ellipse at 92% 48%, rgba(216, 71, 48, 0.95), rgba(216, 71, 48, 0.7) 45%, transparent 78%), radial-gradient(26% 40% ellipse at 2% 50%, rgba(216, 71, 48, 0.9), transparent 74%), radial-gradient(36% 26% ellipse at 45% 78%, rgba(178, 48, 86, 0.7), transparent 76%), radial-gradient(22% 20% ellipse at 20% 84%, rgba(103, 34, 131, 0.8), transparent 74%), linear-gradient(100deg, #95304d 0%, #8B2786 25%, #EB682E 55%, #D84730 85%, #D84730 100%)")
+	.raw("background-size", i"calc({hero_scale} * 0.78125) calc({hero_scale} * 0.78125)"));
 
-let bloom_duo = const (bloom_band + style().raw("background-image", duo_tile_uri).raw("background-size", "120px 120px").raw("mix-blend-mode", "soft-light"));
+let bloom_duo = const (bloom_band + style()
+	.raw("background-image", duo_tile_uri)
+	.raw("background-size", "120px 120px")
+	.raw("mix-blend-mode", "soft-light"));
 
 fun bloom(): View {
-	view("div").styled(bloom_field)
-		.child(view("div").styled(bloom_drift)
+	view("div")
+		.styled(bloom_field)
+		.child(view("div")
+			.styled(bloom_drift)
 			.child(view("div").styled(bloom_blurwrap).child(view("div").styled(bloom_gradient)))
 			.child(view("div").styled(bloom_duo)))
 }
@@ -95,20 +160,51 @@ let masthead_wrap = const style().position(Position::Relative);
 // (mark, wordmark, tagline) starts 292px in and is gapped 64px — all
 // vw-proportional with floors so phones stay legible. The headline artwork
 // gets a visually-hidden text twin for readers and robots.
-let hero_block = const style().position(Position::Relative).display(Display::Flex).flex_direction(FlexDirection::Column).align_items(AlignItems::Center).raw("height", i"calc({hero_scale} * 0.52917)").raw("padding-top", i"calc({hero_scale} * 0.15208)").raw("gap", i"calc({hero_scale} * 0.03333)").raw("box-sizing", "border-box");
+let hero_block = const style()
+	.position(Position::Relative)
+	.display(Display::Flex)
+	.flex_direction(FlexDirection::Column)
+	.align_items(AlignItems::Center)
+	.raw("height", i"calc({hero_scale} * 0.52917)")
+	.raw("padding-top", i"calc({hero_scale} * 0.15208)")
+	.raw("gap", i"calc({hero_scale} * 0.03333)")
+	.raw("box-sizing", "border-box");
 
-let hero_mark = const (style().raw("width", i"calc({hero_scale} * 0.05208)").height(Length::auto()) + no_drag);
+let hero_mark = const (style()
+	.raw("width", i"calc({hero_scale} * 0.05208)")
+	.height(Length::auto())
+	+ no_drag);
 
-let hero_wordmark = const (style().raw("width", i"calc({hero_scale} * 0.16198)").height(Length::auto()) + no_drag);
+let hero_wordmark = const (style()
+	.raw("width", i"calc({hero_scale} * 0.16198)")
+	.height(Length::auto())
+	+ no_drag);
 
-let hero_tagline = const style().raw("font-family", display_face).raw("font-size", i"max(18px, {hero_scale} * 0.01667)").raw("line-height", "1.5").font_weight(600).color(ink).margin(space(0)).text_align(TextAlign::Center);
+let hero_tagline = const style()
+	.raw("font-family", display_face)
+	.raw("font-size", i"max(18px, {hero_scale} * 0.01667)")
+	.raw("line-height", "1.5")
+	.font_weight(600)
+	.color(ink)
+	.margin(space(0))
+	.text_align(TextAlign::Center);
 
 fun hero(): View {
-	view("header").styled(hero_block)
+	view("header")
+		.styled(hero_block)
 		.child(view("h1").styled(visually_hidden).text("Vilan — The Modern Web Language"))
-		.child(view("img").styled(hero_mark).attr("src", i"{assets}/dark_logo_flat.svg").attr("alt", ""))
-		.child(view("img").styled(hero_wordmark).attr("src", i"{assets}/wordmark_hero.svg").attr("alt", "VILAN"))
-		.child(view("p").styled(hero_tagline).attr("aria-hidden", "true").text("The Modern Web Language"))
+		.child(view("img")
+			.styled(hero_mark)
+			.attr("src", i"{assets}/dark_logo_flat.svg")
+			.attr("alt", ""))
+		.child(view("img")
+			.styled(hero_wordmark)
+			.attr("src", i"{assets}/wordmark_hero.svg")
+			.attr("alt", "VILAN"))
+		.child(view("p")
+			.styled(hero_tagline)
+			.attr("aria-hidden", "true")
+			.text("The Modern Web Language"))
 }
 
 fun masthead(): View {

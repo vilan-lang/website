@@ -28,10 +28,19 @@ let grain_tile = "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/
 
 // --- shared styles ---
 
-let shell = const style().background(ink).color(blush).min_height(Length::pct(100.0)).raw("font-family", body_face).font_size(Length::px(14.0)).raw("line-height", "18px");
+let shell = const style()
+	.background(ink)
+	.color(blush)
+	.min_height(Length::pct(100.0))
+	.raw("font-family", body_face)
+	.font_size(Length::px(14.0))
+	.raw("line-height", "18px");
 
 // The content column: 1200px of content plus the 32px side padding.
-let column = const style().max_width(Length::px(1264.0)).margin_x(Length::auto()).padding_x(Length::px(32.0));
+let column = const style()
+	.max_width(Length::px(1264.0))
+	.margin_x(Length::auto())
+	.padding_x(Length::px(32.0));
 
 // Chrome (logos, art, buttons, nav/footer links) is not selectable text;
 // body copy and code stay selectable, and the install commands stay
@@ -45,7 +54,10 @@ let section_block = const style().padding_y(space(24));
 // Every section lays its children out the same way: a flex column with one
 // gap — no per-child margins to fight it. (The one exception is art
 // internals, which keep their own composition.)
-let stack = const style().display(Display::Flex).flex_direction(FlexDirection::Column).gap(space(4));
+let stack = const style()
+	.display(Display::Flex)
+	.flex_direction(FlexDirection::Column)
+	.gap(space(4));
 
 // Rise-in on viewport entry. The 1ms duration is the no-support fallback:
 // without animation-timeline the animation completes instantly and the
@@ -57,23 +69,42 @@ let stack = const style().display(Display::Flex).flex_direction(FlexDirection::C
 // markup ships fully visible; no JS, no hiding.
 let reveal = const style().raw("--reveal", "1");
 
-let heading = const (style().raw("font-family", display_face).font_size(Length::px(32.0)).raw("line-height", "48px").font_weight(600).margin(space(0)) + reveal);
+let heading = const (style()
+	.raw("font-family", display_face)
+	.font_size(Length::px(32.0))
+	.raw("line-height", "48px")
+	.font_weight(600)
+	.margin(space(0))
+	+ reveal);
 
 let lead = const (style().opacity(0.82).max_width(Length::rem(36.0)).margin(space(0)) + reveal);
 
-let rule_line = const style().height(Length::px(1.0)).raw("background", "rgba(249, 223, 231, 0.10)");
+let rule_line = const style()
+	.height(Length::px(1.0))
+	.raw("background", "rgba(249, 223, 231, 0.10)");
 
 fun divider(): View {
 	view("div").styled(column).child(view("div").styled(rule_line))
 }
 
-let grain_overlay = const (style().position(Position::Absolute).raw("inset", "0").opacity(0.55).raw("mix-blend-mode", "overlay").raw("background-image", grain_tile).raw("pointer-events", "none") + no_select);
+let grain_overlay = const (style()
+	.position(Position::Absolute)
+	.raw("inset", "0")
+	.opacity(0.55)
+	.raw("mix-blend-mode", "overlay")
+	.raw("background-image", grain_tile)
+	.raw("pointer-events", "none")
+	+ no_select);
 
 fun grain(): View {
 	view("div").styled(grain_overlay)
 }
 
-
-let visually_hidden = const style().position(Position::Absolute).width(Length::px(1.0)).height(Length::px(1.0)).overflow(Overflow::Hidden).raw("clip-path", "inset(50%)");
+let visually_hidden = const style()
+	.position(Position::Absolute)
+	.width(Length::px(1.0))
+	.height(Length::px(1.0))
+	.overflow(Overflow::Hidden)
+	.raw("clip-path", "inset(50%)");
 
 let desktop_only = const style().raw("display", "none").lg(style().raw("display", "block"));

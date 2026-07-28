@@ -18,21 +18,22 @@
 // keyframes and the reduced-motion switch live in app.html). The only raster
 // assets left are the brand marks and fonts, served from
 // vilan-lang.org/assets so dev and deployed builds see the same bytes.
-import pkg::art::{ dataflow_art, diagram, editor_art, toolchain_art };
-import pkg::code::{ blank, code_panel, kw, leaf, leaf_link, ln, pt, st, t };
-import pkg::masthead::{ bloom, masthead, top_bar };
-import pkg::theme::{ assets, blush, body_face, column, desktop_only, display_face, divider, ember, hairline, heading, ink, lead, mono, no_drag, no_select, panel, repo, reveal, rose, section_block, shell, stack };
 import std::option::Option::{ None, Some, self };
 import std::reactive::Signal;
 import std::shared::Shared;
 import std::style::{ AlignItems, Color, Cursor, Display, FlexDirection, JustifyContent, Length, Overflow, Position, TextAlign, space, style };
 import std::time::Timer;
 import std::ui::{ View, view };
+import pkg::art::{ dataflow_art, diagram, editor_art, toolchain_art };
+import pkg::code::{ blank, code_panel, kw, leaf, leaf_link, ln, pt, st, t };
+import pkg::masthead::{ bloom, masthead, top_bar };
+import pkg::theme::{ assets, blush, body_face, column, desktop_only, display_face, divider, ember, hairline, heading, ink, lead, mono, no_drag, no_select, panel, repo, reveal, rose, section_block, shell, stack };
 
 // --- the page ---
 
 fun page(scroll_fade: Signal<str>, copy: |str| void): View {
-	view("div").styled(shell)
+	view("div")
+		.styled(shell)
 		.child(bloom())
 		.child(top_bar(scroll_fade))
 		.child(masthead())
@@ -53,63 +54,114 @@ fun page(scroll_fade: Signal<str>, copy: |str| void): View {
 		.child(page_footer())
 }
 
-
 // --- install ---
 
-let install_label = const style().color(ember).font_size(Length::px(12.0)).font_weight(600).raw("letter-spacing", "0.12em").raw("text-transform", "uppercase").margin_y(space(1));
+let install_label = const style()
+	.color(ember)
+	.font_size(Length::px(12.0))
+	.font_weight(600)
+	.raw("letter-spacing", "0.12em")
+	.raw("text-transform", "uppercase")
+	.margin_y(space(1));
 
 // The box anchors the pinned copy button; the inner scroller carries the
 // command (select-all lives on the text, not the button's container).
-let install_command = const style().position(Position::Relative).background(panel).radius(space(2)).font_size(Length::px(13.0)).raw("font-family", mono).raw("border", hairline);
+let install_command = const style()
+	.position(Position::Relative)
+	.background(panel)
+	.radius(space(2))
+	.font_size(Length::px(13.0))
+	.raw("font-family", mono)
+	.raw("border", hairline);
 
-let install_command_text = const style().raw("display", "block").overflow(Overflow::Auto).raw("scrollbar-width", "none").raw("white-space", "pre").padding_y(space(3)).raw("padding-left", "16px").raw("padding-right", "48px").raw("user-select", "all");
+let install_command_text = const style()
+	.raw("display", "block")
+	.overflow(Overflow::Auto)
+	.raw("scrollbar-width", "none")
+	.raw("white-space", "pre")
+	.padding_y(space(3))
+	.raw("padding-left", "16px")
+	.raw("padding-right", "48px")
+	.raw("user-select", "all");
 
 // min-width 0: as a grid item, the default min-width:auto would let the
 // commands' pre-formatted min-content width blow the column open on phones.
 // The copy affordance lives inside the code block, docs-site style: an
 // icon button in the top-right that flips to a check for a moment.
-let copy_button = const (style().position(Position::Absolute).raw("top", "6px").raw("right", "8px").display(Display::Flex).align_items(AlignItems::Center).justify_content(JustifyContent::Center).width(Length::px(30.0)).height(Length::px(30.0)).radius(Length::px(8.0)).raw("background", "rgba(27, 6, 13, 0.85)").raw("border", hairline).cursor(Cursor::Pointer).transition("border-color 140ms ease, transform 120ms ease").hover(style().raw("border-color", "rgba(235, 104, 46, 0.6)")).active(style().raw("transform", "scale(0.92)")) + no_select);
+let copy_button = const (style()
+	.position(Position::Absolute)
+	.raw("top", "6px")
+	.raw("right", "8px")
+	.display(Display::Flex)
+	.align_items(AlignItems::Center)
+	.justify_content(JustifyContent::Center)
+	.width(Length::px(30.0))
+	.height(Length::px(30.0))
+	.radius(Length::px(8.0))
+	.raw("background", "rgba(27, 6, 13, 0.85)")
+	.raw("border", hairline)
+	.cursor(Cursor::Pointer)
+	.transition("border-color 140ms ease, transform 120ms ease")
+	.hover(style().raw("border-color", "rgba(235, 104, 46, 0.6)"))
+	.active(style().raw("transform", "scale(0.92)"))
+	+ no_select);
 
 let copy_icon = const (style().width(Length::px(15.0)).height(Length::px(15.0)) + no_drag);
 
-let install_grid = const style().display(Display::Flex).flex_direction(FlexDirection::Column).gap(space(4)).raw("min-width", "0");
+let install_grid = const style()
+	.display(Display::Flex)
+	.flex_direction(FlexDirection::Column)
+	.gap(space(4))
+	.raw("min-width", "0");
 
-let install_split = const (style().display(Display::Grid).gap(space(8)).raw("align-items", "center").lg(style().raw("grid-template-columns", "6fr 5fr")) + reveal);
+let install_split = const (style()
+	.display(Display::Grid)
+	.gap(space(8))
+	.raw("align-items", "center")
+	.lg(style().raw("grid-template-columns", "6fr 5fr"))
+	+ reveal);
 
-let install_art_cell = const (style().raw("display", "none").lg(style().raw("display", "block")) + no_select);
+let install_art_cell = const (style()
+	.raw("display", "none")
+	.lg(style().raw("display", "block"))
+	+ no_select);
 
 fun install_row(label: str, command: str, copy: |str| void): View {
 	let icon = Signal::new(i"{assets}/icons/copy.svg");
 	// Re-clicks call the pending revert off before arming the next one -
 	// std::time::Timer, the API this very button drove into std.
 	let pending: Shared<Option<Timer>> = Shared::new(None);
-	view("div")
-		.child(view("p").styled(install_label).text(label))
-		.child(view("div").styled(install_command)
-			.child(view("span").styled(install_command_text).text(command))
-			.child(view("button").styled(copy_button).attr("aria-label", "Copy command").on("click", || {
-				copy(command);
-				icon.set(i"{assets}/icons/check.svg");
-				match pending.read() {
-					Some(let timer) => timer.cancel(),
-					None => {}
-				}
-				let timer = Timer::after(2400);
-				pending.write() = Some(timer);
-				let _ = async {
-					if timer.wait() {
-						icon.set(i"{assets}/icons/copy.svg");
-					}
-				};
-			}).child(view("img").styled(copy_icon).attr("alt", "").bind_attr("src", icon))))
+	view("div").child(view("p").styled(install_label).text(label)).child(view("div").styled(install_command).child(view("span").styled(install_command_text).text(command)).child(view("button").styled(copy_button).attr("aria-label", "Copy command").on("click", || {
+		copy(command);
+		icon.set(i"{assets}/icons/check.svg");
+		match pending.read() {
+			Some(let timer) => timer.cancel(),
+			None => {}
+		}
+		let timer = Timer::after(2400);
+		pending.write() = Some(timer);
+		let _ = async {
+			if timer.wait() {
+				icon.set(i"{assets}/icons/copy.svg");
+			}
+		};
+	}).child(view("img").styled(copy_icon).attr("alt", "").bind_attr("src", icon))))
 }
 
 fun install_section(copy: |str| void): View {
-	view("section").attr("id", "install").styled(column + section_block + stack)
+	view("section")
+		.attr("id", "install")
+		.styled(column + section_block + stack)
 		.child(view("h2").styled(heading).text("One command, the whole toolchain"))
-		.child(view("p").styled(lead).child(pt("Compiler, dev server with hot reload, formatter, test runner, and language server — one small binary, no configuration to assemble. Update any time with ")).child(leaf("vilan upgrade")).child(pt(".")))
-		.child(view("div").styled(install_split)
-			.child(view("div").styled(install_grid)
+		.child(view("p")
+			.styled(lead)
+			.child(pt("Compiler, dev server with hot reload, formatter, test runner, and language server — one small binary, no configuration to assemble. Update any time with "))
+			.child(leaf("vilan upgrade"))
+			.child(pt(".")))
+		.child(view("div")
+			.styled(install_split)
+			.child(view("div")
+				.styled(install_grid)
 				.child(install_row("macOS / Linux", "curl -fsSL https://github.com/vilan-lang/vilan/releases/latest/download/install.sh | sh", copy))
 				.child(install_row("Windows (PowerShell)", "irm https://github.com/vilan-lang/vilan/releases/latest/download/install.ps1 | iex", copy))
 				.child(install_row("Homebrew", "brew install vilan-lang/vilan/vilan", copy)))
@@ -118,11 +170,24 @@ fun install_section(copy: |str| void): View {
 
 // --- showcases ---
 
-let showcase_grid = const (style().display(Display::Grid).gap(space(8)).raw("align-items", "center").lg(style().raw("grid-template-columns", "5fr 6fr")) + reveal);
+let showcase_grid = const (style()
+	.display(Display::Grid)
+	.gap(space(8))
+	.raw("align-items", "center")
+	.lg(style().raw("grid-template-columns", "5fr 6fr"))
+	+ reveal);
 
-let showcase_grid_flipped = const (style().display(Display::Grid).gap(space(8)).raw("align-items", "center").lg(style().raw("grid-template-columns", "6fr 5fr")) + reveal);
+let showcase_grid_flipped = const (style()
+	.display(Display::Grid)
+	.gap(space(8))
+	.raw("align-items", "center")
+	.lg(style().raw("grid-template-columns", "6fr 5fr"))
+	+ reveal);
 
-let showcase_copy = const style().display(Display::Flex).flex_direction(FlexDirection::Column).gap(space(3));
+let showcase_copy = const style()
+	.display(Display::Flex)
+	.flex_direction(FlexDirection::Column)
+	.gap(space(3));
 
 fun showcase(prose: View, code: View): View {
 	view("div").styled(showcase_grid).child(prose).child(code)
@@ -137,40 +202,74 @@ fun showcase_flipped(code: View, prose: View): View {
 // Reactive UI — the guide's own counter, and a live copy of it: the snippet
 // on this page is the program running beside it.
 
-let demo_box = const style().display(Display::Flex).align_items(AlignItems::Center).gap(space(4)).margin_y(space(4)).padding(space(4)).radius(space(3)).raw("border", hairline);
+let demo_box = const style()
+	.display(Display::Flex)
+	.align_items(AlignItems::Center)
+	.gap(space(4))
+	.margin_y(space(4))
+	.padding(space(4))
+	.radius(space(3))
+	.raw("border", hairline);
 
-let demo_button = const style().background(blush).color(ink).font_weight(600).padding_y(space(2)).padding_x(space(5)).radius(Length::px(999.0)).raw("border", "none").font_size(Length::px(14.0)).raw("font-family", body_face).raw("user-select", "none").cursor(Cursor::Pointer).transition("transform 120ms ease, opacity 120ms ease").hover(style().opacity(0.88)).active(style().raw("transform", "scale(0.95)"));
+let demo_button = const style()
+	.background(blush)
+	.color(ink)
+	.font_weight(600)
+	.padding_y(space(2))
+	.padding_x(space(5))
+	.radius(Length::px(999.0))
+	.raw("border", "none")
+	.font_size(Length::px(14.0))
+	.raw("font-family", body_face)
+	.raw("user-select", "none")
+	.cursor(Cursor::Pointer)
+	.transition("transform 120ms ease, opacity 120ms ease")
+	.hover(style().opacity(0.88))
+	.active(style().raw("transform", "scale(0.95)"));
 
 let demo_label = const style().margin(space(0)).opacity(0.85);
 
 fun counter_demo(): View {
 	let count = Signal::new(0);
-	view("div").styled(demo_box)
-		.child(view("button").styled(demo_button).text("+1").on("click", || count.set_with(|n: i32| n + 1)))
+	view("div")
+		.styled(demo_box)
+		.child(view("button")
+			.styled(demo_button)
+			.text("+1")
+			.on("click", || count.set_with(|n: i32| n + 1)))
 		.child(view("p").styled(demo_label).bind_text(count.map(|n: i32| i"clicked {n} times")))
 }
 
 fun showcase_reactive(): View {
-	view("section").styled(column + section_block + stack)
-		.child(showcase(
-			view("div").styled(showcase_copy)
-				.child(view("h2").styled(heading).text("UI that follows your data"))
-				.child(view("p").styled(lead).child(pt("A view is a value and a binding is a subscription: ")).child(leaf("bind_text")).child(pt(" sets the one text node now and re-sets it whenever the signal changes. No virtual DOM, no render loop, no dependency arrays — updates land exactly where the data changed.")))
-				.child(view("p").styled(lead).text("The snippet is the whole program. This one runs — it is running right here:"))
-				.child(counter_demo()),
-			code_panel([
-				ln([kw("import"), t(" std::ui::{ view, mount_root };")]),
-				ln([kw("import"), t(" std::reactive::Signal;")]),
-				blank(),
-				ln([kw("fun"), t(" main() {")]),
-				ln([t("    "), kw("let"), t(" count = Signal::new(0);")]),
-				ln([t("    "), kw("let"), t(" _root = mount_root("), st("\"app\""), t(", || {")]),
-				ln([t("        view("), st("\"div\""), t(")")]),
-				ln([t("            .child(view("), st("\"p\""), t(").bind_text(count.map(|n: i32| "), st("i\"clicked {n} times\""), t(")))")]),
-				ln([t("            .child(view("), st("\"button\""), t(").text("), st("\"+1\""), t(").on("), st("\"click\""), t(", || count.set_with(|n| n + 1)))")]),
-				ln([t("    });")]),
-				ln([t("}")]),
-			])))
+	view("section")
+		.styled(column + section_block + stack)
+		.child(showcase(view("div").styled(showcase_copy).child(view("h2").styled(heading).text("UI that follows your data")).child(view("p").styled(lead).child(pt("A view is a value and a binding is a subscription: ")).child(leaf("bind_text")).child(pt(" sets the one text node now and re-sets it whenever the signal changes. No virtual DOM, no render loop, no dependency arrays — updates land exactly where the data changed."))).child(view("p").styled(lead).text("The snippet is the whole program. This one runs — it is running right here:")).child(counter_demo()), code_panel([
+			ln([kw("import"), t(" std::ui::{ view, mount_root };")]),
+			ln([kw("import"), t(" std::reactive::Signal;")]),
+			blank(),
+			ln([kw("fun"), t(" main() {")]),
+			ln([t("    "), kw("let"), t(" count = Signal::new(0);")]),
+			ln([t("    "), kw("let"), t(" _root = mount_root("), st("\"app\""), t(", || {")]),
+			ln([t("        view("), st("\"div\""), t(")")]),
+			ln([
+				t("            .child(view("),
+				st("\"p\""),
+				t(").bind_text(count.map(|n: i32| "),
+				st("i\"clicked {n} times\""),
+				t(")))"),
+			]),
+			ln([
+				t("            .child(view("),
+				st("\"button\""),
+				t(").text("),
+				st("\"+1\""),
+				t(").on("),
+				st("\"click\""),
+				t(", || count.set_with(|n| n + 1)))"),
+			]),
+			ln([t("    });")]),
+			ln([t("}")]),
+		])))
 		.child(dataflow_art())
 }
 
@@ -179,9 +278,16 @@ fun showcase_reactive(): View {
 // and the mirror flowing between them.
 
 fun showcase_fullstack(): View {
-	view("section").styled(column + section_block + stack)
+	view("section")
+		.styled(column + section_block + stack)
 		.child(view("h2").styled(heading).text("The server is a struct. The client is generated."))
-		.child(view("p").styled(lead).child(pt("Mark a method ")).child(leaf_link("/docs/guide/services.html#what-rpc-calls-do", "[rpc]")).child(pt(" and the browser can call it — typed, checked, awaited like any other call. Mark a signal ")).child(leaf_link("/docs/guide/services.html#mirrors", "[expose]")).child(pt(" and every connected client holds a live mirror that updates when the server writes. No REST endpoints, no fetch calls, no JSON shapes drifting out of sync by hand.")))
+		.child(view("p")
+			.styled(lead)
+			.child(pt("Mark a method "))
+			.child(leaf_link("/docs/guide/services.html#what-rpc-calls-do", "[rpc]"))
+			.child(pt(" and the browser can call it — typed, checked, awaited like any other call. Mark a signal "))
+			.child(leaf_link("/docs/guide/services.html#mirrors", "[expose]"))
+			.child(pt(" and every connected client holds a live mirror that updates when the server writes. No REST endpoints, no fetch calls, no JSON shapes drifting out of sync by hand.")))
 		.child(diagram())
 		.child(button_link("/docs/guide/services.html", "Services & RPC in the guide"))
 }
@@ -189,57 +295,63 @@ fun showcase_fullstack(): View {
 // The compiler — a real mistake and the real diagnostic. The snippet is the
 // diagnosed file, byte for byte, so the line numbers agree.
 
-let diag_pre = const style().background(panel).radius(space(3)).padding(space(5)).margin(space(0)).overflow(Overflow::Auto).font_size(Length::px(13.0)).line_height(1.65).raw("font-family", mono).raw("border", "1px solid rgba(235, 104, 46, 0.35)").raw("white-space", "pre");
+let diag_pre = const style()
+	.background(panel)
+	.radius(space(3))
+	.padding(space(5))
+	.margin(space(0))
+	.overflow(Overflow::Auto)
+	.font_size(Length::px(13.0))
+	.line_height(1.65)
+	.raw("font-family", mono)
+	.raw("border", "1px solid rgba(235, 104, 46, 0.35)")
+	.raw("white-space", "pre");
 
 let diag_error = const style().color(ember).font_weight(700);
 let diag_frame = const style().opacity(0.5);
 // min-width 0: as a grid item with no overflow of its own, min-width:auto
 // would let the snippet's longest line force the column wide on phones.
-let diag_stack = const style().display(Display::Flex).flex_direction(FlexDirection::Column).gap(space(3)).raw("min-width", "0");
+let diag_stack = const style()
+	.display(Display::Flex)
+	.flex_direction(FlexDirection::Column)
+	.gap(space(3))
+	.raw("min-width", "0");
 
 fun showcase_compiler(): View {
-	view("section").styled(column + section_block + stack)
-		.child(showcase_flipped(
-			view("div").styled(diag_stack)
-				.child(code_panel([
-					ln([kw("import"), t(" std::print;")]),
-					ln([kw("import"), t(" std::option::Option::{ self, Some, None };")]),
-					ln([kw("fun"), t(" find_user(id: i32): Option<str> {")]),
-					ln([t("    "), kw("if"), t(" id == 1 { Some("), st("\"Ada\""), t(") } "), kw("else"), t(" { None }")]),
-					ln([t("}")]),
-					ln([kw("fun"), t(" greet(name: str): str {")]),
-					ln([t("    "), st("i\"hello {name}\"")]),
-					ln([t("}")]),
-					ln([kw("fun"), t(" main() {")]),
-					ln([t("    print(greet(find_user(2)));")]),
-					ln([t("}")]),
-				]))
-				.child(view("pre").styled(diag_pre)
-					.child(ln([view("span").styled(diag_error).text("Error:"), t(" Expected str, but got Option<str> instead.")]))
-					.child(ln([view("span").styled(diag_frame).text("    ╭─[ demo.vl:10:14 ]")]))
-					.child(ln([view("span").styled(diag_frame).text("    │")]))
-					.child(ln([view("span").styled(diag_frame).text(" 10 │     print(greet(find_user(2)));")]))
-					.child(ln([view("span").styled(diag_frame).text("    │                 ──────┬────")]))
-					.child(ln([view("span").styled(diag_frame).text("    │                       ╰─────── Expected str, but got Option<str> instead.")]))
-					.child(ln([view("span").styled(diag_frame).text("────╯")]))),
-			view("div").styled(showcase_copy)
-				.child(view("h2").styled(heading).text("Find out at compile time"))
-				.child(view("p").styled(lead).child(pt("There is no null and there are no exceptions. A value that might be missing is an ")).child(leaf_link("/docs/std/option-result.html#optiont", "Option")).child(pt(", a call that might fail returns a ")).child(leaf_link("/docs/std/option-result.html#resultt-e", "Result")).child(pt(", and the compiler makes you look inside before you use one — so the failure here is a build error, not a production incident.")))
-				.child(view("p").styled(lead).text("Values are copied, never silently shared, so two names cannot fight over one object. The mistakes JavaScript saves for runtime are mostly not expressible."))
-				.child(button_link("/docs/std/option-result.html", "Option & Result in the reference"))))
+	view("section")
+		.styled(column + section_block + stack)
+		.child(showcase_flipped(view("div").styled(diag_stack).child(code_panel([ln([kw("import"), t(" std::print;")]), ln([kw("import"), t(" std::option::Option::{ self, Some, None };")]), ln([kw("fun"), t(" find_user(id: i32): Option<str> {")]), ln([t("    "), kw("if"), t(" id == 1 { Some("), st("\"Ada\""), t(") } "), kw("else"), t(" { None }")]), ln([t("}")]), ln([kw("fun"), t(" greet(name: str): str {")]), ln([t("    "), st("i\"hello {name}\"")]), ln([t("}")]), ln([kw("fun"), t(" main() {")]), ln([t("    print(greet(find_user(2)));")]), ln([t("}")])])).child(view("pre").styled(diag_pre).child(ln([view("span").styled(diag_error).text("Error:"), t(" Expected str, but got Option<str> instead.")])).child(ln([view("span").styled(diag_frame).text("    ╭─[ demo.vl:10:14 ]")])).child(ln([view("span").styled(diag_frame).text("    │")])).child(ln([view("span").styled(diag_frame).text(" 10 │     print(greet(find_user(2)));")])).child(ln([view("span").styled(diag_frame).text("    │                 ──────┬────")])).child(ln([view("span").styled(diag_frame).text("    │                       ╰─────── Expected str, but got Option<str> instead.")])).child(ln([view("span").styled(diag_frame).text("────╯")]))), view("div")
+			.styled(showcase_copy)
+			.child(view("h2").styled(heading).text("Find out at compile time"))
+			.child(view("p")
+				.styled(lead)
+				.child(pt("There is no null and there are no exceptions. A value that might be missing is an "))
+				.child(leaf_link("/docs/std/option-result.html#optiont", "Option"))
+				.child(pt(", a call that might fail returns a "))
+				.child(leaf_link("/docs/std/option-result.html#resultt-e", "Result"))
+				.child(pt(", and the compiler makes you look inside before you use one — so the failure here is a build error, not a production incident.")))
+			.child(view("p")
+				.styled(lead)
+				.text("Values are copied, never silently shared, so two names cannot fight over one object. The mistakes JavaScript saves for runtime are mostly not expressible."))
+			.child(button_link("/docs/std/option-result.html", "Option & Result in the reference"))))
 }
 
 // --- the editor band ---
 
 fun editor_band(): View {
-	view("section").styled(column + section_block + stack)
-		.child(showcase_flipped(
-			editor_art(),
-			view("div").styled(showcase_copy)
-				.child(view("h2").styled(heading).text("The editor is in on it"))
-				.child(view("p").styled(lead).child(leaf("vilan-lsp")).child(pt(" ships in the same binary as the compiler, so the editor and the build never disagree: diagnostics as you type, hover types and docs, completion with signatures, rename, formatting, and Organize Imports — in VS Code today, and anywhere else LSP reaches.")))
-				.child(view("p").styled(lead).text("Errors are resilient, not modal: a broken line keeps the rest of the file compiling, serving hovers, and completing."))
-				.child(button_link("https://github.com/vilan-lang/vilan/tree/main/editors/vscode", "The VS Code extension"))))
+	view("section")
+		.styled(column + section_block + stack)
+		.child(showcase_flipped(editor_art(), view("div")
+			.styled(showcase_copy)
+			.child(view("h2").styled(heading).text("The editor is in on it"))
+			.child(view("p")
+				.styled(lead)
+				.child(leaf("vilan-lsp"))
+				.child(pt(" ships in the same binary as the compiler, so the editor and the build never disagree: diagnostics as you type, hover types and docs, completion with signatures, rename, formatting, and Organize Imports — in VS Code today, and anywhere else LSP reaches.")))
+			.child(view("p")
+				.styled(lead)
+				.text("Errors are resilient, not modal: a broken line keeps the rest of the file compiling, serving hovers, and completing."))
+			.child(button_link("https://github.com/vilan-lang/vilan/tree/main/editors/vscode", "The VS Code extension"))))
 }
 
 // --- feature grid ---
@@ -247,18 +359,62 @@ fun editor_band(): View {
 // One breakpoint only: std::style emits media rules in an order that lets a
 // narrower min-width override a wider one on the same property (filed as a
 // backlog item), so sm(2col) + lg(3col) here would render 2-col on desktop.
-let cards_grid = const (style().display(Display::Grid).gap(space(4)).raw("background", "radial-gradient(340px circle at var(--glow-x, -999px) var(--glow-y, -999px), rgba(235, 104, 46, 0.10), transparent 70%)").lg(style().raw("grid-template-columns", "1fr 1fr 1fr")) + reveal);
+let cards_grid = const (style()
+	.display(Display::Grid)
+	.gap(space(4))
+	.raw("background", "radial-gradient(340px circle at var(--glow-x, -999px) var(--glow-y, -999px), rgba(235, 104, 46, 0.10), transparent 70%)")
+	.lg(style().raw("grid-template-columns", "1fr 1fr 1fr"))
+	+ reveal);
 
-let card = const style().display(Display::Flex).flex_direction(FlexDirection::Column).gap(space(2)).padding(space(5)).radius(space(3)).background(panel).raw("border", hairline).transition("transform 180ms ease, border-color 180ms ease, box-shadow 180ms ease").hover(style().raw("transform", "translateY(-3px)").raw("border-color", "rgba(249, 223, 231, 0.22)").raw("box-shadow", "0 10px 32px rgba(0, 0, 0, 0.4)"));
+let card = const style()
+	.display(Display::Flex)
+	.flex_direction(FlexDirection::Column)
+	.gap(space(2))
+	.padding(space(5))
+	.radius(space(3))
+	.background(panel)
+	.raw("border", hairline)
+	.transition("transform 180ms ease, border-color 180ms ease, box-shadow 180ms ease")
+	.hover(style()
+		.raw("transform", "translateY(-3px)")
+		.raw("border-color", "rgba(249, 223, 231, 0.22)")
+		.raw("box-shadow", "0 10px 32px rgba(0, 0, 0, 0.4)"));
 
-let card_title = const style().raw("font-family", display_face).font_size(Length::px(20.0)).raw("line-height", "28px").font_weight(600).margin(space(0));
+let card_title = const style()
+	.raw("font-family", display_face)
+	.font_size(Length::px(20.0))
+	.raw("line-height", "28px")
+	.font_weight(600)
+	.margin(space(0));
 
 let card_body = const style().margin(space(0)).opacity(0.78);
 
-let card_link = const style().raw("align-self", "flex-start").color(ember).font_size(Length::px(13.0)).raw("text-decoration", "none").raw("user-select", "none").hover(style().raw("text-decoration", "underline"));
+let card_link = const style()
+	.raw("align-self", "flex-start")
+	.color(ember)
+	.font_size(Length::px(13.0))
+	.raw("text-decoration", "none")
+	.raw("user-select", "none")
+	.hover(style().raw("text-decoration", "underline"));
 
 // The promoted form for a section's one important link: a quiet outline pill.
-let button_link_style = const style().raw("align-self", "flex-start").display(Display::Flex).align_items(AlignItems::Center).color(ember).font_size(Length::px(13.0)).font_weight(600).padding_y(space(2)).padding_x(space(5)).radius(Length::px(999.0)).raw("border", "1px solid rgba(235, 104, 46, 0.45)").raw("text-decoration", "none").raw("user-select", "none").transition("background-color 160ms ease, border-color 160ms ease").hover(style().raw("background", "rgba(235, 104, 46, 0.12)").raw("border-color", "rgba(235, 104, 46, 0.8)"));
+let button_link_style = const style()
+	.raw("align-self", "flex-start")
+	.display(Display::Flex)
+	.align_items(AlignItems::Center)
+	.color(ember)
+	.font_size(Length::px(13.0))
+	.font_weight(600)
+	.padding_y(space(2))
+	.padding_x(space(5))
+	.radius(Length::px(999.0))
+	.raw("border", "1px solid rgba(235, 104, 46, 0.45)")
+	.raw("text-decoration", "none")
+	.raw("user-select", "none")
+	.transition("background-color 160ms ease, border-color 160ms ease")
+	.hover(style()
+		.raw("background", "rgba(235, 104, 46, 0.12)")
+		.raw("border-color", "rgba(235, 104, 46, 0.8)"));
 
 fun button_link(href: str, label: str): View {
 	view("a").styled(button_link_style).attr("href", href).text(i"{label} →")
@@ -273,79 +429,164 @@ fun docs_link(href: str, label: str): View {
 // (`create_element` has no SVG-namespace path).
 let card_icon = const (style().width(Length::px(28.0)).height(Length::px(28.0)) + no_drag);
 
-fun feature(icon: str, name: str, body: List<View>, href: str): View {
-	view("article").styled(card)
-		.child(view("img").styled(card_icon).attr("src", i"{assets}/icons/{icon}.svg").attr("alt", ""))
+fun feature(icon: str, name: str, href: str, body: List<View>): View {
+	view("article")
+		.styled(card)
+		.child(view("img")
+			.styled(card_icon)
+			.attr("src", i"{assets}/icons/{icon}.svg")
+			.attr("alt", ""))
 		.child(view("h3").styled(card_title).text(name))
 		.child(view("p").styled(card_body).children(body))
 		.child(docs_link(href, "docs"))
 }
 
 fun feature_grid(): View {
-	view("section").styled(column + section_block + stack)
+	view("section")
+		.styled(column + section_block + stack)
 		.child(view("h2").styled(heading).text("What the language holds"))
-		.child(view("div").styled(cards_grid).attr("data-glow", "")
-			.child(feature("shield-check", "No null, no exceptions", [leaf_link("/docs/std/option-result.html#optiont", "Option"), pt(" and "), leaf_link("/docs/std/option-result.html#resultt-e", "Result"), pt(" are the only ways out, and "), leaf("match"), pt(" makes you handle both arms. Errors are values you route, not surprises you catch.")], "/docs/std/option-result.html"))
-			.child(feature("copy", "Values, not references", [pt("Assignment copies. Sharing is explicit, borrowing is checked, and spooky action at a distance is a compile error.")], "/docs/tour/memory-model.html"))
-			.child(feature("zap", "Async without the ceremony", [leaf_link("/docs/tour/async.html#opting-out-of-waiting-async-and-await", "await"), pt(" is implicit — call an async function and the machinery is the compiler's problem. Structured concurrency with tasks and "), leaf_link("/docs/tour/async.html#nurseries-structured-spawning", "nurseries"), pt(" when you want it.")], "/docs/tour/async.html"))
-			.child(feature("layers", "One program, two platforms", [pt("One workspace compiles the node server and the browser client. The compiler tracks which code needs which platform and keeps each bundle honest.")], "/docs/tour/platforms.html"))
-			.child(feature("server", "Rendered before it ships", [leaf("std::ui"), pt(" renders on the server too: first paint is real markup, then the client rebuilds it live. View source on this page — it is already there.")], "/docs/guide/ssr.html"))
-			.child(feature("refresh-cw", "A dev loop that keeps up", [leaf("vilan run . --watch"), pt(" rebuilds in milliseconds and hot-reloads the browser. Format, test, and language server ship in the same binary.")], "/docs/guide/dev-loop.html")))
+		.child(view("div")
+			.styled(cards_grid)
+			.attr("data-glow", "")
+			.child(feature("shield-check", "No null, no exceptions", "/docs/std/option-result.html", [
+				leaf_link("/docs/std/option-result.html#optiont", "Option"),
+				pt(" and "),
+				leaf_link("/docs/std/option-result.html#resultt-e", "Result"),
+				pt(" are the only ways out, and "),
+				leaf("match"),
+				pt(" makes you handle both arms. Errors are values you route, not surprises you catch."),
+			]))
+			.child(feature("copy", "Values, not references", "/docs/tour/memory-model.html", [
+				pt("Assignment copies. Sharing is explicit, borrowing is checked, and spooky action at a distance is a compile error."),
+			]))
+			.child(feature("zap", "Async without the ceremony", "/docs/tour/async.html", [
+				leaf_link("/docs/tour/async.html#opting-out-of-waiting-async-and-await", "await"),
+				pt(" is implicit — call an async function and the machinery is the compiler's problem. Structured concurrency with tasks and "),
+				leaf_link("/docs/tour/async.html#nurseries-structured-spawning", "nurseries"),
+				pt(" when you want it."),
+			]))
+			.child(feature("layers", "One program, two platforms", "/docs/tour/platforms.html", [
+				pt("One workspace compiles the node server and the browser client. The compiler tracks which code needs which platform and keeps each bundle honest."),
+			]))
+			.child(feature("server", "Rendered before it ships", "/docs/guide/ssr.html", [
+				leaf("std::ui"),
+				pt(" renders on the server too: first paint is real markup, then the client rebuilds it live. View source on this page — it is already there."),
+			]))
+			.child(feature("refresh-cw", "A dev loop that keeps up", "/docs/guide/dev-loop.html", [
+				leaf("vilan run . --watch"),
+				pt(" rebuilds in milliseconds and hot-reloads the browser. Format, test, and language server ship in the same binary."),
+			])))
 }
 
 // --- dogfood + footer ---
 
 // Bare text against the ground — deliberately the one section with no
 // panel, no art, no columns.
-let dogfood_text = const style().margin(space(0)).font_size(Length::px(15.0)).text_align(TextAlign::Center);
+let dogfood_text = const style()
+	.margin(space(0))
+	.font_size(Length::px(15.0))
+	.text_align(TextAlign::Center);
 
 let dogfood_cta = const style().margin(space(0)).text_align(TextAlign::Center);
 
 fun dogfood(): View {
-	view("section").styled(column + section_block + stack)
-		.child(view("p").styled(dogfood_text).text("This site is a vilan program — one package, two entries. The server rendered the markup you first saw; the browser rebuilt it live."))
-		.child(view("p").styled(dogfood_cta).child(docs_link("https://github.com/vilan-lang/website", "Read this page's source")))
+	view("section")
+		.styled(column + section_block + stack)
+		.child(view("p")
+			.styled(dogfood_text)
+			.text("This site is a vilan program — one package, two entries. The server rendered the markup you first saw; the browser rebuilt it live."))
+		.child(view("p")
+			.styled(dogfood_cta)
+			.child(docs_link("https://github.com/vilan-lang/website", "Read this page's source")))
 }
 
 let footer_block = const style().raw("border-top", hairline).padding_y(Length::px(128.0));
 
-let footer_grid = const style().display(Display::Grid).gap(space(8)).lg(style().raw("grid-template-columns", "2fr 1fr 1fr 1fr"));
+let footer_grid = const style()
+	.display(Display::Grid)
+	.gap(space(8))
+	.lg(style().raw("grid-template-columns", "2fr 1fr 1fr 1fr"));
 
 let footer_head = const style().font_weight(600).margin_y(space(2));
 
-let footer_list = const style().display(Display::Flex).flex_direction(FlexDirection::Column).gap(space(2));
+let footer_list = const style()
+	.display(Display::Flex)
+	.flex_direction(FlexDirection::Column)
+	.gap(space(2));
 
-let footer_link = const style().color(blush).opacity(0.7).raw("text-decoration", "none").raw("user-select", "none").hover(style().opacity(1.0).raw("text-decoration", "underline"));
+let footer_link = const style()
+	.color(blush)
+	.opacity(0.7)
+	.raw("text-decoration", "none")
+	.raw("user-select", "none")
+	.hover(style().opacity(1.0).raw("text-decoration", "underline"));
 
-let footer_mark = const (style().raw("align-self", "center").raw("justify-self", "center") + no_drag);
+let footer_mark = const (style()
+	.raw("align-self", "center")
+	.raw("justify-self", "center")
+	+ no_drag);
 
-let footer_micro = const style().display(Display::Flex).justify_content(JustifyContent::Between).raw("flex-wrap", "wrap").gap(space(2)).raw("border-top", hairline).raw("margin-top", "96px").padding_y(space(6)).font_size(Length::px(12.0)).opacity(0.55);
+let footer_micro = const style()
+	.display(Display::Flex)
+	.justify_content(JustifyContent::Between)
+	.raw("flex-wrap", "wrap")
+	.gap(space(2))
+	.raw("border-top", hairline)
+	.raw("margin-top", "96px")
+	.padding_y(space(6))
+	.font_size(Length::px(12.0))
+	.opacity(0.55);
 
 fun footer_column(title: str, links: List<View>): View {
-	view("div").child(view("p").styled(footer_head).text(title)).child(view("div").styled(footer_list).children(links))
+	view("div")
+		.child(view("p").styled(footer_head).text(title))
+		.child(view("div").styled(footer_list).children(links))
 }
 
 fun page_footer(): View {
-	view("footer").styled(footer_block)
-		.child(view("div").styled(column + footer_grid)
-			.child(view("img").attr("src", i"{assets}/footer_mark.webp").attr("alt", "The vilan mark").attr("width", "200").styled(footer_mark))
+	view("footer")
+		.styled(footer_block)
+		.child(view("div")
+			.styled(column + footer_grid)
+			.child(view("img")
+				.attr("src", i"{assets}/footer_mark.webp")
+				.attr("alt", "The vilan mark")
+				.attr("width", "200")
+				.styled(footer_mark))
 			.child(footer_column("Using Vilan", [
 				view("a").styled(footer_link).attr("href", "#install").text("Install"),
-				view("a").styled(footer_link).attr("href", "/docs/tour/hello-vilan.html").text("Learn"),
+				view("a")
+					.styled(footer_link)
+					.attr("href", "/docs/tour/hello-vilan.html")
+					.text("Learn"),
 				view("a").styled(footer_link).attr("href", "/docs/").text("Documentation"),
 			]))
 			.child(footer_column("Community", [
 				view("a").styled(footer_link).attr("href", i"{repo}/issues").text("Issues"),
-				view("a").styled(footer_link).attr("href", i"{repo}/discussions").text("Discussions"),
-				view("a").styled(footer_link).attr("href", "https://github.com/vilan-lang").text("GitHub"),
+				view("a")
+					.styled(footer_link)
+					.attr("href", i"{repo}/discussions")
+					.text("Discussions"),
+				view("a")
+					.styled(footer_link)
+					.attr("href", "https://github.com/vilan-lang")
+					.text("GitHub"),
 			]))
 			.child(footer_column("Terms & policies", [
-				view("a").styled(footer_link).attr("href", i"{repo}/blob/main/CODE_OF_CONDUCT.md").text("Code of Conduct"),
+				view("a")
+					.styled(footer_link)
+					.attr("href", i"{repo}/blob/main/CODE_OF_CONDUCT.md")
+					.text("Code of Conduct"),
 				view("a").styled(footer_link).attr("href", i"{repo}#license").text("Licenses"),
-				view("a").styled(footer_link).attr("href", i"{repo}/blob/main/assets/branding/LICENSE").text("Logo Policy"),
+				view("a")
+					.styled(footer_link)
+					.attr("href", i"{repo}/blob/main/assets/branding/LICENSE")
+					.text("Logo Policy"),
 			])))
-		.child(view("div").styled(column)
-			.child(view("div").styled(footer_micro)
+		.child(view("div")
+			.styled(column)
+			.child(view("div")
+				.styled(footer_micro)
 				.child(view("span").text("© 2026 Reed Syllas"))
 				.child(view("span").text("MIT or Apache-2.0"))))
 }

@@ -40,7 +40,10 @@ async fun main() {
 					// signal never moves and the clipboard hook does nothing.
 					markup = render(page(Signal::new("0"), |_text| {}));
 				});
-				Response::builder().set_header("Content-Type", "text/html").body(shell.replace("<!--ssr-->", markup)).build()
+				Response::builder()
+					.set_header("Content-Type", "text/html")
+					.body(shell.replace("<!--ssr-->", markup))
+					.build()
 			}
 		}
 	}).on_start(|server| print(i"vilan website: {server.url()}")).build().start();

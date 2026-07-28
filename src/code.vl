@@ -2,13 +2,23 @@
 // over a pre) and the inline code leafs - `[rpc]`, `vilan upgrade`, and
 // friends read as code, not bare prose; the linked flavor jumps to the docs.
 
-import pkg::theme::{ blush, ember, hairline, mono, panel, rose };
 import std::style::{ Length, Overflow, space, style };
 import std::ui::{ View, view };
+import pkg::theme::{ blush, ember, hairline, mono, panel, rose };
 
 // --- code panels ---
 
-let code_pre = const style().background(panel).radius(space(3)).padding(space(5)).margin(space(0)).overflow(Overflow::Auto).font_size(Length::px(13.0)).line_height(1.65).raw("font-family", mono).raw("border", hairline).raw("white-space", "pre");
+let code_pre = const style()
+	.background(panel)
+	.radius(space(3))
+	.padding(space(5))
+	.margin(space(0))
+	.overflow(Overflow::Auto)
+	.font_size(Length::px(13.0))
+	.line_height(1.65)
+	.raw("font-family", mono)
+	.raw("border", hairline)
+	.raw("white-space", "pre");
 
 let tk_keyword = const style().color(ember);
 let tk_string = const style().color(rose);
@@ -38,12 +48,22 @@ fun code_panel(lines: List<View>): View {
 	view("pre").styled(code_pre).children(lines)
 }
 
-
 // Inline code leaf — `[rpc]`, `vilan upgrade`, and friends read as code, not
 // bare prose. The linked flavor also jumps to the docs.
-let leaf_style = const style().raw("font-family", mono).font_size(Length::px(12.0)).raw("background", "rgba(27, 6, 13, 0.9)").raw("border", hairline).radius(Length::px(6.0)).raw("padding", "1px 6px").raw("white-space", "nowrap");
+let leaf_style = const style()
+	.raw("font-family", mono)
+	.font_size(Length::px(12.0))
+	.raw("background", "rgba(27, 6, 13, 0.9)")
+	.raw("border", hairline)
+	.radius(Length::px(6.0))
+	.raw("padding", "1px 6px")
+	.raw("white-space", "nowrap");
 
-let leaf_link_style = const (leaf_style + style().color(blush).raw("text-decoration", "underline dotted rgba(235, 104, 46, 0.7) 1px").raw("text-underline-offset", "3px").hover(style().raw("border-color", "rgba(235, 104, 46, 0.6)")));
+let leaf_link_style = const (leaf_style + style()
+	.color(blush)
+	.raw("text-decoration", "underline dotted rgba(235, 104, 46, 0.7) 1px")
+	.raw("text-underline-offset", "3px")
+	.hover(style().raw("border-color", "rgba(235, 104, 46, 0.6)")));
 
 fun leaf(text: str): View {
 	view("code").styled(leaf_style).text(text)
