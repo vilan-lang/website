@@ -5,10 +5,10 @@
 # publishes main as-is. docs/ there belongs to that repo's docs.yml and
 # assets/ to hand deploys, so the commit stages only the three site files.
 #
-# The toolchain builds from vilan-lang/vilan@main: the feature grid needs
-# B35 (media rules emit in ascending min-width order), which no tagged
-# release contains yet. Once one does, swap the toolchain checkout + cargo
-# build for the release tarball and drop the Rust toolchain and cache.
+# The toolchain installs from the latest tagged release (v0.17.0 was the
+# first with B35, which the feature grid needs), via the official install
+# script - the same on-ramp the README teaches, so a broken script fails
+# here before a user meets it. No Rust toolchain, no cargo, no cache.
 #
 # The push authenticates as the vilan-site-deploy GitHub App (contents
 # read-write, installed on vilan-lang.github.io only): each run mints a
@@ -36,22 +36,16 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/checkout@v4
-        with:
-          repository: vilan-lang/vilan
-          ref: main
-          path: toolchain
-      - uses: dtolnay/rust-toolchain@stable
-      - uses: Swatinem/rust-cache@v2
-        with:
-          workspaces: toolchain
       - uses: actions/setup-node@v4
         with:
           node-version: 24
-      - name: Build the toolchain
-        run: cargo build --release -p vilan-cli --manifest-path toolchain/Cargo.toml
+      - name: Install the vilan toolchain
+        run: |
+          curl -fsSL https://github.com/vilan-lang/vilan/releases/latest/download/install.sh | sh
+          echo "$HOME/.vilan/bin" >> "$GITHUB_PATH"
+          "$HOME/.vilan/bin/vilan" --version
       - name: Build the site
-        run: toolchain/target/release/vilan build .
+        run: vilan build .
       - name: Render the page
         run: |
           mkdir export
