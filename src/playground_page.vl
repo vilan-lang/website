@@ -1,0 +1,230 @@
+// The playground page both legs build: the server renders it for first paint
+// (the editor and runner panes ship as empty containers), the playground entry
+// rebuilds it live and then hands the two containers to the vendored editor
+// bundle — CodeMirror mounts into `#editor`, each Run swaps a sandboxed iframe
+// into `#runner`. Nothing here reaches `std::dom`, so the same source compiles
+// on both platforms; every browser-only piece lives in playground.vl.
+//
+// The reactive state (status line, diagnostics, console) flows in as signals,
+// the actions (Run, example picks) as closures — the server passes inert
+// stand-ins, the same split as `page()`.
+
+import std::reactive::Signal;
+import std::style::{ Display, FlexDirection, Length, Overflow, space, style };
+import std::ui::{ View, view };
+import pkg::masthead::top_bar;
+import pkg::theme::{ blush, column, ember, hairline, mono, panel, rose, shell };
+
+/// One row of the diagnostics pane — the wire diagnostic flattened to plain
+/// data (line and column already one-based for display). Both rows derive
+/// `PartialEq` so `bind_each`'s reconciler can tell changed from same.
+[derive(PartialEq)]
+struct DiagRow {
+	id: i32,
+	severity: str,
+	file: str,
+	line: i32,
+	column: i32,
+	message: str,
+	note: str,
+}
+
+/// One line of program output: `kind` is "log" or "error".
+[derive(PartialEq)]
+struct ConsoleRow {
+	id: i32,
+	kind: str,
+	text: str,
+}
+
+// --- layout ---
+
+let workbench = const style()
+	.display(Display::Flex)
+	.flex_direction(FlexDirection::Column)
+	.gap(space(4))
+	.padding_y(space(6));
+
+let panes = const style()
+	.display(Display::Flex)
+	.flex_direction(FlexDirection::Column)
+	.gap(space(4))
+	.lg(style().flex_direction(FlexDirection::Row));
+
+let pane = const style()
+	.display(Display::Flex)
+	.flex_direction(FlexDirection::Column)
+	.gap(space(3))
+	.raw("min-width", "0")
+	.raw("flex", "1 1 0");
+
+let pane_label = const style()
+	.margin(space(0))
+	.opacity(0.6)
+	.font_size(Length::px(12.0))
+	.raw("letter-spacing", "0.14em")
+	.raw("text-transform", "uppercase");
+
+// The editor host: the bundle mounts CodeMirror inside; the border and radius
+// stay ours so both panes read as one family.
+let editor_host = const style()
+	.background(panel)
+	.radius(space(3))
+	.raw("border", hairline)
+	.overflow(Overflow::Hidden)
+	.height(Length::px(420.0));
+
+// The runner host: each Run swaps a sandboxed iframe in; between runs it holds
+// the placeholder note.
+let runner_host = const style()
+	.background(panel)
+	.radius(space(3))
+	.raw("border", hairline)
+	.overflow(Overflow::Hidden)
+	.height(Length::px(420.0))
+	.display(Display::Flex);
+
+// --- controls ---
+
+let controls = const style()
+	.display(Display::Flex)
+	.raw("flex-wrap", "wrap")
+	.raw("align-items", "center")
+	.gap(space(3));
+
+let run_button = const style()
+	.background(ember)
+	.color(blush)
+	.font_weight(600)
+	.raw("border", "none")
+	.radius(space(2))
+	.raw("padding", "8px 20px")
+	.raw("cursor", "pointer")
+	.raw("font-family", "inherit")
+	.font_size(Length::px(14.0))
+	.hover(style().opacity(0.9));
+
+let example_button = const style()
+	.background(panel)
+	.color(blush)
+	.raw("border", hairline)
+	.radius(space(2))
+	.raw("padding", "7px 14px")
+	.raw("cursor", "pointer")
+	.raw("font-family", "inherit")
+	.font_size(Length::px(13.0))
+	.opacity(0.85)
+	.hover(style().opacity(1.0));
+
+let status_line = const style()
+	.margin(space(0))
+	.opacity(0.7)
+	.font_size(Length::px(13.0))
+	.raw("margin-left", "auto");
+
+// --- diagnostics and console ---
+
+let report_pre = const style()
+	.background(panel)
+	.radius(space(3))
+	.padding(space(4))
+	.margin(space(0))
+	.overflow(Overflow::Auto)
+	.font_size(Length::px(13.0))
+	.line_height(1.6)
+	.raw("font-family", mono)
+	.raw("white-space", "pre-wrap")
+	.min_height(Length::px(96.0))
+	.raw("max-height", "240px")
+	.raw("border", hairline);
+
+let diag_error = const style().color(ember).font_weight(700);
+let diag_warning = const style().color(rose).font_weight(700);
+let diag_site = const style().opacity(0.55);
+let diag_note = const style().opacity(0.7);
+let console_error = const style().color(ember);
+let quiet_row = const style().opacity(0.45);
+
+fun severity_tag(row: DiagRow): View {
+	match row.severity {
+		"error" => view("span").styled(diag_error).text("error"),
+		_ => view("span").styled(diag_warning).text("warning"),
+	}
+}
+
+fun diagnostic_row(row: DiagRow): View {
+	let head = view("div")
+		.child(severity_tag(row))
+		.child(view("span").styled(diag_site).text(i" {row.file}:{row.line}:{row.column} "))
+		.child(view("span").text(row.message));
+	match row.note {
+		"" => head,
+		_ => view("div").child(head).child(view("div").styled(diag_note).text(i"  note: {row.note}")),
+	}
+}
+
+fun console_row(row: ConsoleRow): View {
+	match row.kind {
+		"error" => view("div").styled(console_error).text(row.text),
+		_ => view("div").text(row.text),
+	}
+}
+
+// --- the page ---
+
+fun playground_page(
+	status: Signal<str>,
+	diagnostics: Signal<List<DiagRow>>,
+	console_lines: Signal<List<ConsoleRow>>,
+	run: || void,
+	pick: |str| void,
+): View {
+	view("div")
+		.styled(shell)
+		.child(top_bar(Signal::new("1")))
+		.child(view("main")
+			.styled(column + workbench)
+			.child(view("h1").styled(pane_label).text("Playground — vilan in the browser"))
+			.child(view("div")
+				.styled(controls)
+				.child(view("button").styled(run_button).text("Run").on("click", || run()))
+				.child(view("button")
+					.styled(example_button)
+					.text("Counter")
+					.on("click", || pick("counter")))
+				.child(view("button")
+					.styled(example_button)
+					.text("Hello")
+					.on("click", || pick("hello")))
+				.child(view("button")
+					.styled(example_button)
+					.text("Styles")
+					.on("click", || pick("styles")))
+				.child(view("p").styled(status_line).bind_text(status)))
+			.child(view("div")
+				.styled(panes)
+				.child(view("div")
+					.styled(pane)
+					.child(view("p").styled(pane_label).text("Program"))
+					.child(view("div").styled(editor_host).attr("id", "editor"))
+					.child(view("p").styled(pane_label).text("Diagnostics"))
+					.child(view("pre")
+						.styled(report_pre)
+						.child(view("div")
+							.styled(quiet_row)
+							.text("Nothing to report.")
+							.show(diagnostics.map(|rows| rows.len() == 0)))
+						.child(view("div").bind_each(diagnostics, |row| row.id, |row| diagnostic_row(row)))))
+				.child(view("div")
+					.styled(pane)
+					.child(view("p").styled(pane_label).text("Result"))
+					.child(view("div").styled(runner_host).attr("id", "runner"))
+					.child(view("p").styled(pane_label).text("Console"))
+					.child(view("pre")
+						.styled(report_pre)
+						.child(view("div")
+							.styled(quiet_row)
+							.text("Program output lands here.")
+							.show(console_lines.map(|rows| rows.len() == 0)))
+						.child(view("div").bind_each(console_lines, |row| row.id, |row| console_row(row)))))))
+}

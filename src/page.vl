@@ -21,13 +21,49 @@
 import std::option::Option::{ None, Some, self };
 import std::reactive::Signal;
 import std::shared::Shared;
-import std::style::{ AlignItems, Color, Cursor, Display, FlexDirection, JustifyContent, Length, Overflow, Position, TextAlign, space, style };
+import std::style::{
+	AlignItems,
+	Color,
+	Cursor,
+	Display,
+	FlexDirection,
+	JustifyContent,
+	Length,
+	Overflow,
+	Position,
+	TextAlign,
+	space,
+	style,
+};
 import std::time::Timer;
 import std::ui::{ View, view };
 import pkg::art::{ dataflow_art, diagram, editor_art, toolchain_art };
 import pkg::code::{ blank, code_panel, kw, leaf, leaf_link, ln, pt, st, t };
 import pkg::masthead::{ bloom, masthead, top_bar };
-import pkg::theme::{ assets, blush, body_face, column, desktop_only, display_face, divider, ember, hairline, heading, ink, lead, mono, no_drag, no_select, panel, repo, reveal, rose, section_block, shell, stack };
+import pkg::theme::{
+	assets,
+	blush,
+	body_face,
+	column,
+	desktop_only,
+	display_face,
+	divider,
+	ember,
+	hairline,
+	heading,
+	ink,
+	lead,
+	mono,
+	no_drag,
+	no_select,
+	panel,
+	repo,
+	reveal,
+	rose,
+	section_block,
+	shell,
+	stack,
+};
 
 // --- the page ---
 
@@ -131,21 +167,30 @@ fun install_row(label: str, command: str, copy: |str| void): View {
 	// Re-clicks call the pending revert off before arming the next one -
 	// std::time::Timer, the API this very button drove into std.
 	let pending: Shared<Option<Timer>> = Shared::new(None);
-	view("div").child(view("p").styled(install_label).text(label)).child(view("div").styled(install_command).child(view("span").styled(install_command_text).text(command)).child(view("button").styled(copy_button).attr("aria-label", "Copy command").on("click", || {
-		copy(command);
-		icon.set(i"{assets}/icons/check.svg");
-		match pending.read() {
-			Some(let timer) => timer.cancel(),
-			None => {}
-		}
-		let timer = Timer::after(2400);
-		pending.write() = Some(timer);
-		let _ = async {
-			if timer.wait() {
-				icon.set(i"{assets}/icons/copy.svg");
-			}
-		};
-	}).child(view("img").styled(copy_icon).attr("alt", "").bind_attr("src", icon))))
+	view("div")
+		.child(view("p").styled(install_label).text(label))
+		.child(view("div")
+			.styled(install_command)
+			.child(view("span").styled(install_command_text).text(command))
+			.child(view("button")
+				.styled(copy_button)
+				.attr("aria-label", "Copy command")
+				.on("click", || {
+					copy(command);
+					icon.set(i"{assets}/icons/check.svg");
+					match pending.read() {
+						Some(let timer) => timer.cancel(),
+						None => {}
+					}
+					let timer = Timer::after(2400);
+					pending.write() = Some(timer);
+					let _ = async {
+						if timer.wait() {
+							icon.set(i"{assets}/icons/copy.svg");
+						}
+					};
+				})
+				.child(view("img").styled(copy_icon).attr("alt", "").bind_attr("src", icon))))
 }
 
 fun install_section(copy: |str| void): View {

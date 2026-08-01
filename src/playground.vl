@@ -1,0 +1,193 @@
+// The playground entry: build the shared page, mount it, then wire the two
+// empty containers to the vendored bundle (`playground/editor.js`, committed
+// as `window.VilanPlayground`) — CodeMirror into `#editor`, the compile
+// worker, and the per-Run sandboxed iframe into `#runner`.
+//
+// The split: the bundle owns the DELIVERY machinery (the editor widget, the
+// worker lifecycle with its crash-respawn and recycle policy, the iframe
+// swap), because all of it is inherently JavaScript — a Worker needs `new`,
+// an srcdoc needs escaping. This entry owns the APPLICATION: every signal the
+// page renders, and what each compiler or program event means to it.
+
+import std::reactive::Signal;
+import std::shared::Shared;
+import std::ui::mount_root;
+import pkg::playground_page::{ ConsoleRow, DiagRow, playground_page };
+
+// --- the vendored bundle (playground/editor.js) ---
+
+[extern("VilanPlayground.init")]
+external fun editor_init(selector: str, doc: str): void;
+
+[extern("VilanPlayground.value")]
+external fun editor_value(): str;
+
+[extern("VilanPlayground.setDoc")]
+external fun editor_set_doc(text: str): void;
+
+/// A seeded example's source (playground/examples/, shipped as examples.js).
+[extern("VilanPlayground.example")]
+external fun example_source(name: str): str;
+
+/// Start the compile worker. The bundle respawns it after a crash and
+/// recycles it after enough compiles (the wasm instance leaks by design —
+/// see the D11 proposal §6); every lifecycle step arrives as an event.
+[extern("VilanPlayground.startCompiler")]
+external fun start_compiler(on_event: |CompilerEvent| void): void;
+
+/// Request a compile. False when the worker is not ready or one is already
+/// in flight — the bundle keeps the newest rejected source and compiles it
+/// when the worker frees up, so a click is never silently lost.
+[extern("VilanPlayground.compile")]
+external fun request_compile(source: str): bool;
+
+[extern("VilanPlayground.runProgram")]
+external fun run_program(js: str, css: str): void;
+
+[extern("VilanPlayground.clearProgram")]
+external fun clear_program(): void;
+
+/// The sandboxed iframe forwards program output with `postMessage`; the page
+/// listens on its own window.
+[extern("window.addEventListener")]
+external fun window_listen(event: str, handler: |HostEvent| void): void;
+
+external struct CompilerEvent;
+
+impl CompilerEvent {
+	[extern(get, "kind")]
+	external fun kind(self): str;
+
+	[extern(get, "version")]
+	external fun version(self): str;
+
+	[extern(get, "ok")]
+	external fun ok(self): bool;
+
+	[extern(get, "js")]
+	external fun js(self): str;
+
+	[extern(get, "css")]
+	external fun css(self): str;
+
+	[extern(get, "error")]
+	external fun error(self): str;
+
+	[extern(get, "diagnostics")]
+	external fun diagnostics(self): List<WireDiagnostic>;
+}
+
+external struct WireDiagnostic;
+
+impl WireDiagnostic {
+	[extern(get, "severity")]
+	external fun severity(self): str;
+
+	[extern(get, "file")]
+	external fun file(self): str;
+
+	[extern(get, "line")]
+	external fun line(self): i32;
+
+	[extern(get, "column")]
+	external fun column(self): i32;
+
+	[extern(get, "message")]
+	external fun message(self): str;
+
+	[extern(get, "note")]
+	external fun note(self): str;
+}
+
+external struct HostEvent;
+
+impl HostEvent {
+	[extern(get, "data")]
+	external fun data(self): ProgramMessage;
+}
+
+external struct ProgramMessage;
+
+impl ProgramMessage {
+	[extern(get, "kind")]
+	external fun kind(self): str;
+
+	[extern(get, "text")]
+	external fun text(self): str;
+}
+
+// A runaway program can print forever; past this many rows the pane notes the
+// truncation once and drops the rest. Each Run starts a fresh count.
+let console_cap = 300;
+
+fun main() {
+	let status = Signal::new("Loading the compiler…");
+	let diagnostics: Signal<List<DiagRow>> = Signal::new([]);
+	let console_lines: Signal<List<ConsoleRow>> = Signal::new([]);
+	let next_row_id = Shared::new(0);
+
+	let run = || {
+		if request_compile(editor_value()) {
+			status.set("Compiling…");
+		} else {
+			status.set("Compiler busy — queued.");
+		}
+	};
+
+	let pick = |name: str| {
+		editor_set_doc(example_source(name));
+		diagnostics.set([]);
+		console_lines.set([]);
+		clear_program();
+	};
+
+	let _root = mount_root("app", || playground_page(status, diagnostics, console_lines, run, pick));
+
+	editor_init("#editor", example_source("counter"));
+
+	start_compiler(|event| {
+		let kind = event.kind();
+		if kind == "ready" {
+			status.set(i"Ready — vilan {event.version()}");
+		} else if kind == "result" {
+			mut rows: List<DiagRow> = [];
+			mut id = next_row_id.read();
+			for diagnostic in event.diagnostics() {
+				rows.push(DiagRow { id = id, severity = diagnostic.severity(), file = diagnostic.file(), line = diagnostic.line() + 1, column = diagnostic.column() + 1, message = diagnostic.message(), note = diagnostic.note() });
+				id = id + 1;
+			}
+			next_row_id.write() = id;
+			diagnostics.set(rows);
+			console_lines.set([]);
+			if event.ok() {
+				status.set(i"Compiled — vilan {event.version()}");
+				run_program(event.js(), event.css());
+			} else {
+				status.set("Build failed; see the diagnostics.");
+				clear_program();
+			}
+		} else if kind == "crash" {
+			status.set("The compiler crashed on this input; it has been restarted. Please report the program that did it.");
+		}
+	});
+
+	window_listen("message", |host_event| {
+		let message = host_event.data();
+		let kind = message.kind();
+		if kind == "log" || kind == "error" {
+			console_lines.set_with(|lines| {
+				mut next = lines;
+				if next.len() < console_cap {
+					let id = next_row_id.read();
+					next_row_id.write() = id + 1;
+					next.push(ConsoleRow { id = id, kind = kind, text = message.text() });
+				} else if next.len() == console_cap {
+					let id = next_row_id.read();
+					next_row_id.write() = id + 1;
+					next.push(ConsoleRow { id = id, kind = "error", text = "— output truncated —" });
+				}
+				next
+			});
+		}
+	});
+}

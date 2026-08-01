@@ -2,9 +2,30 @@
 // the hero. One scale (`hero_scale`) rules every masthead dimension.
 
 import std::reactive::Signal;
-import std::style::{ AlignItems, Color, Display, FlexDirection, JustifyContent, Length, Overflow, Position, TextAlign, space, style };
+import std::style::{
+	AlignItems,
+	Color,
+	Display,
+	FlexDirection,
+	JustifyContent,
+	Length,
+	Overflow,
+	Position,
+	TextAlign,
+	space,
+	style,
+};
 import std::ui::{ View, view };
-import pkg::theme::{ assets, blush, column, display_face, ink, no_drag, no_select, visually_hidden };
+import pkg::theme::{
+	assets,
+	blush,
+	column,
+	display_face,
+	ink,
+	no_drag,
+	no_select,
+	visually_hidden,
+};
 
 // --- the sticky toolbar ---
 

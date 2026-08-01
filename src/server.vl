@@ -1,8 +1,16 @@
-// The server: read the client bundle, its stylesheet, and the HTML shell, then
-// serve. The page route renders `page()` to markup and splices it into the shell
-// at the `<!--ssr-->` marker — a fresh render per request, created, serialized,
-// and discarded. The page arrives fully painted; `/client.js` boots and replaces.
+// The server: read the client bundles, their stylesheets, and the HTML shells,
+// then serve. Each page route renders its view to markup and splices it into
+// its shell at the `<!--ssr-->` marker — a fresh render per request, created,
+// serialized, and discarded. The page arrives fully painted; the entry's own
+// bundle boots and replaces.
+//
+// The playground's wasm compiler is NOT part of this package's build: in
+// production the deploy job downloads it from the toolchain's release assets,
+// and locally `scripts/fetch-wasm.sh` puts it under playground/wasm/ (see the
+// README). The routes below answer 404 with a pointer until it exists, so the
+// landing page needs none of it.
 
+import std::bytes::Bytes;
 import std::fs;
 import std::http::{ Request, Response, Server };
 import std::option::Option::{ None, Some, self };
@@ -11,12 +19,52 @@ import std::process::env;
 import std::reactive::{ Owner, Signal, run_with_owner };
 import std::ui::render;
 import pkg::page::page;
+import pkg::playground_page::{ ConsoleRow, DiagRow, playground_page };
+
+/// `readFile` with no encoding: the raw bytes, for the gzipped wasm.
+[extern("node:fs/promises", "readFile")]
+async external fun read_file_raw(path: str): Bytes;
+
+fun html(shell: str, markup: str): Response {
+	Response::builder()
+		.set_header("Content-Type", "text/html")
+		.body(shell.replace("<!--ssr-->", markup))
+		.build()
+}
+
+fun script(body: str): Response {
+	Response::builder().set_header("Content-Type", "text/javascript").body(body).build()
+}
+
+fun missing_wasm(): Response {
+	Response::builder()
+		.code(404)
+		.set_header("Content-Type", "text/plain")
+		.body("The playground compiler is not fetched; run scripts/fetch-wasm.sh first.")
+		.build()
+}
 
 async fun main() {
 	// Read once at boot; the server runs from the project root (`vilan run .`).
 	let client_js = fs::read_file_to_str("dist/client.js");
 	let client_css = fs::read_file_to_str("dist/client.css");
 	let shell = fs::read_file_to_str("src/app.html");
+
+	let playground_js = fs::read_file_to_str("dist/playground.js");
+	let playground_css = fs::read_file_to_str("dist/playground.css");
+	let playground_shell = fs::read_file_to_str("src/playground.html");
+	let editor_js = fs::read_file_to_str("playground/editor.js");
+	let examples_js = fs::read_file_to_str("playground/examples.js");
+	let worker_js = fs::read_file_to_str("playground/worker.js");
+
+	// The wasm pair is fetched, not built here; absent is a normal state.
+	let has_wasm = fs::exists("playground/wasm/vilan_wasm.js");
+	mut wasm_glue = "";
+	mut wasm_gz = Bytes::alloc(0);
+	if has_wasm {
+		wasm_glue = fs::read_file_to_str("playground/wasm/vilan_wasm.js");
+		wasm_gz = read_file_raw("playground/wasm/vilan_wasm_bg.wasm.gz");
+	}
 
 	// 3000 is every tool's favourite port; PORT overrides for the day
 	// something else is squatting on it.
@@ -25,10 +73,40 @@ async fun main() {
 		None => 3000,
 	};
 
+	// Inert stand-ins, the same split as the landing page: the signals never
+	// move and the actions do nothing — the playground entry wires the live
+	// versions on boot. (Pages serves the exported page at /playground/, the
+	// local server at /playground; both spellings answer.)
+	let render_playground = || {
+		let owner = Owner::new();
+		mut markup = "";
+		run_with_owner(owner, || {
+			let no_diagnostics: Signal<List<DiagRow>> = Signal::new([]);
+			let no_console: Signal<List<ConsoleRow>> = Signal::new([]);
+			markup = render(playground_page(Signal::new("Loading the compiler…"), no_diagnostics, no_console, || {}, |_name| {}));
+		});
+		html(playground_shell, markup)
+	};
+
 	Server::builder().port(port).on_request(|request| {
 		match request.path() {
-			"/client.js" => Response::builder().set_header("Content-Type", "text/javascript").body(client_js).build(),
+			"/client.js" => script(client_js),
 			"/client.css" => Response::builder().set_header("Content-Type", "text/css").body(client_css).build(),
+			"/playground/playground.js" => script(playground_js),
+			"/playground/playground.css" => Response::builder().set_header("Content-Type", "text/css").body(playground_css).build(),
+			"/playground/editor.js" => script(editor_js),
+			"/playground/examples.js" => script(examples_js),
+			"/playground/worker.js" => script(worker_js),
+			"/playground/vilan_wasm.js" => match has_wasm {
+				true => script(wasm_glue),
+				false => missing_wasm(),
+			},
+			"/playground/vilan_wasm_bg.wasm.gz" => match has_wasm {
+				true => Response::builder().set_header("Content-Type", "application/octet-stream").body_bytes(wasm_gz).build(),
+				false => missing_wasm(),
+			},
+			"/playground" => render_playground(),
+			"/playground/" => render_playground(),
 			_ => {
 				// The page holds live state (the counter demo), so each render
 				// gets its own owner: created, serialized, and discarded —
@@ -40,10 +118,7 @@ async fun main() {
 					// signal never moves and the clipboard hook does nothing.
 					markup = render(page(Signal::new("0"), |_text| {}));
 				});
-				Response::builder()
-					.set_header("Content-Type", "text/html")
-					.body(shell.replace("<!--ssr-->", markup))
-					.build()
+				html(shell, markup)
 			}
 		}
 	}).on_start(|server| print(i"vilan website: {server.url()}")).build().start();

@@ -3,11 +3,36 @@
 // share (stages, blobs, cards, arrows). Every stage carries an opaque ink
 // ground so blend modes survive animation stacking-context isolation.
 
-import std::style::{ AlignItems, Color, Display, FlexDirection, JustifyContent, Length, Overflow, Position, TextAlign, space, style };
+import std::style::{
+	AlignItems,
+	Color,
+	Display,
+	FlexDirection,
+	JustifyContent,
+	Length,
+	Overflow,
+	Position,
+	TextAlign,
+	space,
+	style,
+};
 import std::ui::{ View, view };
 import pkg::code::{ blank, kw, ln, st, t, tk_plain };
 import pkg::theme::grain;
-import pkg::theme::{ assets, blush, desktop_only, display_face, ember, hairline, ink, mono, no_drag, no_select, reveal, rose };
+import pkg::theme::{
+	assets,
+	blush,
+	desktop_only,
+	display_face,
+	ember,
+	hairline,
+	ink,
+	mono,
+	no_drag,
+	no_select,
+	reveal,
+	rose,
+};
 
 // --- shared art vocabulary ---
 

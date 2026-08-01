@@ -15,5 +15,10 @@ description = "The vilan promo site (vilan-lang.org), a fullstack SSR vilan pack
 [entry.client]
 target = "browser"
 
+[entry.playground]
+# The /playground page's own bundle: the landing page never pays for the
+# editor, the worker wiring, or the compile machinery.
+target = "browser"
+
 [entry.server]
 # target defaults to node; path defaults to src/server.vl

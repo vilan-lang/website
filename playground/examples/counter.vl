@@ -1,0 +1,15 @@
+// A reactive counter: the signal is the state, the bindings follow it.
+// Change the label, add a second button — then press Run.
+
+import std::reactive::Signal;
+import std::ui::{ mount_root, view };
+
+fun main() {
+	mount_root("app", || {
+		let count = Signal::new(0);
+		view("div")
+			.child(view("h2").text("Counter"))
+			.child(view("button").text("+1").on("click", || count.set(count.get() + 1)))
+			.child(view("p").bind_text(count.map(|n| i"clicked {n} times")))
+	});
+}

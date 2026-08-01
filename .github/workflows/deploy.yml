@@ -1,14 +1,22 @@
 # Deploy the site to vilan-lang.org. Every push to main (and any manual
-# dispatch) rebuilds the package, captures the server-rendered page, and
-# commits the static export - index.html, client.js, client.css and nothing
-# else - to vilan-lang/vilan-lang.github.io, whose branch-based Pages build
-# publishes main as-is. docs/ there belongs to that repo's docs.yml and
-# assets/ to hand deploys, so the commit stages only the three site files.
+# dispatch) rebuilds the package, captures the server-rendered pages, and
+# commits the static export - the landing trio (index.html, client.js,
+# client.css), the playground/ set, a root .nojekyll and nothing else - to
+# vilan-lang/vilan-lang.github.io, whose branch-based Pages build publishes
+# main as-is. docs/ there belongs to that repo's docs.yml and assets/ to
+# hand deploys, so the commit stages only the allowlisted files.
 #
 # The toolchain installs from the latest tagged release (v0.17.0 was the
 # first with B35, which the feature grid needs), via the official install
 # script - the same on-ramp the README teaches, so a broken script fails
 # here before a user meets it. No Rust toolchain, no cargo, no cache.
+#
+# The playground's compiler (vilan-core as wasm) downloads from the SAME
+# release the toolchain installs from - one version lever - and is gated by
+# scripts/smoke-playground.mjs before anything ships: every seeded example
+# must compile clean against the exact wasm the visitor will get. The pair
+# is committed to the pages repo gzipped; unchanged bytes drop out of the
+# commit naturally, so it only lands when a release moved it.
 #
 # The push authenticates as the vilan-site-deploy GitHub App (contents
 # read-write, installed on vilan-lang.github.io only): each run mints a
@@ -44,21 +52,31 @@ jobs:
           curl -fsSL https://github.com/vilan-lang/vilan/releases/latest/download/install.sh | sh
           echo "$HOME/.vilan/bin" >> "$GITHUB_PATH"
           "$HOME/.vilan/bin/vilan" --version
+      - name: Fetch the playground compiler
+        run: sh scripts/fetch-wasm.sh
       - name: Build the site
         run: vilan build .
-      - name: Render the page
+      - name: Smoke-compile the seeded examples
+        run: node scripts/smoke-playground.mjs
+      - name: Render the pages
         run: |
-          mkdir export
+          mkdir -p export/playground
           node dist/server.js &
           server=$!
           curl -sS --fail --retry 30 --retry-delay 1 --retry-connrefused \
             http://localhost:3000/ -o export/index.html
+          curl -sS --fail http://localhost:3000/playground -o export/playground/index.html
           kill "$server"
-          if grep -q '<!--ssr-->' export/index.html; then
-            echo "::error::the render still contains the ssr marker - the page did not splice"
-            exit 1
-          fi
+          for page in export/index.html export/playground/index.html; do
+            if grep -q '<!--ssr-->' "$page"; then
+              echo "::error::$page still contains the ssr marker - the page did not splice"
+              exit 1
+            fi
+          done
           cp dist/client.js dist/client.css export/
+          cp dist/playground.js dist/playground.css export/playground/
+          cp playground/editor.js playground/examples.js playground/worker.js export/playground/
+          cp playground/wasm/vilan_wasm.js playground/wasm/vilan_wasm_bg.wasm.gz export/playground/
       - name: Is there an app to push with?
         id: pages
         # A job-level if: cannot read secrets, so the secrets' presence
@@ -94,8 +112,20 @@ jobs:
         if: steps.pages.outputs.deploy == 'true'
         run: |
           cp export/index.html export/client.js export/client.css site/
+          mkdir -p site/playground
+          cp export/playground/index.html export/playground/playground.js \
+             export/playground/playground.css export/playground/editor.js \
+             export/playground/examples.js export/playground/worker.js \
+             export/playground/vilan_wasm.js export/playground/vilan_wasm_bg.wasm.gz \
+             site/playground/
+          # The root was Jekyll-processed until the playground arrived; docs/
+          # already carries its own .nojekyll.
+          touch site/.nojekyll
           cd site
-          git add index.html client.js client.css
+          git add index.html client.js client.css .nojekyll \
+            playground/index.html playground/playground.js playground/playground.css \
+            playground/editor.js playground/examples.js playground/worker.js \
+            playground/vilan_wasm.js playground/vilan_wasm_bg.wasm.gz
           if git diff --cached --quiet; then
             echo "::notice::the site is unchanged"
             exit 0

@@ -1,0 +1,9 @@
+// Hello: build a view, mount it, print to the console pane.
+
+import std::print;
+import std::ui::{ mount, view };
+
+fun main() {
+	print("Hello from the vilan playground!");
+	mount("app", view("h1").text("Hello, world"));
+}

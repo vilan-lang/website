@@ -1,0 +1,17 @@
+// Styles are compiled, not shipped: `const style()` values become a real
+// stylesheet at build time, and the classes below are its hashed names.
+
+import std::style::{ Color, Length, space, style };
+import std::ui::{ mount, view };
+
+let card = const style()
+	.background(Color::hex("#1B060D"))
+	.color(Color::hex("#F9DFE7"))
+	.padding(space(6))
+	.radius(Length::px(12.0));
+
+let title = const style().color(Color::hex("#EB682E")).margin(space(0));
+
+fun main() {
+	mount("app", view("div").styled(card).child(view("h2").styled(title).text("Styled at compile time")).child(view("p").text("This card's CSS came out of the compiler.")));
+}
