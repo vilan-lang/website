@@ -219,6 +219,28 @@ fun main() {
 		};
 	};
 
+	// Both a Run's result and a live check carry the same diagnostics shape;
+	// one applier fills the pane and answers how many problems there were.
+	let apply_diagnostics = |event: CompilerEvent| {
+		mut rows: List<DiagRow> = [];
+		mut id = next_row_id.read();
+		for diagnostic in event.diagnostics() {
+			rows.push(DiagRow {
+				id = id,
+				severity = diagnostic.severity(),
+				file = diagnostic.file(),
+				line = diagnostic.line() + 1,
+				column = diagnostic.column() + 1,
+				message = diagnostic.message(),
+				note = diagnostic.note(),
+			});
+			id = id + 1;
+		}
+		next_row_id.write() = id;
+		diagnostics.set(rows);
+		rows.len()
+	};
+
 	let _root = mount_root("app", || playground_page(status, diagnostics, console_lines, can_format, share_label, run, format, share));
 
 	editor_init("#editor", example_source("counter"));
@@ -256,23 +278,18 @@ fun main() {
 				status.set("Link ready in the address bar.");
 				flash_share("Link ready");
 			}
-		} else if kind == "result" {
-			mut rows: List<DiagRow> = [];
-			mut id = next_row_id.read();
-			for diagnostic in event.diagnostics() {
-				rows.push(DiagRow {
-					id = id,
-					severity = diagnostic.severity(),
-					file = diagnostic.file(),
-					line = diagnostic.line() + 1,
-					column = diagnostic.column() + 1,
-					message = diagnostic.message(),
-					note = diagnostic.note(),
-				});
-				id = id + 1;
+		} else if kind == "checked" {
+			// A live check: diagnostics move, the running program does not.
+			let count = apply_diagnostics(event);
+			if event.ok() {
+				status.set(i"No problems (vilan {event.version()}).");
+			} else if count == 1 {
+				status.set("1 problem; see the diagnostics.");
+			} else {
+				status.set(i"{count} problems; see the diagnostics.");
 			}
-			next_row_id.write() = id;
-			diagnostics.set(rows);
+		} else if kind == "result" {
+			let _count = apply_diagnostics(event);
 			console_lines.set([]);
 			if event.ok() {
 				status.set(i"Compiled (vilan {event.version()})");

@@ -14,10 +14,12 @@
 // v0.18.2, and a static named import of an export the loaded release does
 // not have would fail the whole module. Capability rides the ready message.
 //
-// Messages in:  { action: "compile" | "format", source }
+// Messages in:  { action: "compile" | "check" | "format", source }
 // Messages out:
 //   { kind: "ready",     version, canFormat }         - the compiler is live
 //   { kind: "result",    ok, js, css, version, diagnostics: [...] }
+//   { kind: "checked",   ok, version, diagnostics: [...] }  - live check;
+//                        same compile, but no emitted program rides back
 //   { kind: "formatted", text, changed }              - format's answer
 //   { kind: "crash",     error }                      - recycle me
 
@@ -59,6 +61,15 @@ onmessage = (event) => {
 			start: diagnostic.start,
 			end: diagnostic.end,
 		}));
+		if (action === "check") {
+			postMessage({
+				kind: "checked",
+				ok: result.js != null,
+				version: glue.version(),
+				diagnostics,
+			});
+			return;
+		}
 		postMessage({
 			kind: "result",
 			ok: result.js != null,

@@ -331,7 +331,10 @@ function init(selector, doc) {
 				syntaxHighlighting(vilanHighlight),
 				vilanTheme,
 				EditorView.updateListener.of((update) => {
-					if (update.docChanged) persist();
+					if (update.docChanged) {
+						persist();
+						scheduleCheck();
+					}
 				}),
 				keymap.of([
 					// The playground's verbs, before the defaults so they win.
@@ -420,6 +423,32 @@ let pending = null;
 let compileCount = 0;
 let loadFailures = 0;
 
+// Live diagnostics: edits schedule a debounced background CHECK - the same
+// compile, but only diagnostics ride back and the running program is never
+// touched. Latest-wins queueing (typing keeps only the newest), a queued Run
+// always outranks a queued check, and a check result whose text the visitor
+// has already changed is dropped rather than squiggling the wrong spans -
+// the newer check is already on its way.
+let pendingCheck = null;
+let sentSource = null;
+let checkTimer = null;
+
+function scheduleCheck() {
+	clearTimeout(checkTimer);
+	checkTimer = setTimeout(() => {
+		if (!view) return;
+		const source = view.state.doc.toString();
+		if (source === sentSource) return; // already checked or being checked
+		if (!ready || inFlight) {
+			pendingCheck = source;
+			return;
+		}
+		sentSource = source;
+		inFlight = true;
+		worker.postMessage({ action: "check", source });
+	}, 400);
+}
+
 // Events flow to the page through one callback, wired by startCompiler.
 // Anything emitted before the wiring (the editor's own "doc" event — init
 // runs first) queues and drains on wire, so call order cannot lose events.
@@ -449,7 +478,20 @@ function spawn() {
 			compileCount += 1;
 			applyEditorDiagnostics(message.diagnostics);
 			dispatch(message);
-			if (compileCount >= RECYCLE_AFTER && pending == null) {
+			if (compileCount >= RECYCLE_AFTER && pending == null && pendingCheck == null) {
+				recycle();
+			} else {
+				flushPending();
+			}
+		} else if (message.kind === "checked") {
+			inFlight = false;
+			compileCount += 1; // a check leaks like a compile; it pays the same budget
+			const current = view ? view.state.doc.toString() : "";
+			if (current === sentSource) {
+				applyEditorDiagnostics(message.diagnostics);
+				dispatch(message);
+			}
+			if (compileCount >= RECYCLE_AFTER && pending == null && pendingCheck == null) {
 				recycle();
 			} else {
 				flushPending();
@@ -489,11 +531,21 @@ function recycle() {
 }
 
 function flushPending() {
-	if (pending != null && ready && !inFlight) {
+	if (!ready || inFlight) return;
+	if (pending != null) {
 		const source = pending;
 		pending = null;
+		sentSource = source;
 		inFlight = true;
 		worker.postMessage({ action: "compile", source });
+		return;
+	}
+	if (pendingCheck != null) {
+		const source = pendingCheck;
+		pendingCheck = null;
+		sentSource = source;
+		inFlight = true;
+		worker.postMessage({ action: "check", source });
 	}
 }
 
@@ -510,6 +562,7 @@ function compile(source) {
 		pending = source;
 		return false;
 	}
+	sentSource = source;
 	inFlight = true;
 	worker.postMessage({ action: "compile", source });
 	return true;
