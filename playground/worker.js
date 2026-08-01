@@ -1,23 +1,34 @@
-// The compile worker: load the wasm compiler once, then answer each posted
-// request. The wasm instance leaks per compile by design (see the D11
-// proposal §6) and a compiler panic can poison its memory, so the page-side
-// bundle recycles this whole worker rather than trusting it to run forever —
-// the worker itself stays a thin adapter.
+// The compile worker: resolve which compiler version to load, load it once,
+// then answer each posted request. The wasm instance leaks per compile by
+// design (see the D11 proposal §6) and a compiler panic can poison its
+// memory, so the page-side bundle recycles this whole worker rather than
+// trusting it to run forever - the worker itself stays a thin adapter.
+//
+// Version resolution: `worker.js?v=<tag>` pins one (the future version
+// selector's hook); otherwise manifest.json names the current release. The
+// pair then loads from its VERSIONED directory - immutable URLs a browser
+// may cache forever, so a release rollover can never serve a mixed
+// glue/wasm pair; only the tiny always-revalidated manifest moves.
 //
 // The glue is imported as a NAMESPACE and probed: `format` arrived after
-// v0.18.2, and a static named import of an export the loaded release does not
-// have would fail the whole module. Capability rides the ready message.
+// v0.18.2, and a static named import of an export the loaded release does
+// not have would fail the whole module. Capability rides the ready message.
 //
 // Messages in:  { action: "compile" | "format", source }
 // Messages out:
-//   { kind: "ready",     version, canFormat }         — the compiler is live
+//   { kind: "ready",     version, canFormat }         - the compiler is live
 //   { kind: "result",    ok, js, css, version, diagnostics: [...] }
-//   { kind: "formatted", text, changed }              — format's answer
-//   { kind: "crash",     error }                      — recycle me
-import * as glue from "./vilan_wasm.js";
+//   { kind: "formatted", text, changed }              - format's answer
+//   { kind: "crash",     error }                      - recycle me
+
+const pinned = new URL(self.location.href).searchParams.get("v");
+const release = pinned
+	?? (await (await fetch(new URL("./manifest.json", import.meta.url), { cache: "no-cache" })).json()).compiler;
+
+const glue = await import(new URL(`./${release}/vilan_wasm.js`, import.meta.url).href);
 
 const wasm = await (async () => {
-	const response = await fetch(new URL("./vilan_wasm_bg.wasm.gz", import.meta.url));
+	const response = await fetch(new URL(`./${release}/vilan_wasm_bg.wasm.gz`, import.meta.url));
 	if (!response.ok) {
 		throw new Error(`fetching the compiler failed: HTTP ${response.status}`);
 	}

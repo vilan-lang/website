@@ -19,11 +19,13 @@ import { generate } from "./gen-examples.mjs";
 const root = fileURLToPath(new URL("..", import.meta.url));
 
 // 3: the compiler loads. (--target web glue: init takes the raw bytes, so no
-// fetch or DecompressionStream is needed under node.)
-const glue = await import(`${root}playground/wasm/vilan_wasm.js`);
-const wasm = gunzipSync(readFileSync(`${root}playground/wasm/vilan_wasm_bg.wasm.gz`));
+// fetch or DecompressionStream is needed under node.) The pair lives in the
+// versioned directory the VERSION file names, exactly as the page finds it.
+const release = readFileSync(`${root}playground/wasm/VERSION`, "utf8").trim();
+const glue = await import(`${root}playground/wasm/${release}/vilan_wasm.js`);
+const wasm = gunzipSync(readFileSync(`${root}playground/wasm/${release}/vilan_wasm_bg.wasm.gz`));
 await glue.default({ module_or_path: wasm });
-console.log(`playground compiler: vilan ${glue.version()}`);
+console.log(`playground compiler: vilan ${glue.version()} (release ${release})`);
 
 // 2: examples.js is current.
 const committed = readFileSync(`${root}playground/examples.js`, "utf8");

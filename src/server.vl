@@ -58,13 +58,21 @@ async fun main() {
 	let worker_js = fs::read_file_to_str("playground/worker.js");
 
 	// The wasm pair is fetched, not built here; absent is a normal state.
-	let has_wasm = fs::exists("playground/wasm/vilan_wasm.js");
+	// scripts/fetch-wasm.sh lays it out under a VERSIONED directory named by
+	// the VERSION file, mirroring how the pages repo serves it.
+	let has_wasm = fs::exists("playground/wasm/VERSION");
+	mut wasm_version = "";
+	mut wasm_manifest = "";
 	mut wasm_glue = "";
 	mut wasm_gz = Bytes::alloc(0);
 	if has_wasm {
-		wasm_glue = fs::read_file_to_str("playground/wasm/vilan_wasm.js");
-		wasm_gz = read_file_raw("playground/wasm/vilan_wasm_bg.wasm.gz");
+		wasm_version = fs::read_file_to_str("playground/wasm/VERSION");
+		wasm_manifest = fs::read_file_to_str("playground/wasm/manifest.json");
+		wasm_glue = fs::read_file_to_str(i"playground/wasm/{wasm_version}/vilan_wasm.js");
+		wasm_gz = read_file_raw(i"playground/wasm/{wasm_version}/vilan_wasm_bg.wasm.gz");
 	}
+	let glue_route = i"/playground/{wasm_version}/vilan_wasm.js";
+	let gz_route = i"/playground/{wasm_version}/vilan_wasm_bg.wasm.gz";
 
 	// 3000 is every tool's favourite port; PORT overrides for the day
 	// something else is squatting on it.
@@ -99,17 +107,24 @@ async fun main() {
 				"/playground/editor.js" => script(editor_js),
 				"/playground/examples.js" => script(examples_js),
 				"/playground/worker.js" => script(worker_js),
-				"/playground/vilan_wasm.js" => match has_wasm {
-					true => script(wasm_glue),
-					false => missing_wasm(),
-				},
-				"/playground/vilan_wasm_bg.wasm.gz" => match has_wasm {
-					true => Response::builder().set_header("Content-Type", "application/octet-stream").body_bytes(wasm_gz).build(),
+				"/playground/manifest.json" => match has_wasm {
+					true => Response::builder().set_header("Content-Type", "application/json").body(wasm_manifest).build(),
 					false => missing_wasm(),
 				},
 				"/playground" => render_playground(),
 				"/playground/" => render_playground(),
 				_ => {
+					// The versioned wasm pair's paths depend on the fetched
+					// release, so they route here rather than as literals.
+					if has_wasm && request.path() == glue_route {
+						ret script(wasm_glue);
+					}
+					if has_wasm && request.path() == gz_route {
+						ret Response::builder()
+							.set_header("Content-Type", "application/octet-stream")
+							.body_bytes(wasm_gz)
+							.build();
+					}
 					// The page holds live state (the counter demo), so each render
 					// gets its own owner: created, serialized, and discarded —
 					// dropping the owner tears the subscriptions down with it.

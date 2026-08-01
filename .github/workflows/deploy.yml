@@ -76,7 +76,14 @@ jobs:
           cp dist/client.js dist/client.css export/
           cp dist/playground.js dist/playground.css export/playground/
           cp playground/editor.js playground/examples.js playground/worker.js export/playground/
-          cp playground/wasm/vilan_wasm.js playground/wasm/vilan_wasm_bg.wasm.gz export/playground/
+          # The compiler ships under its versioned, immutable directory; only
+          # the tiny manifest moves between releases, so browsers can never
+          # hold a mixed glue/wasm pair across a rollover.
+          VER="$(cat playground/wasm/VERSION)"
+          mkdir -p "export/playground/$VER"
+          cp playground/wasm/manifest.json export/playground/
+          cp "playground/wasm/$VER/vilan_wasm.js" "playground/wasm/$VER/vilan_wasm_bg.wasm.gz" \
+            "export/playground/$VER/"
       - name: Is there an app to push with?
         id: pages
         # A job-level if: cannot read secrets, so the secrets' presence
@@ -112,20 +119,27 @@ jobs:
         if: steps.pages.outputs.deploy == 'true'
         run: |
           cp export/index.html export/client.js export/client.css site/
-          mkdir -p site/playground
+          VER="$(cat playground/wasm/VERSION)"
+          mkdir -p "site/playground/$VER"
           cp export/playground/index.html export/playground/playground.js \
              export/playground/playground.css export/playground/editor.js \
              export/playground/examples.js export/playground/worker.js \
-             export/playground/vilan_wasm.js export/playground/vilan_wasm_bg.wasm.gz \
+             export/playground/manifest.json \
              site/playground/
+          cp "export/playground/$VER/vilan_wasm.js" \
+             "export/playground/$VER/vilan_wasm_bg.wasm.gz" "site/playground/$VER/"
           # The root was Jekyll-processed until the playground arrived; docs/
           # already carries its own .nojekyll.
           touch site/.nojekyll
           cd site
+          # The pre-versioning flat pair is dead weight once the versioned
+          # layout lands; a no-op on every deploy after the first.
+          git rm -q --ignore-unmatch playground/vilan_wasm.js playground/vilan_wasm_bg.wasm.gz
           git add index.html client.js client.css .nojekyll \
             playground/index.html playground/playground.js playground/playground.css \
             playground/editor.js playground/examples.js playground/worker.js \
-            playground/vilan_wasm.js playground/vilan_wasm_bg.wasm.gz
+            playground/manifest.json \
+            "playground/$VER/vilan_wasm.js" "playground/$VER/vilan_wasm_bg.wasm.gz"
           if git diff --cached --quiet; then
             echo "::notice::the site is unchanged"
             exit 0
