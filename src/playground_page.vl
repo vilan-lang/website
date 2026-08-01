@@ -187,6 +187,7 @@ fun playground_page(
 	can_format: Signal<bool>,
 	run: || void,
 	format: || void,
+	share: || void,
 	pick: |str| void,
 ): View {
 	view("div")
@@ -203,6 +204,7 @@ fun playground_page(
 					.text("Format")
 					.on("click", || format())
 					.show(can_format))
+				.child(view("button").styled(example_button).text("Share").on("click", || share()))
 				.child(view("button")
 					.styled(example_button)
 					.text("Counter")
@@ -242,6 +244,9 @@ fun playground_page(
 							.text("Program output lands here.")
 							.show(console_lines.map(|rows| rows.len() == 0)))
 						.child(view("div").bind_each(console_lines, |row| row.id, |row| console_row(row)))))))
+	// Share puts the buffer in the URL itself (deflated, base64url)
+	// — no server holds anything, per the proposal's §5.
+
 	// The compiler's own formatter; the button appears only when
 	// the loaded wasm exports it (older releases do not).
 }

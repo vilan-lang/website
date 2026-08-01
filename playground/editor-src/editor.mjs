@@ -129,13 +129,78 @@ const vilanHighlight = HighlightStyle.define([
 
 let view = null;
 
+// --- share-via-fragment: the buffer IS the link -----------------------------
+//
+// `#code=<base64url(deflate-raw(source))>` — no server holds anything, and a
+// fragment never reaches one in a request. Share writes the fragment and
+// copies the full URL; a page opened with one loads it instead of the
+// default example.
+
+function encodeBase64Url(bytes) {
+	let binary = "";
+	for (const byte of bytes) {
+		binary += String.fromCharCode(byte);
+	}
+	return btoa(binary).replaceAll("+", "-").replaceAll("/", "_").replace(/=+$/, "");
+}
+
+function decodeBase64Url(text) {
+	const padded = text.replaceAll("-", "+").replaceAll("_", "/");
+	const binary = atob(padded + "=".repeat((4 - (padded.length % 4)) % 4));
+	return Uint8Array.from(binary, (ch) => ch.charCodeAt(0));
+}
+
+async function deflate(text) {
+	const stream = new Blob([new TextEncoder().encode(text)])
+		.stream()
+		.pipeThrough(new CompressionStream("deflate-raw"));
+	return new Uint8Array(await new Response(stream).arrayBuffer());
+}
+
+async function inflate(bytes) {
+	const stream = new Blob([bytes]).stream().pipeThrough(new DecompressionStream("deflate-raw"));
+	return new Response(stream).text();
+}
+
+function fragmentPayload() {
+	const match = location.hash.match(/^#code=([A-Za-z0-9_-]+)$/);
+	return match ? match[1] : null;
+}
+
+function share() {
+	(async () => {
+		const source = view ? view.state.doc.toString() : "";
+		const encoded = encodeBase64Url(await deflate(source));
+		const url = `${location.origin}${location.pathname}#code=${encoded}`;
+		// window-qualified: bare `history` is CodeMirror's undo extension here.
+		window.history.replaceState(null, "", url);
+		let copied = false;
+		try {
+			await navigator.clipboard.writeText(url);
+			copied = true;
+		} catch {
+			// No clipboard permission (or an insecure context): the address
+			// bar still carries the link.
+		}
+		emit({ kind: "shared", copied });
+	})();
+}
+
 function init(selector, doc) {
 	const host = document.querySelector(selector);
 	if (!host) return;
+	// A shared link wins over the default doc; a broken payload falls back.
+	const payload = fragmentPayload();
+	if (payload != null) {
+		inflate(decodeBase64Url(payload)).then(
+			(text) => setDoc(text),
+			() => setDoc(doc),
+		);
+	}
 	view = new EditorView({
 		parent: host,
 		state: EditorState.create({
-			doc,
+			doc: payload != null ? "" : doc,
 			extensions: [
 				lineNumbers(),
 				highlightActiveLine(),
@@ -383,6 +448,7 @@ window.VilanPlayground = {
 	startCompiler,
 	compile,
 	format,
+	share,
 	runProgram,
 	clearProgram: placeholder,
 };

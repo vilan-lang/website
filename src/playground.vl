@@ -47,6 +47,12 @@ external fun request_compile(source: str): bool;
 [extern("VilanPlayground.format")]
 external fun request_format(): bool;
 
+/// Put the buffer in the URL (deflated, base64url in the fragment — no
+/// server holds anything) and copy the link. Answers as a "shared" event:
+/// `copied` says whether the clipboard took it.
+[extern("VilanPlayground.share")]
+external fun request_share(): void;
+
 [extern("VilanPlayground.runProgram")]
 external fun run_program(js: str, css: str): void;
 
@@ -86,6 +92,11 @@ impl CompilerEvent {
 	/// On the "formatted" event: whether the buffer actually changed.
 	[extern(get, "changed")]
 	external fun changed(self): bool;
+
+	/// On the "shared" event: whether the link reached the clipboard (the
+	/// URL bar carries it either way).
+	[extern(get, "copied")]
+	external fun copied(self): bool;
 
 	[extern(get, "diagnostics")]
 	external fun diagnostics(self): List<WireDiagnostic>;
@@ -155,6 +166,8 @@ fun main() {
 		}
 	};
 
+	let share = || request_share();
+
 	let pick = |name: str| {
 		editor_set_doc(example_source(name));
 		diagnostics.set([]);
@@ -162,7 +175,7 @@ fun main() {
 		clear_program();
 	};
 
-	let _root = mount_root("app", || playground_page(status, diagnostics, console_lines, can_format, run, format, pick));
+	let _root = mount_root("app", || playground_page(status, diagnostics, console_lines, can_format, run, format, share, pick));
 
 	editor_init("#editor", example_source("counter"));
 
@@ -176,6 +189,12 @@ fun main() {
 				status.set("Formatted.");
 			} else {
 				status.set("Format made no changes.");
+			}
+		} else if kind == "shared" {
+			if event.copied() {
+				status.set("Link copied to the clipboard.");
+			} else {
+				status.set("Link ready in the address bar.");
 			}
 		} else if kind == "result" {
 			mut rows: List<DiagRow> = [];
