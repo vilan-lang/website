@@ -2,7 +2,7 @@
 // over a pre) and the inline code leafs - `[rpc]`, `vilan upgrade`, and
 // friends read as code, not bare prose; the linked flavor jumps to the docs.
 
-import std::style::{ Length, Overflow, space, style };
+import std::style::{ Color, Length, Overflow, space, style };
 import std::ui::{ View, view };
 import pkg::theme::{ blush, ember, hairline, mono, panel, rose };
 
@@ -20,9 +20,17 @@ let code_pre = const style()
 	.raw("border", hairline)
 	.raw("white-space", "pre");
 
+// The palette the playground's editor also speaks (editor-src/editor.mjs
+// hardcodes the same values — resync both when either moves): ember
+// keywords, rose literals, bold-blush types, and peach — the one derived
+// tint (ember pulled toward blush) — for callables. An i-string's hole
+// braces mark themselves in ember.
 let tk_keyword = const style().color(ember);
 let tk_string = const style().color(rose);
 let tk_plain = const style().opacity(0.92);
+let tk_callable = const style().color(Color::hex("#F0A886"));
+let tk_type = const style().color(blush).font_weight(600);
+let tk_hole = const style().color(ember);
 
 fun kw(text: str): View {
 	view("span").styled(tk_keyword).text(text)
@@ -34,6 +42,21 @@ fun st(text: str): View {
 
 fun t(text: str): View {
 	view("span").styled(tk_plain).text(text)
+}
+
+/// A callable at its call (or definition) site.
+fun fn(text: str): View {
+	view("span").styled(tk_callable).text(text)
+}
+
+/// A type or variant name.
+fun ty(text: str): View {
+	view("span").styled(tk_type).text(text)
+}
+
+/// An interpolation hole's brace — the seam between string and code.
+fun hl(text: str): View {
+	view("span").styled(tk_hole).text(text)
 }
 
 fun ln(spans: List<View>): View {

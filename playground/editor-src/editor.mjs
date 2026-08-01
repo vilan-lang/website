@@ -30,38 +30,96 @@ const KEYWORDS = new Set([
 
 const ATOMS = new Set(["true", "false", "null"]);
 
+// Tokenizes with a mode stack so an i-string's `{holes}` read as the code
+// they are: string text stays rose, a hole's contents go back through the
+// code rules, and the brace seams mark themselves. Attributes, function
+// names, `::` paths and operators each get their own voice — the compiler
+// owns the real grammar; this is presentation, resynced by eye against it.
 const vilanLanguage = StreamLanguage.define({
-	startState: () => ({ triple: false }),
+	startState: () => ({ stack: [], afterFun: false }),
 	token(stream, state) {
-		if (state.triple) {
+		const top = state.stack[state.stack.length - 1];
+
+		// Inside a plain (or interpolated) string body.
+		if (top && (top.mode === "str" || top.mode === "istr")) {
+			const closer = top.triple ? '"""' : '"';
+			let consumed = false;
 			while (!stream.eol()) {
-				if (stream.match('"""')) {
-					state.triple = false;
+				if (stream.match(closer)) {
+					state.stack.pop();
 					return "string";
 				}
+				if (stream.peek() === "\\") {
+					stream.next();
+					stream.next();
+					consumed = true;
+					continue;
+				}
+				if (top.mode === "istr" && stream.peek() === "{") {
+					if (consumed) return "string"; // flush the text, hole next call
+					stream.next();
+					state.stack.push({ mode: "hole", depth: 1 });
+					return "hole";
+				}
 				stream.next();
+				consumed = true;
 			}
-			return "string";
+			return "string"; // an unterminated line degrades to string text
 		}
+
+		// Inside an interpolation hole: code rules, with brace bookkeeping.
+		if (top && top.mode === "hole") {
+			if (stream.peek() === "{") {
+				stream.next();
+				top.depth += 1;
+				return "hole";
+			}
+			if (stream.peek() === "}") {
+				stream.next();
+				top.depth -= 1;
+				if (top.depth === 0) state.stack.pop();
+				return "hole";
+			}
+			return codeToken(stream, state);
+		}
+
+		return codeToken(stream, state);
+	},
+	tokenTable: {
+		fn: tags.function(tags.variableName),
+		def: tags.function(tags.definition(tags.variableName)),
+		attr: tags.meta,
+		hole: tags.special(tags.brace),
+	},
+});
+
+// The code-mode rules, shared by top level and interpolation holes. A plain
+// function: StreamLanguage does not preserve `this` for its spec methods.
+function codeToken(stream, state) {
+		if (stream.eatSpace()) return null;
 		if (stream.match("//")) {
 			stream.skipToEnd();
 			return "comment";
 		}
-		if (stream.match('"""') || stream.match('i"""')) {
-			state.triple = true;
+		// An attribute owns its line: `[derive(PartialEq)]`, `[extern(...)]`.
+		// Only line-leading brackets read as one — `a[0]` never will.
+		if (stream.peek() === "[" && stream.string.slice(0, stream.pos).trim() === "") {
+			if (stream.match(/^\[[a-z_][^\]]*\]/)) return "attr";
+		}
+		if (stream.match('i"""')) {
+			state.stack.push({ mode: "istr", triple: true });
 			return "string";
 		}
-		if (stream.match(/^i?"/)) {
-			while (!stream.eol()) {
-				const ch = stream.next();
-				if (ch === "\\") {
-					stream.next();
-					continue;
-				}
-				if (ch === '"') {
-					break;
-				}
-			}
+		if (stream.match('"""')) {
+			state.stack.push({ mode: "str", triple: true });
+			return "string";
+		}
+		if (stream.match('i"')) {
+			state.stack.push({ mode: "istr", triple: false });
+			return "string";
+		}
+		if (stream.match('"')) {
+			state.stack.push({ mode: "str", triple: false });
 			return "string";
 		}
 		if (stream.match(/^\d[\d_]*(\.[\d_]+)?([a-z][a-z0-9]*)?/)) {
@@ -69,15 +127,30 @@ const vilanLanguage = StreamLanguage.define({
 		}
 		if (stream.match(/^[A-Za-z_][A-Za-z0-9_]*/)) {
 			const word = stream.current();
-			if (KEYWORDS.has(word)) return "keyword";
+			if (word === "fun") {
+				state.afterFun = true;
+				return "keyword";
+			}
+			if (KEYWORDS.has(word)) {
+				state.afterFun = false;
+				return "keyword";
+			}
 			if (ATOMS.has(word)) return "atom";
+			if (state.afterFun) {
+				state.afterFun = false;
+				return "def";
+			}
 			if (/^[A-Z]/.test(word)) return "typeName";
+			if (stream.match("(", false)) return "fn";
+			if (stream.match("::", false)) return "namespace";
 			return null;
+		}
+		if (stream.match(/^(=>|::|[+\-*\/%=!<>&|?]+)/)) {
+			return "operator";
 		}
 		stream.next();
 		return null;
-	},
-});
+}
 
 // --- the brand look (theme.vl's palette: ink, blush, panel, ember, rose)
 
@@ -116,6 +189,10 @@ const vilanTheme = EditorView.theme(
 	{ dark: true },
 );
 
+// One derived tint joins the brand palette: peach (#F0A886, ember pulled
+// toward blush) for callables. Everything else differentiates by weight and
+// opacity so the pane reads rich without leaving the brand. The home page's
+// code.vl carries the same values — resync both when either moves.
 const vilanHighlight = HighlightStyle.define([
 	{ tag: tags.keyword, color: "#EB682E" },
 	{ tag: tags.atom, color: "#EB682E" },
@@ -123,6 +200,12 @@ const vilanHighlight = HighlightStyle.define([
 	{ tag: tags.number, color: "#E5AFD9" },
 	{ tag: tags.lineComment, color: "rgba(249, 223, 231, 0.5)", fontStyle: "italic" },
 	{ tag: tags.typeName, color: "#F9DFE7", fontWeight: "600" },
+	{ tag: tags.function(tags.variableName), color: "#F0A886" },
+	{ tag: tags.function(tags.definition(tags.variableName)), color: "#F0A886", fontWeight: "600" },
+	{ tag: tags.meta, color: "rgba(235, 104, 46, 0.65)", fontStyle: "italic" },
+	{ tag: tags.special(tags.brace), color: "#EB682E" },
+	{ tag: tags.namespace, color: "rgba(249, 223, 231, 0.6)" },
+	{ tag: tags.operator, color: "rgba(249, 223, 231, 0.72)" },
 ]);
 
 // --- the editor ---
