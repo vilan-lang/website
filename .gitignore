@@ -3,4 +3,4 @@ dist/
 # The playground compiler is fetched from the toolchain's releases
 # (scripts/fetch-wasm.sh), never committed here.
 playground/wasm/
-playground/editor-src/node_modules/
+playground/editor-src/node_modules
