@@ -100,10 +100,14 @@ impl CompilerEvent {
 	[extern(get, "copied")]
 	external fun copied(self): bool;
 
-	/// On the "command" event: which editor keybinding fired ("run",
-	/// "format").
+	/// On the "command" event: what the editor or the template picker asked
+	/// for ("run", "format", "pick").
 	[extern(get, "command")]
 	external fun command(self): str;
+
+	/// On a "pick" command: the chosen example's name.
+	[extern(get, "name")]
+	external fun name(self): str;
 
 	[extern(get, "diagnostics")]
 	external fun diagnostics(self): List<WireDiagnostic>;
@@ -215,7 +219,7 @@ fun main() {
 		};
 	};
 
-	let _root = mount_root("app", || playground_page(status, diagnostics, console_lines, can_format, share_label, run, format, share, pick));
+	let _root = mount_root("app", || playground_page(status, diagnostics, console_lines, can_format, share_label, run, format, share));
 
 	editor_init("#editor", example_source("counter"));
 
@@ -235,6 +239,8 @@ fun main() {
 				run();
 			} else if command == "format" {
 				format();
+			} else if command == "pick" {
+				pick(event.name());
 			}
 		} else if kind == "formatted" {
 			if event.changed() {

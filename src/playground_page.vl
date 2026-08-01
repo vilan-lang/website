@@ -149,6 +149,31 @@ let status_line = const style()
 	.font_size(Length::px(13.0))
 	.raw("margin-left", "auto");
 
+// The Program pane's header row: the label left, the example picker right.
+// The picker lives beside the editor because it changes the program; the
+// toolbar keeps the verbs.
+let pane_head = const style()
+	.display(Display::Flex)
+	.raw("align-items", "center")
+	.raw("justify-content", "space-between");
+
+let template_select = const (style()
+	.background(panel)
+	.color(blush)
+	.raw("border", hairline)
+	.radius(space(2))
+	.raw("padding", "6px 10px")
+	.raw("cursor", "pointer")
+	.raw("font-family", "inherit")
+	.font_size(Length::px(13.0))
+	.opacity(0.85)
+	.hover(style().opacity(1.0))
+	+ no_select);
+
+fun template_option(value: str, label: str): View {
+	view("option").attr("value", value).text(label)
+}
+
 // --- diagnostics and console ---
 
 let report_pre = const style()
@@ -208,7 +233,6 @@ fun playground_page(
 	run: || void,
 	format: || void,
 	share: || void,
-	pick: |str| void,
 ): View {
 	view("div").styled(shell + page_fill).child(top_bar(Signal::new("1"))).child(view("main")
 		.styled(wide_column + workbench)
@@ -227,18 +251,6 @@ fun playground_page(
 				.styled(example_button)
 				.bind_text(share_label)
 				.on("click", || share()))
-			.child(view("button")
-				.styled(example_button)
-				.text("Counter")
-				.on("click", || pick("counter")))
-			.child(view("button")
-				.styled(example_button)
-				.text("Hello")
-				.on("click", || pick("hello")))
-			.child(view("button")
-				.styled(example_button)
-				.text("Styles")
-				.on("click", || pick("styles")))
 			// role=status makes compile results audible to a screen
 			// reader without stealing focus.
 			.child(view("p").styled(status_line).attr("role", "status").bind_text(status)))
@@ -246,7 +258,26 @@ fun playground_page(
 			.styled(panes)
 			.child(view("div")
 				.styled(pane)
-				.child(view("p").styled(pane_label).text("Program"))
+				.child(view("div")
+					.styled(pane_head)
+					.child(view("p").styled(pane_label).text("Program"))
+					// The bundle wires the change event (the value read needs
+					// the DOM); a pick arrives as a "command" event.
+					.child(view("select")
+						.styled(template_select)
+						.attr("id", "template")
+						.attr("aria-label", "Load an example")
+						// The placeholder holds the seat while the buffer is
+						// custom (restored or shared); the bundle points the
+						// select at Counter when the seeded default loaded.
+						.child(view("option")
+							.attr("value", "")
+							.attr("disabled", "true")
+							.attr("hidden", "true")
+							.text("Examples"))
+						.child(template_option("counter", "Counter: reactive state"))
+						.child(template_option("hello", "Hello: mount and print"))
+						.child(template_option("styles", "Styles: compile-time CSS"))))
 				.child(view("div")
 					.styled(editor_host)
 					.attr("id", "editor")

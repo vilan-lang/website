@@ -262,9 +262,27 @@ function init(selector, doc) {
 		}),
 	});
 	placeholder();
+	wirePicker(payload == null && fallback === doc);
 	if (payload == null) {
 		dispatch({ kind: "doc" });
 	}
+}
+
+// The template picker is rendered by the page; the value read needs the DOM,
+// so the wiring lives here and a pick travels as a command event. The select
+// shows Counter when the seeded default is what actually loaded, and holds
+// its placeholder for a custom buffer (restored or shared).
+function wirePicker(seededDefaultLoaded) {
+	const picker = document.getElementById("template");
+	if (!picker) return;
+	if (seededDefaultLoaded) {
+		picker.value = "counter";
+	}
+	picker.addEventListener("change", () => {
+		if (picker.value) {
+			dispatch({ kind: "command", command: "pick", name: picker.value });
+		}
+	});
 }
 
 function value() {

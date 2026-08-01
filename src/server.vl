@@ -83,7 +83,7 @@ async fun main() {
 		run_with_owner(owner, || {
 			let no_diagnostics: Signal<List<DiagRow>> = Signal::new([]);
 			let no_console: Signal<List<ConsoleRow>> = Signal::new([]);
-			markup = render(playground_page(Signal::new("Loading the compiler…"), no_diagnostics, no_console, Signal::new(false), Signal::new("Share"), || {}, || {}, || {}, |_name| {}));
+			markup = render(playground_page(Signal::new("Loading the compiler…"), no_diagnostics, no_console, Signal::new(false), Signal::new("Share"), || {}, || {}, || {}));
 		});
 		html(playground_shell, markup)
 	};
