@@ -41,6 +41,12 @@ external fun start_compiler(on_event: |CompilerEvent| void): void;
 [extern("VilanPlayground.compile")]
 external fun request_compile(source: str): bool;
 
+/// Format the buffer with the compiler's own formatter. The bundle reads the
+/// editor, round-trips the worker, and applies the result; false when the
+/// worker is busy (no queue — press again).
+[extern("VilanPlayground.format")]
+external fun request_format(): bool;
+
 [extern("VilanPlayground.runProgram")]
 external fun run_program(js: str, css: str): void;
 
@@ -72,6 +78,14 @@ impl CompilerEvent {
 
 	[extern(get, "error")]
 	external fun error(self): str;
+
+	/// On the "ready" event: whether the loaded wasm exports `format`.
+	[extern(get, "canFormat")]
+	external fun can_format(self): bool;
+
+	/// On the "formatted" event: whether the buffer actually changed.
+	[extern(get, "changed")]
+	external fun changed(self): bool;
 
 	[extern(get, "diagnostics")]
 	external fun diagnostics(self): List<WireDiagnostic>;
@@ -124,6 +138,7 @@ fun main() {
 	let status = Signal::new("Loading the compiler…");
 	let diagnostics: Signal<List<DiagRow>> = Signal::new([]);
 	let console_lines: Signal<List<ConsoleRow>> = Signal::new([]);
+	let can_format = Signal::new(false);
 	let next_row_id = Shared::new(0);
 
 	let run = || {
@@ -134,6 +149,12 @@ fun main() {
 		}
 	};
 
+	let format = || {
+		if !request_format() {
+			status.set("Compiler busy — try again.");
+		}
+	};
+
 	let pick = |name: str| {
 		editor_set_doc(example_source(name));
 		diagnostics.set([]);
@@ -141,14 +162,21 @@ fun main() {
 		clear_program();
 	};
 
-	let _root = mount_root("app", || playground_page(status, diagnostics, console_lines, run, pick));
+	let _root = mount_root("app", || playground_page(status, diagnostics, console_lines, can_format, run, format, pick));
 
 	editor_init("#editor", example_source("counter"));
 
 	start_compiler(|event| {
 		let kind = event.kind();
 		if kind == "ready" {
+			can_format.set(event.can_format());
 			status.set(i"Ready — vilan {event.version()}");
+		} else if kind == "formatted" {
+			if event.changed() {
+				status.set("Formatted.");
+			} else {
+				status.set("Format made no changes.");
+			}
 		} else if kind == "result" {
 			mut rows: List<DiagRow> = [];
 			mut id = next_row_id.read();

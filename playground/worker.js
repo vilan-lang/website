@@ -1,14 +1,20 @@
 // The compile worker: load the wasm compiler once, then answer each posted
-// source with a normalized result. The wasm instance leaks per compile by
-// design (see the D11 proposal §6) and a compiler panic can poison its
-// memory, so the page-side bundle recycles this whole worker rather than
-// trusting it to run forever — the worker itself stays a thin adapter.
+// request. The wasm instance leaks per compile by design (see the D11
+// proposal §6) and a compiler panic can poison its memory, so the page-side
+// bundle recycles this whole worker rather than trusting it to run forever —
+// the worker itself stays a thin adapter.
 //
+// The glue is imported as a NAMESPACE and probed: `format` arrived after
+// v0.18.2, and a static named import of an export the loaded release does not
+// have would fail the whole module. Capability rides the ready message.
+//
+// Messages in:  { action: "compile" | "format", source }
 // Messages out:
-//   { kind: "ready",  version }                       — the compiler is live
-//   { kind: "result", ok, js, css, version, diagnostics: [...] }
-//   { kind: "crash",  error }                         — recycle me
-import init, { compile, version } from "./vilan_wasm.js";
+//   { kind: "ready",     version, canFormat }         — the compiler is live
+//   { kind: "result",    ok, js, css, version, diagnostics: [...] }
+//   { kind: "formatted", text, changed }              — format's answer
+//   { kind: "crash",     error }                      — recycle me
+import * as glue from "./vilan_wasm.js";
 
 const wasm = await (async () => {
 	const response = await fetch(new URL("./vilan_wasm_bg.wasm.gz", import.meta.url));
@@ -18,13 +24,20 @@ const wasm = await (async () => {
 	const inflated = response.body.pipeThrough(new DecompressionStream("gzip"));
 	return new Response(inflated).arrayBuffer();
 })();
-await init({ module_or_path: wasm });
+await glue.default({ module_or_path: wasm });
 
-postMessage({ kind: "ready", version: version() });
+const canFormat = typeof glue.format === "function";
+postMessage({ kind: "ready", version: glue.version(), canFormat });
 
 onmessage = (event) => {
+	const { action, source } = event.data;
 	try {
-		const result = compile(String(event.data));
+		if (action === "format") {
+			const text = canFormat ? glue.format(String(source)) : String(source);
+			postMessage({ kind: "formatted", text, changed: text !== String(source) });
+			return;
+		}
+		const result = glue.compile(String(source));
 		const diagnostics = result.diagnostics.map((diagnostic) => ({
 			severity: diagnostic.severity,
 			file: diagnostic.file,
@@ -40,7 +53,7 @@ onmessage = (event) => {
 			ok: result.js != null,
 			js: result.js ?? "",
 			css: result.css ?? "",
-			version: version(),
+			version: glue.version(),
 			diagnostics,
 		});
 	} catch (error) {

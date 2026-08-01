@@ -13,5 +13,9 @@ let card = const style()
 let title = const style().color(Color::hex("#EB682E")).margin(space(0));
 
 fun main() {
-	mount("app", view("div").styled(card).child(view("h2").styled(title).text("Styled at compile time")).child(view("p").text("This card's CSS came out of the compiler.")));
+	let content = view("div")
+		.styled(card)
+		.child(view("h2").styled(title).text("Styled at compile time"))
+		.child(view("p").text("This card's CSS came out of the compiler."));
+	mount("app", content);
 }

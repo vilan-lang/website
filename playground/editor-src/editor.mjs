@@ -228,6 +228,15 @@ function spawn() {
 			} else {
 				flushPending();
 			}
+		} else if (message.kind === "formatted") {
+			// Formatting is pure text work — it neither leaks nor counts
+			// toward the recycle budget.
+			inFlight = false;
+			if (message.changed) {
+				applyFormatted(message.text);
+			}
+			emit(message);
+			flushPending();
 		} else if (message.kind === "crash") {
 			inFlight = false;
 			emit(message);
@@ -258,7 +267,7 @@ function flushPending() {
 		const source = pending;
 		pending = null;
 		inFlight = true;
-		worker.postMessage(source);
+		worker.postMessage({ action: "compile", source });
 	}
 }
 
@@ -273,8 +282,30 @@ function compile(source) {
 		return false;
 	}
 	inFlight = true;
-	worker.postMessage(source);
+	worker.postMessage({ action: "compile", source });
 	return true;
+}
+
+// Format the buffer with the compiler's own formatter. No queue — a busy
+// worker just answers false and the visitor presses again.
+function format() {
+	if (!view || !ready || inFlight) {
+		return false;
+	}
+	inFlight = true;
+	worker.postMessage({ action: "format", source: view.state.doc.toString() });
+	return true;
+}
+
+// Replace the doc with its formatted form, keeping the cursor near where it
+// was (clamped — good enough for a whole-buffer reprint).
+function applyFormatted(text) {
+	if (!view) return;
+	const anchor = Math.min(view.state.selection.main.anchor, text.length);
+	view.dispatch({
+		changes: { from: 0, to: view.state.doc.length, insert: text },
+		selection: { anchor },
+	});
 }
 
 // --- the runner: one sandboxed iframe per Run, torn down and rebuilt ---
@@ -351,6 +382,7 @@ window.VilanPlayground = {
 	example,
 	startCompiler,
 	compile,
+	format,
 	runProgram,
 	clearProgram: placeholder,
 };
