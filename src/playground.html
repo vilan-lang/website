@@ -37,9 +37,15 @@
 		html, body { margin: 0; height: 100%; background: #120004; }
 		::selection { background: #F9DFE7; color: #120004; }
 		/* The editor host is a plain div until CodeMirror mounts; the widget
-		   and the per-Run iframe both fill whatever box the page gives them. */
+		   and the per-Run iframe both fill whatever box the page gives them.
+		   #app spans the viewport so the workbench can flex to the fold. */
+		#app { height: 100%; }
 		#editor .cm-editor { height: 100%; }
 		#runner iframe { border: 0; width: 100%; height: 100%; background: #fff; }
+		button:focus-visible, select:focus-visible {
+			outline: 2px solid #EB682E;
+			outline-offset: 2px;
+		}
 		@media (prefers-reduced-motion: reduce) {
 			* { animation: none !important; }
 		}

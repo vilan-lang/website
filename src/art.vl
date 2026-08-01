@@ -694,11 +694,14 @@ fun df_arrow_to(label: str): View {
 }
 
 fun df_node_view(lit: bool, tag: str, body: List<View>): View {
-	view("div").styled(if lit {
-		df_node_lit
-	} else {
-		df_node
-	}).child(view("p").styled(df_tag).text(tag)).child(view("div").styled(art_code).child(ln(body)))
+	view("div")
+		.styled(if lit {
+			df_node_lit
+		} else {
+			df_node
+		})
+		.child(view("p").styled(df_tag).text(tag))
+		.child(view("div").styled(art_code).child(ln(body)))
 }
 
 fun dataflow_art(): View {

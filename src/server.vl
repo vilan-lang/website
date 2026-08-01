@@ -83,43 +83,48 @@ async fun main() {
 		run_with_owner(owner, || {
 			let no_diagnostics: Signal<List<DiagRow>> = Signal::new([]);
 			let no_console: Signal<List<ConsoleRow>> = Signal::new([]);
-			markup = render(playground_page(Signal::new("Loading the compiler…"), no_diagnostics, no_console, Signal::new(false), || {}, || {}, || {}, |_name| {}));
+			markup = render(playground_page(Signal::new("Loading the compiler…"), no_diagnostics, no_console, Signal::new(false), Signal::new("Share"), || {}, || {}, || {}, |_name| {}));
 		});
 		html(playground_shell, markup)
 	};
 
-	Server::builder().port(port).on_request(|request| {
-		match request.path() {
-			"/client.js" => script(client_js),
-			"/client.css" => Response::builder().set_header("Content-Type", "text/css").body(client_css).build(),
-			"/playground/playground.js" => script(playground_js),
-			"/playground/playground.css" => Response::builder().set_header("Content-Type", "text/css").body(playground_css).build(),
-			"/playground/editor.js" => script(editor_js),
-			"/playground/examples.js" => script(examples_js),
-			"/playground/worker.js" => script(worker_js),
-			"/playground/vilan_wasm.js" => match has_wasm {
-				true => script(wasm_glue),
-				false => missing_wasm(),
-			},
-			"/playground/vilan_wasm_bg.wasm.gz" => match has_wasm {
-				true => Response::builder().set_header("Content-Type", "application/octet-stream").body_bytes(wasm_gz).build(),
-				false => missing_wasm(),
-			},
-			"/playground" => render_playground(),
-			"/playground/" => render_playground(),
-			_ => {
-				// The page holds live state (the counter demo), so each render
-				// gets its own owner: created, serialized, and discarded —
-				// dropping the owner tears the subscriptions down with it.
-				let owner = Owner::new();
-				mut markup = "";
-				run_with_owner(owner, || {
-					// Inert stand-ins for the client's enhancements: the fade
-					// signal never moves and the clipboard hook does nothing.
-					markup = render(page(Signal::new("0"), |_text| {}));
-				});
-				html(shell, markup)
+	Server::builder()
+		.port(port)
+		.on_request(|request| {
+			match request.path() {
+				"/client.js" => script(client_js),
+				"/client.css" => Response::builder().set_header("Content-Type", "text/css").body(client_css).build(),
+				"/playground/playground.js" => script(playground_js),
+				"/playground/playground.css" => Response::builder().set_header("Content-Type", "text/css").body(playground_css).build(),
+				"/playground/editor.js" => script(editor_js),
+				"/playground/examples.js" => script(examples_js),
+				"/playground/worker.js" => script(worker_js),
+				"/playground/vilan_wasm.js" => match has_wasm {
+					true => script(wasm_glue),
+					false => missing_wasm(),
+				},
+				"/playground/vilan_wasm_bg.wasm.gz" => match has_wasm {
+					true => Response::builder().set_header("Content-Type", "application/octet-stream").body_bytes(wasm_gz).build(),
+					false => missing_wasm(),
+				},
+				"/playground" => render_playground(),
+				"/playground/" => render_playground(),
+				_ => {
+					// The page holds live state (the counter demo), so each render
+					// gets its own owner: created, serialized, and discarded —
+					// dropping the owner tears the subscriptions down with it.
+					let owner = Owner::new();
+					mut markup = "";
+					run_with_owner(owner, || {
+						// Inert stand-ins for the client's enhancements: the fade
+						// signal never moves and the clipboard hook does nothing.
+						markup = render(page(Signal::new("0"), |_text| {}));
+					});
+					html(shell, markup)
+				}
 			}
-		}
-	}).on_start(|server| print(i"vilan website: {server.url()}")).build().start();
+		})
+		.on_start(|server| print(i"vilan website: {server.url()}"))
+		.build()
+		.start();
 }

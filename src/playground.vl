@@ -9,8 +9,10 @@
 // an srcdoc needs escaping. This entry owns the APPLICATION: every signal the
 // page renders, and what each compiler or program event means to it.
 
+import std::option::Option::{ None, Some, self };
 import std::reactive::Signal;
 import std::shared::Shared;
+import std::time::Timer;
 import std::ui::mount_root;
 import pkg::playground_page::{ ConsoleRow, DiagRow, playground_page };
 
@@ -98,6 +100,11 @@ impl CompilerEvent {
 	[extern(get, "copied")]
 	external fun copied(self): bool;
 
+	/// On the "command" event: which editor keybinding fired ("run",
+	/// "format").
+	[extern(get, "command")]
+	external fun command(self): str;
+
 	[extern(get, "diagnostics")]
 	external fun diagnostics(self): List<WireDiagnostic>;
 }
@@ -150,19 +157,20 @@ fun main() {
 	let diagnostics: Signal<List<DiagRow>> = Signal::new([]);
 	let console_lines: Signal<List<ConsoleRow>> = Signal::new([]);
 	let can_format = Signal::new(false);
+	let share_label = Signal::new("Share");
 	let next_row_id = Shared::new(0);
 
 	let run = || {
 		if request_compile(editor_value()) {
 			status.set("Compiling…");
 		} else {
-			status.set("Compiler busy — queued.");
+			status.set("Compiler busy; queued.");
 		}
 	};
 
 	let format = || {
 		if !request_format() {
-			status.set("Compiler busy — try again.");
+			status.set("Compiler busy; try again.");
 		}
 	};
 
@@ -172,10 +180,42 @@ fun main() {
 		editor_set_doc(example_source(name));
 		diagnostics.set([]);
 		console_lines.set([]);
-		clear_program();
+		run();
 	};
 
-	let _root = mount_root("app", || playground_page(status, diagnostics, console_lines, can_format, run, format, share, pick));
+	// Run once on arrival, when the compiler is up AND the initial doc is
+	// settled (a shared link inflates asynchronously; racing it would
+	// compile the placeholder). Later "ready" events are worker recycles
+	// and must not re-run.
+	let compiler_ready = Shared::new(false);
+	let doc_ready = Shared::new(false);
+	let ran_on_arrival = Shared::new(false);
+	let run_on_arrival = || {
+		if compiler_ready.read() && doc_ready.read() && !ran_on_arrival.read() {
+			ran_on_arrival.write() = true;
+			run();
+		}
+	};
+
+	// The Share label's flip-and-revert, the install strip's pattern: a
+	// re-share cancels the pending revert before arming the next one.
+	let share_revert: Shared<Option<Timer>> = Shared::new(None);
+	let flash_share = |label: str| {
+		share_label.set(label);
+		match share_revert.read() {
+			Some(let timer) => timer.cancel(),
+			None => {}
+		}
+		let timer = Timer::after(1600);
+		share_revert.write() = Some(timer);
+		let _ = async {
+			if timer.wait() {
+				share_label.set("Share");
+			}
+		};
+	};
+
+	let _root = mount_root("app", || playground_page(status, diagnostics, console_lines, can_format, share_label, run, format, share, pick));
 
 	editor_init("#editor", example_source("counter"));
 
@@ -183,7 +223,19 @@ fun main() {
 		let kind = event.kind();
 		if kind == "ready" {
 			can_format.set(event.can_format());
-			status.set(i"Ready — vilan {event.version()}");
+			status.set(i"Ready (vilan {event.version()})");
+			compiler_ready.write() = true;
+			run_on_arrival();
+		} else if kind == "doc" {
+			doc_ready.write() = true;
+			run_on_arrival();
+		} else if kind == "command" {
+			let command = event.command();
+			if command == "run" {
+				run();
+			} else if command == "format" {
+				format();
+			}
 		} else if kind == "formatted" {
 			if event.changed() {
 				status.set("Formatted.");
@@ -193,21 +245,31 @@ fun main() {
 		} else if kind == "shared" {
 			if event.copied() {
 				status.set("Link copied to the clipboard.");
+				flash_share("Copied!");
 			} else {
 				status.set("Link ready in the address bar.");
+				flash_share("Link ready");
 			}
 		} else if kind == "result" {
 			mut rows: List<DiagRow> = [];
 			mut id = next_row_id.read();
 			for diagnostic in event.diagnostics() {
-				rows.push(DiagRow { id = id, severity = diagnostic.severity(), file = diagnostic.file(), line = diagnostic.line() + 1, column = diagnostic.column() + 1, message = diagnostic.message(), note = diagnostic.note() });
+				rows.push(DiagRow {
+					id = id,
+					severity = diagnostic.severity(),
+					file = diagnostic.file(),
+					line = diagnostic.line() + 1,
+					column = diagnostic.column() + 1,
+					message = diagnostic.message(),
+					note = diagnostic.note(),
+				});
 				id = id + 1;
 			}
 			next_row_id.write() = id;
 			diagnostics.set(rows);
 			console_lines.set([]);
 			if event.ok() {
-				status.set(i"Compiled — vilan {event.version()}");
+				status.set(i"Compiled (vilan {event.version()})");
 				run_program(event.js(), event.css());
 			} else {
 				status.set("Build failed; see the diagnostics.");
@@ -231,7 +293,7 @@ fun main() {
 				} else if next.len() == console_cap {
 					let id = next_row_id.read();
 					next_row_id.write() = id + 1;
-					next.push(ConsoleRow { id = id, kind = "error", text = "— output truncated —" });
+					next.push(ConsoleRow { id = id, kind = "error", text = "[output truncated]" });
 				}
 				next
 			});

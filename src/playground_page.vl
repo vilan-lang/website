@@ -13,7 +13,7 @@ import std::reactive::Signal;
 import std::style::{ Display, FlexDirection, Length, Overflow, space, style };
 import std::ui::{ View, view };
 import pkg::masthead::top_bar;
-import pkg::theme::{ blush, ember, hairline, mono, panel, rose, shell };
+import pkg::theme::{ blush, ember, hairline, mono, no_select, panel, rose, shell };
 
 /// One row of the diagnostics pane — the wire diagnostic flattened to plain
 /// data (line and column already one-based for display). Both rows derive
@@ -47,16 +47,30 @@ let wide_column = const style()
 	.margin_x(Length::auto())
 	.padding_x(Length::px(32.0));
 
+// The page fills the viewport and the panes take whatever the fold allows —
+// a workbench, not an article. The report panes keep bounded heights so the
+// editor and result always win the space.
+let page_fill = const style()
+	.display(Display::Flex)
+	.flex_direction(FlexDirection::Column)
+	.raw("min-height", "100vh");
+
 let workbench = const style()
 	.display(Display::Flex)
 	.flex_direction(FlexDirection::Column)
 	.gap(space(4))
-	.padding_y(space(6));
+	.padding_y(space(6))
+	.raw("flex", "1 1 auto")
+	.raw("min-height", "0")
+	.raw("width", "100%")
+	.raw("box-sizing", "border-box");
 
 let panes = const style()
 	.display(Display::Flex)
 	.flex_direction(FlexDirection::Column)
 	.gap(space(4))
+	.raw("flex", "1 1 auto")
+	.raw("min-height", "0")
 	.lg(style().flex_direction(FlexDirection::Row));
 
 let pane = const style()
@@ -66,12 +80,13 @@ let pane = const style()
 	.raw("min-width", "0")
 	.raw("flex", "1 1 0");
 
-let pane_label = const style()
+let pane_label = const (style()
 	.margin(space(0))
 	.opacity(0.6)
 	.font_size(Length::px(12.0))
 	.raw("letter-spacing", "0.14em")
-	.raw("text-transform", "uppercase");
+	.raw("text-transform", "uppercase")
+	+ no_select);
 
 // The editor host: the bundle mounts CodeMirror inside; the border and radius
 // stay ours so both panes read as one family.
@@ -80,7 +95,8 @@ let editor_host = const style()
 	.radius(space(3))
 	.raw("border", hairline)
 	.overflow(Overflow::Hidden)
-	.height(Length::px(420.0));
+	.raw("flex", "1 1 auto")
+	.min_height(Length::px(320.0));
 
 // The runner host: each Run swaps a sandboxed iframe in; between runs it holds
 // the placeholder note.
@@ -89,7 +105,8 @@ let runner_host = const style()
 	.radius(space(3))
 	.raw("border", hairline)
 	.overflow(Overflow::Hidden)
-	.height(Length::px(420.0))
+	.raw("flex", "1 1 auto")
+	.min_height(Length::px(320.0))
 	.display(Display::Flex);
 
 // --- controls ---
@@ -100,7 +117,7 @@ let controls = const style()
 	.raw("align-items", "center")
 	.gap(space(3));
 
-let run_button = const style()
+let run_button = const (style()
 	.background(ember)
 	.color(blush)
 	.font_weight(600)
@@ -110,9 +127,10 @@ let run_button = const style()
 	.raw("cursor", "pointer")
 	.raw("font-family", "inherit")
 	.font_size(Length::px(14.0))
-	.hover(style().opacity(0.9));
+	.hover(style().opacity(0.9))
+	+ no_select);
 
-let example_button = const style()
+let example_button = const (style()
 	.background(panel)
 	.color(blush)
 	.raw("border", hairline)
@@ -122,7 +140,8 @@ let example_button = const style()
 	.raw("font-family", "inherit")
 	.font_size(Length::px(13.0))
 	.opacity(0.85)
-	.hover(style().opacity(1.0));
+	.hover(style().opacity(1.0))
+	+ no_select);
 
 let status_line = const style()
 	.margin(space(0))
@@ -185,65 +204,76 @@ fun playground_page(
 	diagnostics: Signal<List<DiagRow>>,
 	console_lines: Signal<List<ConsoleRow>>,
 	can_format: Signal<bool>,
+	share_label: Signal<str>,
 	run: || void,
 	format: || void,
 	share: || void,
 	pick: |str| void,
 ): View {
-	view("div")
-		.styled(shell)
-		.child(top_bar(Signal::new("1")))
-		.child(view("main")
-			.styled(wide_column + workbench)
-			.child(view("h1").styled(pane_label).text("Playground — vilan in the browser"))
+	view("div").styled(shell + page_fill).child(top_bar(Signal::new("1"))).child(view("main")
+		.styled(wide_column + workbench)
+		.child(view("h1").styled(pane_label).text("Playground: vilan in the browser"))
+		.child(view("div")
+			.styled(controls)
+			.child(view("button").styled(run_button).text("Run").on("click", || run()))
+			.child(view("button")
+				.styled(example_button)
+				.text("Format")
+				.on("click", || format())
+				.show(can_format))
+			// The label flips to the outcome for a moment (Copied!, or
+			// Link ready when the clipboard refuses).
+			.child(view("button")
+				.styled(example_button)
+				.bind_text(share_label)
+				.on("click", || share()))
+			.child(view("button")
+				.styled(example_button)
+				.text("Counter")
+				.on("click", || pick("counter")))
+			.child(view("button")
+				.styled(example_button)
+				.text("Hello")
+				.on("click", || pick("hello")))
+			.child(view("button")
+				.styled(example_button)
+				.text("Styles")
+				.on("click", || pick("styles")))
+			// role=status makes compile results audible to a screen
+			// reader without stealing focus.
+			.child(view("p").styled(status_line).attr("role", "status").bind_text(status)))
+		.child(view("div")
+			.styled(panes)
 			.child(view("div")
-				.styled(controls)
-				.child(view("button").styled(run_button).text("Run").on("click", || run()))
-				.child(view("button")
-					.styled(example_button)
-					.text("Format")
-					.on("click", || format())
-					.show(can_format))
-				.child(view("button").styled(example_button).text("Share").on("click", || share()))
-				.child(view("button")
-					.styled(example_button)
-					.text("Counter")
-					.on("click", || pick("counter")))
-				.child(view("button")
-					.styled(example_button)
-					.text("Hello")
-					.on("click", || pick("hello")))
-				.child(view("button")
-					.styled(example_button)
-					.text("Styles")
-					.on("click", || pick("styles")))
-				.child(view("p").styled(status_line).bind_text(status)))
+				.styled(pane)
+				.child(view("p").styled(pane_label).text("Program"))
+				.child(view("div")
+					.styled(editor_host)
+					.attr("id", "editor")
+					.attr("aria-label", "Program editor"))
+				.child(view("p").styled(pane_label).text("Diagnostics"))
+				.child(view("pre")
+					.styled(report_pre)
+					.child(view("div")
+						.styled(quiet_row)
+						.text("Nothing to report.")
+						.show(diagnostics.map(|rows| rows.len() == 0)))
+					.child(view("div").bind_each(diagnostics, |row| row.id, |row| diagnostic_row(row)))))
 			.child(view("div")
-				.styled(panes)
+				.styled(pane)
+				.child(view("p").styled(pane_label).text("Result"))
 				.child(view("div")
-					.styled(pane)
-					.child(view("p").styled(pane_label).text("Program"))
-					.child(view("div").styled(editor_host).attr("id", "editor"))
-					.child(view("p").styled(pane_label).text("Diagnostics"))
-					.child(view("pre")
-						.styled(report_pre)
-						.child(view("div")
-							.styled(quiet_row)
-							.text("Nothing to report.")
-							.show(diagnostics.map(|rows| rows.len() == 0)))
-						.child(view("div").bind_each(diagnostics, |row| row.id, |row| diagnostic_row(row)))))
-				.child(view("div")
-					.styled(pane)
-					.child(view("p").styled(pane_label).text("Result"))
-					.child(view("div").styled(runner_host).attr("id", "runner"))
-					.child(view("p").styled(pane_label).text("Console"))
-					.child(view("pre")
-						.styled(report_pre)
-						.child(view("div")
-							.styled(quiet_row)
-							.text("Program output lands here.")
-							.show(console_lines.map(|rows| rows.len() == 0)))
-						.child(view("div").bind_each(console_lines, |row| row.id, |row| console_row(row)))))))
+					.styled(runner_host)
+					.attr("id", "runner")
+					.attr("aria-label", "Program result"))
+				.child(view("p").styled(pane_label).text("Console"))
+				.child(view("pre")
+					.styled(report_pre)
+					.child(view("div")
+						.styled(quiet_row)
+						.text("Program output lands here.")
+						.show(console_lines.map(|rows| rows.len() == 0)))
+					.child(view("div").bind_each(console_lines, |row| row.id, |row| console_row(row)))))))
 	// Share puts the buffer in the URL itself (deflated, base64url)
 	// — no server holds anything, per the proposal's §5.
 

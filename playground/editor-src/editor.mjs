@@ -182,25 +182,59 @@ function share() {
 			// No clipboard permission (or an insecure context): the address
 			// bar still carries the link.
 		}
-		emit({ kind: "shared", copied });
+		dispatch({ kind: "shared", copied });
 	})();
+}
+
+// The buffer survives a reload: every edit lands in localStorage (debounced),
+// and a fresh visit restores it. A shared link still wins; the seeded
+// example is the last resort.
+const STORAGE_KEY = "vilan-playground-doc";
+
+function savedDoc() {
+	try {
+		return localStorage.getItem(STORAGE_KEY);
+	} catch {
+		return null; // storage denied (private mode); persistence just disarms
+	}
+}
+
+let saveTimer = null;
+
+function persist() {
+	clearTimeout(saveTimer);
+	saveTimer = setTimeout(() => {
+		try {
+			localStorage.setItem(STORAGE_KEY, view.state.doc.toString());
+		} catch {
+			// see savedDoc
+		}
+	}, 400);
 }
 
 function init(selector, doc) {
 	const host = document.querySelector(selector);
 	if (!host) return;
-	// A shared link wins over the default doc; a broken payload falls back.
+	// A shared link wins over the restored buffer, which wins over the
+	// default doc; a broken payload falls back down the same ladder.
 	const payload = fragmentPayload();
+	const fallback = savedDoc() ?? doc;
 	if (payload != null) {
 		inflate(decodeBase64Url(payload)).then(
-			(text) => setDoc(text),
-			() => setDoc(doc),
+			(text) => {
+				setDoc(text);
+				dispatch({ kind: "doc" });
+			},
+			() => {
+				setDoc(fallback);
+				dispatch({ kind: "doc" });
+			},
 		);
 	}
 	view = new EditorView({
 		parent: host,
 		state: EditorState.create({
-			doc: payload != null ? "" : doc,
+			doc: payload != null ? "" : fallback,
 			extensions: [
 				lineNumbers(),
 				highlightActiveLine(),
@@ -213,11 +247,24 @@ function init(selector, doc) {
 				vilanLanguage,
 				syntaxHighlighting(vilanHighlight),
 				vilanTheme,
-				keymap.of([...defaultKeymap, ...historyKeymap, indentWithTab]),
+				EditorView.updateListener.of((update) => {
+					if (update.docChanged) persist();
+				}),
+				keymap.of([
+					// The playground's verbs, before the defaults so they win.
+					{ key: "Mod-Enter", run: () => (dispatch({ kind: "command", command: "run" }), true) },
+					{ key: "Shift-Alt-f", run: () => (dispatch({ kind: "command", command: "format" }), true) },
+					...defaultKeymap,
+					...historyKeymap,
+					indentWithTab,
+				]),
 			],
 		}),
 	});
 	placeholder();
+	if (payload == null) {
+		dispatch({ kind: "doc" });
+	}
 }
 
 function value() {
@@ -271,7 +318,20 @@ let inFlight = false;
 let pending = null;
 let compileCount = 0;
 let loadFailures = 0;
-let emit = () => {};
+
+// Events flow to the page through one callback, wired by startCompiler.
+// Anything emitted before the wiring (the editor's own "doc" event — init
+// runs first) queues and drains on wire, so call order cannot lose events.
+let emit = null;
+const queuedEvents = [];
+
+function dispatch(event) {
+	if (emit) {
+		emit(event);
+	} else {
+		queuedEvents.push(event);
+	}
+}
 
 function spawn() {
 	ready = false;
@@ -281,13 +341,13 @@ function spawn() {
 		if (message.kind === "ready") {
 			ready = true;
 			loadFailures = 0;
-			emit(message);
+			dispatch(message);
 			flushPending();
 		} else if (message.kind === "result") {
 			inFlight = false;
 			compileCount += 1;
 			applyEditorDiagnostics(message.diagnostics);
-			emit(message);
+			dispatch(message);
 			if (compileCount >= RECYCLE_AFTER && pending == null) {
 				recycle();
 			} else {
@@ -300,11 +360,11 @@ function spawn() {
 			if (message.changed) {
 				applyFormatted(message.text);
 			}
-			emit(message);
+			dispatch(message);
 			flushPending();
 		} else if (message.kind === "crash") {
 			inFlight = false;
-			emit(message);
+			dispatch(message);
 			recycle();
 		}
 	};
@@ -314,7 +374,7 @@ function spawn() {
 		inFlight = false;
 		loadFailures += 1;
 		if (loadFailures >= 3) {
-			emit({ kind: "crash", error: "the compiler failed to load" });
+			dispatch({ kind: "crash", error: "the compiler failed to load" });
 			return;
 		}
 		recycle();
@@ -338,6 +398,9 @@ function flushPending() {
 
 function startCompiler(onEvent) {
 	emit = onEvent;
+	while (queuedEvents.length > 0) {
+		emit(queuedEvents.shift());
+	}
 	spawn();
 }
 
