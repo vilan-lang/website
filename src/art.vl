@@ -226,82 +226,80 @@ let dg_line_dashed = const style()
 let dg_note = const style().font_size(Length::px(11.0)).opacity(0.6).text_align(TextAlign::Center);
 
 fun diagram(): View {
-	view("div")
-		.styled(art_stage)
-		.child(view("div").styled(dg_blob_top))
-		.child(view("div").styled(dg_blob_left))
-		.child(view("div").styled(dg_blob_right))
-		.child(grain())
-		.child(view("div")
-			.styled(dg_source)
-			.child(view("p").styled(art_tab).text("notes.vl · one source"))
-			.child(view("div")
-				.styled(art_code)
-				.child(ln([t("["), kw("service"), t("(NotesClient)]")]))
-				.child(ln([kw("struct"), t(" Notes {")]))
-				.child(ln([t("    ["), kw("expose"), t("] entries: Signal<List<Note>>,")]))
-				.child(ln([t("}")]))
-				.child(blank())
-				.child(ln([kw("impl"), t(" Notes {")]))
-				.child(ln([t("    ["), kw("rpc"), t("]")]))
-				.child(ln([t("    "), kw("fun"), t(" add(self, text: str): i32 { … }")]))
-				.child(ln([t("}")]))))
-		.child(view("div")
-			.styled(dg_wire_zone)
-			.child(view("div").styled(dg_wire_left))
-			.child(view("div").styled(dg_wire_right))
-			.child(view("span").styled(dg_wire_label_left).text("vilan build"))
-			.child(view("span").styled(dg_wire_label_right).text("vilan build")))
-		.child(view("div")
-			.styled(dg_legs)
-			.child(view("div")
-				.styled(art_card)
-				.child(view("div")
-					.styled(dg_leg_head)
-					.child(view("div").styled(dot_magenta))
-					.child(view("span").styled(dg_leg_name).text("the server"))
-					.child(view("span").styled(dg_leg_env).text("node")))
-				.child(view("div")
-					.styled(art_code)
-					.child(ln([view("span").styled(tk_plain).text("serve_service(4000,")]))
-					.child(ln([t("    notes.dispatcher() …)")]))))
-			.child(view("div")
-				.styled(dg_mid)
-				.child(view("div")
-					.child(view("p").styled(dg_mid_label).text("notes.add(\"ship it\")"))
-					.child(view("div")
-						.styled(dg_line_row)
-						.child(view("div").styled(arrow_head_left))
-						.child(view("div").styled(dg_line))))
-				.child(view("div")
-					.child(view("div")
-						.styled(dg_line_row)
-						.child(view("div").styled(dg_line_dashed))
-						.child(view("div").styled(arrow_head_right_rose)))
-					.child(view("p").styled(dg_mid_label_rose).text("entries"))
-					.child(view("p").styled(dg_note).text("mirrored live"))))
-			.child(view("div")
-				.styled(art_card)
-				.child(view("div")
-					.styled(dg_leg_head)
-					.child(view("div").styled(dot_orange))
-					.child(view("span").styled(dg_leg_name).text("the client"))
-					.child(view("span").styled(dg_leg_env).text("browser")))
-				.child(view("div")
-					.styled(art_code)
-					.child(ln([
-						kw("let"),
-						t(" notes = NotesClient::connect("),
-						st("\"/rpc\""),
-						t(");"),
-					]))
-					.child(ln([
-						t("notes.entries "),
-						view("span").styled(tk_plain).text("// Signal, live"),
-					])))))
-		.child(view("p")
-			.styled(art_caption)
-			.text("one definition: the compiler builds both sides and keeps them honest"))
+	// The element-syntax exhibit (vilan proposal/element-syntax.md S5): the
+	// structure is markup, the token spans stay the `kw`/`t`/`st` helpers —
+	// components are calls in holes. The lowering is the same view chain this
+	// function was before.
+	<div .styled(art_stage)>
+		<div .styled(dg_blob_top) />
+		<div .styled(dg_blob_left) />
+		<div .styled(dg_blob_right) />
+		{grain()}
+		<div .styled(dg_source)>
+			<p .styled(art_tab)>"notes.vl · one source"</p>
+			<div .styled(art_code)>
+				{ln([t("["), kw("service"), t("(NotesClient)]")])}
+				{ln([kw("struct"), t(" Notes {")])}
+				{ln([t("    ["), kw("expose"), t("] entries: Signal<List<Note>>,")])}
+				{ln([t("}")])}
+				{blank()}
+				{ln([kw("impl"), t(" Notes {")])}
+				{ln([t("    ["), kw("rpc"), t("]")])}
+				{ln([t("    "), kw("fun"), t(" add(self, text: str): i32 { … }")])}
+				{ln([t("}")])}
+			</div>
+		</div>
+		<div .styled(dg_wire_zone)>
+			<div .styled(dg_wire_left) />
+			<div .styled(dg_wire_right) />
+			<span .styled(dg_wire_label_left)>"vilan build"</span>
+			<span .styled(dg_wire_label_right)>"vilan build"</span>
+		</div>
+		<div .styled(dg_legs)>
+			<div .styled(art_card)>
+				<div .styled(dg_leg_head)>
+					<div .styled(dot_magenta) />
+					<span .styled(dg_leg_name)>"the server"</span>
+					<span .styled(dg_leg_env)>"node"</span>
+				</div>
+				<div .styled(art_code)>
+					{ln([t("serve_service(4000,")])}
+					{ln([t("    notes.dispatcher() …)")])}
+				</div>
+			</div>
+			<div .styled(dg_mid)>
+				<div>
+					<p .styled(dg_mid_label)>"notes.add(\"ship it\")"</p>
+					<div .styled(dg_line_row)>
+						<div .styled(arrow_head_left) />
+						<div .styled(dg_line) />
+					</div>
+				</div>
+				<div>
+					<div .styled(dg_line_row)>
+						<div .styled(dg_line_dashed) />
+						<div .styled(arrow_head_right_rose) />
+					</div>
+					<p .styled(dg_mid_label_rose)>"entries"</p>
+					<p .styled(dg_note)>"mirrored live"</p>
+				</div>
+			</div>
+			<div .styled(art_card)>
+				<div .styled(dg_leg_head)>
+					<div .styled(dot_orange) />
+					<span .styled(dg_leg_name)>"the client"</span>
+					<span .styled(dg_leg_env)>"browser"</span>
+				</div>
+				<div .styled(art_code)>
+					{ln([kw("let"), t(" notes = NotesClient::connect("), st("\"/rpc\""), t(");")])}
+					{ln([t("notes.entries "), t("// Signal, live")])}
+				</div>
+			</div>
+		</div>
+		<p .styled(art_caption)>
+			"one definition: the compiler builds both sides and keeps them honest"
+		</p>
+	</div>
 }
 
 // --- the editor window (editor band) ---
