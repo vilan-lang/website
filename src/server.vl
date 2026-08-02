@@ -25,6 +25,18 @@ import pkg::playground_page::{ ConsoleRow, DiagRow, playground_page };
 [extern("node:fs/promises", "readFile")]
 async external fun read_file_raw(path: str): Bytes;
 
+/// The version directories under playground/wasm, for serving every fetched
+/// compiler (the selector switches between them).
+[extern("node:fs", "readdirSync")]
+external fun read_dir(path: str): List<str>;
+
+/// One fetched compiler version's pair, served at its versioned paths.
+struct WasmPair {
+	version: str,
+	glue: str,
+	gz: Bytes,
+}
+
 fun html(shell: str, markup: str): Response {
 	Response::builder()
 		.set_header("Content-Type", "text/html")
@@ -57,22 +69,21 @@ async fun main() {
 	let examples_js = fs::read_file_to_str("playground/examples.js");
 	let worker_js = fs::read_file_to_str("playground/worker.js");
 
-	// The wasm pair is fetched, not built here; absent is a normal state.
-	// scripts/fetch-wasm.sh lays it out under a VERSIONED directory named by
-	// the VERSION file, mirroring how the pages repo serves it.
+	// The wasm pairs are fetched, not built here; absent is a normal state.
+	// scripts/fetch-wasm.sh lays each version out under its own directory,
+	// mirroring how the pages repo serves them; every fetched version is
+	// served so the selector can switch locally too.
 	let has_wasm = fs::exists("playground/wasm/VERSION");
-	mut wasm_version = "";
 	mut wasm_manifest = "";
-	mut wasm_glue = "";
-	mut wasm_gz = Bytes::alloc(0);
+	mut wasm_pairs: List<WasmPair> = [];
 	if has_wasm {
-		wasm_version = fs::read_file_to_str("playground/wasm/VERSION");
 		wasm_manifest = fs::read_file_to_str("playground/wasm/manifest.json");
-		wasm_glue = fs::read_file_to_str(i"playground/wasm/{wasm_version}/vilan_wasm.js");
-		wasm_gz = read_file_raw(i"playground/wasm/{wasm_version}/vilan_wasm_bg.wasm.gz");
+		for name in read_dir("playground/wasm") {
+			if name.starts_with("v") {
+				wasm_pairs.push(WasmPair { version = name, glue = fs::read_file_to_str(i"playground/wasm/{name}/vilan_wasm.js"), gz = read_file_raw(i"playground/wasm/{name}/vilan_wasm_bg.wasm.gz") });
+			}
+		}
 	}
-	let glue_route = i"/playground/{wasm_version}/vilan_wasm.js";
-	let gz_route = i"/playground/{wasm_version}/vilan_wasm_bg.wasm.gz";
 
 	// 3000 is every tool's favourite port; PORT overrides for the day
 	// something else is squatting on it.
@@ -99,7 +110,11 @@ async fun main() {
 	Server::builder()
 		.port(port)
 		.on_request(|request| {
-			match request.path() {
+			// The path alone: a module worker's `?v=` pin (or any query)
+			// must not defeat the literal routes - static hosting ignores
+			// queries, so the local server does too.
+			let path = request.path().split("?")[0];
+			match path {
 				"/client.js" => script(client_js),
 				"/client.css" => Response::builder().set_header("Content-Type", "text/css").body(client_css).build(),
 				"/playground/playground.js" => script(playground_js),
@@ -114,16 +129,18 @@ async fun main() {
 				"/playground" => render_playground(),
 				"/playground/" => render_playground(),
 				_ => {
-					// The versioned wasm pair's paths depend on the fetched
-					// release, so they route here rather than as literals.
-					if has_wasm && request.path() == glue_route {
-						ret script(wasm_glue);
-					}
-					if has_wasm && request.path() == gz_route {
-						ret Response::builder()
-							.set_header("Content-Type", "application/octet-stream")
-							.body_bytes(wasm_gz)
-							.build();
+					// The versioned wasm paths depend on which releases were
+					// fetched, so they route here rather than as literals.
+					for pair in wasm_pairs {
+						if path == i"/playground/{pair.version}/vilan_wasm.js" {
+							ret script(pair.glue);
+						}
+						if path == i"/playground/{pair.version}/vilan_wasm_bg.wasm.gz" {
+							ret Response::builder()
+								.set_header("Content-Type", "application/octet-stream")
+								.body_bytes(pair.gz)
+								.build();
+						}
 					}
 					// The page holds live state (the counter demo), so each render
 					// gets its own owner: created, serialized, and discarded —

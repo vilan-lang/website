@@ -251,15 +251,7 @@ fun main() {
 		mut rows: List<DiagRow> = [];
 		mut id = next_row_id.read();
 		for diagnostic in event.diagnostics() {
-			rows.push(DiagRow {
-				id = id,
-				severity = diagnostic.severity(),
-				file = diagnostic.file(),
-				line = diagnostic.line() + 1,
-				column = diagnostic.column() + 1,
-				message = diagnostic.message(),
-				note = diagnostic.note(),
-			});
+			rows.push(DiagRow { id = id, severity = diagnostic.severity(), file = diagnostic.file(), line = diagnostic.line() + 1, column = diagnostic.column() + 1, message = diagnostic.message(), note = diagnostic.note() });
 			id = id + 1;
 		}
 		next_row_id.write() = id;
@@ -276,6 +268,11 @@ fun main() {
 		if kind == "ready" {
 			can_format.set(event.can_format());
 			can_platform.set(event.can_platform());
+			if !event.can_platform() {
+				// An older pinned compiler has no server leg; fall back
+				// rather than pretend to check.
+				set_mode("browser");
+			}
 			status.set(i"Ready (vilan {event.version()})");
 			compiler_ready.write() = true;
 			run_on_arrival();

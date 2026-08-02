@@ -248,10 +248,6 @@ fun playground_page(
 					_ => "Run",
 				}))
 				.on("click", || run()))
-			// Which leg the compiler targets. Server is check-only: the
-			// diagnostics (platform coloring above all) are the product;
-			// running a process needs a real host. Hidden on a wasm without
-			// compile_for.
 			.child(view("select")
 				.styled(template_select)
 				.attr("id", "mode")
@@ -264,15 +260,15 @@ fun playground_page(
 				.text("Format")
 				.on("click", || format())
 				.show(can_format))
-			// The label flips to the outcome for a moment (Copied!, or
-			// Link ready when the clipboard refuses).
 			.child(view("button")
 				.styled(example_button)
 				.bind_text(share_label)
 				.on("click", || share()))
-			// role=status makes compile results audible to a screen
-			// reader without stealing focus.
-			.child(view("p").styled(status_line).attr("role", "status").bind_text(status)))
+			.child(view("p").styled(status_line).attr("role", "status").bind_text(status))
+			.child(view("select")
+				.styled(template_select)
+				.attr("id", "version")
+				.attr("aria-label", "Compiler version")))
 		.child(view("div")
 			.styled(panes)
 			.child(view("div")
@@ -280,15 +276,10 @@ fun playground_page(
 				.child(view("div")
 					.styled(pane_head)
 					.child(view("p").styled(pane_label).text("Program"))
-					// The bundle wires the change event (the value read needs
-					// the DOM); a pick arrives as a "command" event.
 					.child(view("select")
 						.styled(template_select)
 						.attr("id", "template")
 						.attr("aria-label", "Load an example")
-						// The placeholder holds the seat while the buffer is
-						// custom (restored or shared); the bundle points the
-						// select at Counter when the seeded default loaded.
 						.child(view("option")
 							.attr("value", "")
 							.attr("disabled", "true")
@@ -297,8 +288,6 @@ fun playground_page(
 						.child(template_option("counter", "Counter: reactive state"))
 						.child(template_option("hello", "Hello: mount and print"))
 						.child(template_option("styles", "Styles: compile-time CSS"))
-						// Picking this also flips the mode to Server; hidden
-						// (with the mode select) on a wasm without compile_for.
 						.child(template_option("server", "Server: typed HTTP, checked").show(can_platform))))
 				.child(view("div")
 					.styled(editor_host)
@@ -327,6 +316,31 @@ fun playground_page(
 						.text("Program output lands here.")
 						.show(console_lines.map(|rows| rows.len() == 0)))
 					.child(view("div").bind_each(console_lines, |row| row.id, |row| console_row(row)))))))
+	// Which leg the compiler targets. Server is check-only: the
+	// diagnostics (platform coloring above all) are the product;
+	// running a process needs a real host. Hidden on a wasm without
+	// compile_for.
+
+	// The label flips to the outcome for a moment (Copied!, or
+	// Link ready when the clipboard refuses).
+
+	// role=status makes compile results audible to a screen
+	// reader without stealing focus.
+
+	// The compiler pin, populated by the bundle from the manifest's
+	// inventory; it doubles as the version badge, and a pinned
+	// version rides shared links so a repro stays a repro.
+
+	// The bundle wires the change event (the value read needs
+	// the DOM); a pick arrives as a "command" event.
+
+	// The placeholder holds the seat while the buffer is
+	// custom (restored or shared); the bundle points the
+	// select at Counter when the seeded default loaded.
+
+	// Picking this also flips the mode to Server; hidden
+	// (with the mode select) on a wasm without compile_for.
+
 	// Share puts the buffer in the URL itself (deflated, base64url)
 	// — no server holds anything, per the proposal's §5.
 

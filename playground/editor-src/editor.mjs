@@ -245,12 +245,12 @@ async function inflate(bytes) {
 	return new Response(stream).text();
 }
 
-// `#code=<payload>` with an optional `&mode=node` - a shared server-leg
-// snippet (or a book link to a process example) opens straight into the
-// check mode.
+// `#code=<payload>` with optional `&mode=node` and `&v=<tag>` - a shared
+// server-leg snippet opens straight into the check mode, and a pinned link
+// (a bug repro above all) opens under the exact compiler that showed it.
 function fragmentPayload() {
-	const match = location.hash.match(/^#code=([A-Za-z0-9_-]+)(?:&mode=(node))?$/);
-	return match ? { payload: match[1], mode: match[2] ?? null } : null;
+	const match = location.hash.match(/^#code=([A-Za-z0-9_-]+)(?:&mode=(node))?(?:&v=(v[0-9][0-9.]*))?$/);
+	return match ? { payload: match[1], mode: match[2] ?? null, version: match[3] ?? null } : null;
 }
 
 function share() {
@@ -258,7 +258,10 @@ function share() {
 		const source = view ? view.state.doc.toString() : "";
 		const encoded = encodeBase64Url(await deflate(source));
 		const mode = currentPlatform === "node" ? "&mode=node" : "";
-		const url = `${location.origin}${location.pathname}#code=${encoded}${mode}`;
+		const pin = selectedVersion && currentVersion && selectedVersion !== currentVersion
+			? `&v=${selectedVersion}`
+			: "";
+		const url = `${location.origin}${location.pathname}#code=${encoded}${mode}${pin}`;
 		// window-qualified: bare `history` is CodeMirror's undo extension here.
 		window.history.replaceState(null, "", url);
 		let copied = false;
@@ -305,13 +308,17 @@ function init(selector, doc) {
 	// A shared link wins over the restored buffer, which wins over the
 	// default doc; a broken payload falls back down the same ladder.
 	const fragment = fragmentPayload();
+	if (fragment && fragment.version) {
+		selectedVersion = fragment.version;
+	}
 	const fallback = savedDoc() ?? doc;
 	if (fragment != null) {
 		inflate(decodeBase64Url(fragment.payload)).then(
 			(text) => {
 				setDoc(text);
 				// Mode before the doc event, so the arrival auto-run
-				// compiles under the linked leg.
+				// compiles under the linked leg. (The version pin was read
+				// before startCompiler spawned anything.)
 				if (fragment.mode) setMode(fragment.mode);
 				dispatch({ kind: "doc" });
 			},
@@ -444,6 +451,32 @@ let pendingCheck = null;
 let sentSource = null;
 let checkTimer = null;
 
+// Which compiler version the worker loads. The manifest's `versions` list
+// is the selector's inventory; `currentVersion` is the release the site
+// ships today, and a different `selectedVersion` is a deliberate pin - it
+// rides shared links so a repro stays a repro.
+let selectedVersion = null;
+let currentVersion = null;
+
+function populateVersionSelect(versions) {
+	const select = document.getElementById("version");
+	if (!select) return;
+	select.textContent = "";
+	for (const version of versions) {
+		const option = document.createElement("option");
+		option.value = version;
+		option.textContent = version;
+		select.appendChild(option);
+	}
+	select.value = selectedVersion;
+	select.addEventListener("change", () => {
+		if (!select.value || select.value === selectedVersion) return;
+		selectedVersion = select.value;
+		sentSource = null; // the same text means something new under another compiler
+		recycle();
+	});
+}
+
 // Which leg the compiler targets: "browser" runs, "node" is check-only (the
 // platform-coloring showcase). The page and the #mode select both route
 // through setMode, so the state and the control never disagree.
@@ -492,7 +525,8 @@ function dispatch(event) {
 
 function spawn() {
 	ready = false;
-	worker = new Worker("/playground/worker.js", { type: "module" });
+	const pin = selectedVersion ? `?v=${selectedVersion}` : "";
+	worker = new Worker(`/playground/worker.js${pin}`, { type: "module" });
 	worker.onmessage = (event) => {
 		const message = event.data;
 		if (message.kind === "ready") {
@@ -500,6 +534,7 @@ function spawn() {
 			loadFailures = 0;
 			dispatch(message);
 			flushPending();
+			scheduleCheck();
 		} else if (message.kind === "result") {
 			inFlight = false;
 			compileCount += 1;
@@ -581,7 +616,18 @@ function startCompiler(onEvent) {
 	while (queuedEvents.length > 0) {
 		emit(queuedEvents.shift());
 	}
-	spawn();
+	// The manifest names the current release and the selector's inventory.
+	// If it cannot be read the worker resolves it itself and the selector
+	// just stays empty - the compiler still comes up.
+	fetch("/playground/manifest.json", { cache: "no-cache" })
+		.then((response) => response.json())
+		.then((manifest) => {
+			currentVersion = manifest.compiler;
+			if (!selectedVersion) selectedVersion = currentVersion;
+			populateVersionSelect(manifest.versions ?? [manifest.compiler]);
+		})
+		.catch(() => {})
+		.finally(spawn);
 }
 
 function compile(source) {
