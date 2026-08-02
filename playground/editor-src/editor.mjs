@@ -245,16 +245,20 @@ async function inflate(bytes) {
 	return new Response(stream).text();
 }
 
+// `#code=<payload>` with an optional `&mode=node` - a shared server-leg
+// snippet (or a book link to a process example) opens straight into the
+// check mode.
 function fragmentPayload() {
-	const match = location.hash.match(/^#code=([A-Za-z0-9_-]+)$/);
-	return match ? match[1] : null;
+	const match = location.hash.match(/^#code=([A-Za-z0-9_-]+)(?:&mode=(node))?$/);
+	return match ? { payload: match[1], mode: match[2] ?? null } : null;
 }
 
 function share() {
 	(async () => {
 		const source = view ? view.state.doc.toString() : "";
 		const encoded = encodeBase64Url(await deflate(source));
-		const url = `${location.origin}${location.pathname}#code=${encoded}`;
+		const mode = currentPlatform === "node" ? "&mode=node" : "";
+		const url = `${location.origin}${location.pathname}#code=${encoded}${mode}`;
 		// window-qualified: bare `history` is CodeMirror's undo extension here.
 		window.history.replaceState(null, "", url);
 		let copied = false;
@@ -300,12 +304,15 @@ function init(selector, doc) {
 	if (!host) return;
 	// A shared link wins over the restored buffer, which wins over the
 	// default doc; a broken payload falls back down the same ladder.
-	const payload = fragmentPayload();
+	const fragment = fragmentPayload();
 	const fallback = savedDoc() ?? doc;
-	if (payload != null) {
-		inflate(decodeBase64Url(payload)).then(
+	if (fragment != null) {
+		inflate(decodeBase64Url(fragment.payload)).then(
 			(text) => {
 				setDoc(text);
+				// Mode before the doc event, so the arrival auto-run
+				// compiles under the linked leg.
+				if (fragment.mode) setMode(fragment.mode);
 				dispatch({ kind: "doc" });
 			},
 			() => {
@@ -317,7 +324,7 @@ function init(selector, doc) {
 	view = new EditorView({
 		parent: host,
 		state: EditorState.create({
-			doc: payload != null ? "" : fallback,
+			doc: fragment != null ? "" : fallback,
 			extensions: [
 				lineNumbers(),
 				highlightActiveLine(),
@@ -348,8 +355,8 @@ function init(selector, doc) {
 		}),
 	});
 	placeholder();
-	wirePicker(payload == null && fallback === doc);
-	if (payload == null) {
+	wirePicker(fragment == null && fallback === doc);
+	if (fragment == null) {
 		dispatch({ kind: "doc" });
 	}
 }
