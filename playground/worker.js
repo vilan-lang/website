@@ -14,9 +14,10 @@
 // v0.18.2, and a static named import of an export the loaded release does
 // not have would fail the whole module. Capability rides the ready message.
 //
-// Messages in:  { action: "compile" | "check" | "format", source }
+// Messages in:  { action: "compile" | "check" | "format", source,
+//                 platform: "browser" | "node" }
 // Messages out:
-//   { kind: "ready",     version, canFormat }         - the compiler is live
+//   { kind: "ready",     version, canFormat, canPlatform }  - compiler live
 //   { kind: "result",    ok, js, css, version, diagnostics: [...] }
 //   { kind: "checked",   ok, version, diagnostics: [...] }  - live check;
 //                        same compile, but no emitted program rides back
@@ -40,17 +41,27 @@ const wasm = await (async () => {
 await glue.default({ module_or_path: wasm });
 
 const canFormat = typeof glue.format === "function";
-postMessage({ kind: "ready", version: glue.version(), canFormat });
+// compile_for arrived after v0.19.0; without it every request is a browser
+// compile and the page hides its mode toggle.
+const canPlatform = typeof glue.compile_for === "function";
+postMessage({ kind: "ready", version: glue.version(), canFormat, canPlatform });
+
+function compileWith(source, platform) {
+	if (platform === "node" && canPlatform) {
+		return glue.compile_for(String(source), "node");
+	}
+	return glue.compile(String(source));
+}
 
 onmessage = (event) => {
-	const { action, source } = event.data;
+	const { action, source, platform } = event.data;
 	try {
 		if (action === "format") {
 			const text = canFormat ? glue.format(String(source)) : String(source);
 			postMessage({ kind: "formatted", text, changed: text !== String(source) });
 			return;
 		}
-		const result = glue.compile(String(source));
+		const result = compileWith(source, platform);
 		const diagnostics = result.diagnostics.map((diagnostic) => ({
 			severity: diagnostic.severity,
 			file: diagnostic.file,
@@ -66,6 +77,7 @@ onmessage = (event) => {
 				kind: "checked",
 				ok: result.js != null,
 				version: glue.version(),
+				platform: platform ?? "browser",
 				diagnostics,
 			});
 			return;
@@ -76,6 +88,7 @@ onmessage = (event) => {
 			js: result.js ?? "",
 			css: result.css ?? "",
 			version: glue.version(),
+			platform: platform ?? "browser",
 			diagnostics,
 		});
 	} catch (error) {

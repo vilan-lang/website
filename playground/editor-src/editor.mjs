@@ -369,6 +369,10 @@ function wirePicker(seededDefaultLoaded) {
 			dispatch({ kind: "command", command: "pick", name: picker.value });
 		}
 	});
+	const mode = document.getElementById("mode");
+	if (mode) {
+		mode.addEventListener("change", () => setMode(mode.value));
+	}
 }
 
 function value() {
@@ -433,6 +437,22 @@ let pendingCheck = null;
 let sentSource = null;
 let checkTimer = null;
 
+// Which leg the compiler targets: "browser" runs, "node" is check-only (the
+// platform-coloring showcase). The page and the #mode select both route
+// through setMode, so the state and the control never disagree.
+let currentPlatform = "browser";
+
+function setMode(platform) {
+	if (platform !== "browser" && platform !== "node") return;
+	if (platform === currentPlatform) return;
+	currentPlatform = platform;
+	const select = document.getElementById("mode");
+	if (select) select.value = platform;
+	sentSource = null; // the same text means something new under another leg
+	scheduleCheck();
+	dispatch({ kind: "command", command: "mode", name: platform });
+}
+
 function scheduleCheck() {
 	clearTimeout(checkTimer);
 	checkTimer = setTimeout(() => {
@@ -445,7 +465,7 @@ function scheduleCheck() {
 		}
 		sentSource = source;
 		inFlight = true;
-		worker.postMessage({ action: "check", source });
+		worker.postMessage({ action: "check", source, platform: currentPlatform });
 	}, 400);
 }
 
@@ -487,7 +507,7 @@ function spawn() {
 			inFlight = false;
 			compileCount += 1; // a check leaks like a compile; it pays the same budget
 			const current = view ? view.state.doc.toString() : "";
-			if (current === sentSource) {
+			if (current === sentSource && message.platform === currentPlatform) {
 				applyEditorDiagnostics(message.diagnostics);
 				dispatch(message);
 			}
@@ -564,7 +584,7 @@ function compile(source) {
 	}
 	sentSource = source;
 	inFlight = true;
-	worker.postMessage({ action: "compile", source });
+	worker.postMessage({ action: "compile", source, platform: currentPlatform });
 	return true;
 }
 
@@ -666,6 +686,7 @@ window.VilanPlayground = {
 	compile,
 	format,
 	share,
+	setMode,
 	runProgram,
 	clearProgram: placeholder,
 };

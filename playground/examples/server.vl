@@ -1,0 +1,18 @@
+// A typed HTTP service: the same language, the process leg. Server mode
+// TYPECHECKS this (platform coloring is the check; flip the mode to Browser
+// to watch it refuse); running it for real takes a process host:
+// `vilan init my-app && vilan run my-app`.
+
+import std::http::{ Response, Server };
+import std::print;
+
+async fun main() {
+	Server::builder()
+		.port(3000)
+		.on_request(|request| {
+			Response::builder().body(i"hello from {request.path()}").build()
+		})
+		.on_start(|server| print(i"listening at {server.url()}"))
+		.build()
+		.start();
+}

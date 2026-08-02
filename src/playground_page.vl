@@ -229,7 +229,9 @@ fun playground_page(
 	diagnostics: Signal<List<DiagRow>>,
 	console_lines: Signal<List<ConsoleRow>>,
 	can_format: Signal<bool>,
+	can_platform: Signal<bool>,
 	share_label: Signal<str>,
+	mode: Signal<str>,
 	run: || void,
 	format: || void,
 	share: || void,
@@ -239,7 +241,24 @@ fun playground_page(
 		.child(view("h1").styled(pane_label).text("Playground: vilan in the browser"))
 		.child(view("div")
 			.styled(controls)
-			.child(view("button").styled(run_button).text("Run").on("click", || run()))
+			.child(view("button")
+				.styled(run_button)
+				.bind_text(mode.map(|current| match current {
+					"node" => "Check",
+					_ => "Run",
+				}))
+				.on("click", || run()))
+			// Which leg the compiler targets. Server is check-only: the
+			// diagnostics (platform coloring above all) are the product;
+			// running a process needs a real host. Hidden on a wasm without
+			// compile_for.
+			.child(view("select")
+				.styled(template_select)
+				.attr("id", "mode")
+				.attr("aria-label", "Compile mode")
+				.show(can_platform)
+				.child(template_option("browser", "Browser: compile and run"))
+				.child(template_option("node", "Server: check the process leg")))
 			.child(view("button")
 				.styled(example_button)
 				.text("Format")
@@ -277,7 +296,10 @@ fun playground_page(
 							.text("Examples"))
 						.child(template_option("counter", "Counter: reactive state"))
 						.child(template_option("hello", "Hello: mount and print"))
-						.child(template_option("styles", "Styles: compile-time CSS"))))
+						.child(template_option("styles", "Styles: compile-time CSS"))
+						// Picking this also flips the mode to Server; hidden
+						// (with the mode select) on a wasm without compile_for.
+						.child(template_option("server", "Server: typed HTTP, checked").show(can_platform))))
 				.child(view("div")
 					.styled(editor_host)
 					.attr("id", "editor")

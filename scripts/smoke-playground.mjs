@@ -34,11 +34,24 @@ if (committed !== generate()) {
 	process.exit(1);
 }
 
-// 1: every example compiles clean.
+// 1: every example compiles clean under ITS leg. server.vl is the process
+// example: node-checked when the wasm can (compile_for), and pinned to its
+// browser REJECTION when it cannot - either way the gate stays meaningful.
 let failed = false;
 for (const name of readdirSync(`${root}playground/examples`).filter((f) => f.endsWith(".vl")).sort()) {
 	const source = readFileSync(`${root}playground/examples/${name}`, "utf8");
-	const result = glue.compile(source);
+	const node = name === "server.vl";
+	if (node && typeof glue.compile_for !== "function") {
+		const rejected = glue.compile(source).diagnostics.some((d) => d.severity === "error");
+		if (rejected) {
+			console.log(`${name}: browser-mode rejection pinned (wasm without compile_for)`);
+		} else {
+			failed = true;
+			console.error(`${name}: FAILED - a process program compiled clean for the browser`);
+		}
+		continue;
+	}
+	const result = node ? glue.compile_for(source, "node") : glue.compile(source);
 	const errors = result.diagnostics.filter((d) => d.severity === "error");
 	if (!result.js || errors.length > 0) {
 		failed = true;
@@ -48,7 +61,8 @@ for (const name of readdirSync(`${root}playground/examples`).filter((f) => f.end
 		}
 	} else {
 		const css = result.css ? `, ${result.css.length} B css` : "";
-		console.log(`${name}: ok (${result.js.length} B js${css})`);
+		const leg = node ? ", node leg" : "";
+		console.log(`${name}: ok (${result.js.length} B js${css}${leg})`);
 	}
 }
 process.exit(failed ? 1 : 0);

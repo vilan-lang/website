@@ -49,6 +49,13 @@ external fun request_compile(source: str): bool;
 [extern("VilanPlayground.format")]
 external fun request_format(): bool;
 
+/// Route the compiler at a leg: "browser" (compile and run) or "node" (the
+/// check-only server mode). The bundle keeps the #mode select in step and
+/// re-checks the buffer under the new leg; the change echoes back as a
+/// "mode" command event.
+[extern("VilanPlayground.setMode")]
+external fun set_mode(platform: str): void;
+
 /// Put the buffer in the URL (deflated, base64url in the fragment — no
 /// server holds anything) and copy the link. Answers as a "shared" event:
 /// `copied` says whether the clipboard took it.
@@ -90,6 +97,15 @@ impl CompilerEvent {
 	/// On the "ready" event: whether the loaded wasm exports `format`.
 	[extern(get, "canFormat")]
 	external fun can_format(self): bool;
+
+	/// On the "ready" event: whether the loaded wasm exports `compile_for`
+	/// (the server check mode; older releases do not).
+	[extern(get, "canPlatform")]
+	external fun can_platform(self): bool;
+
+	/// On "result" and "checked" events: which leg the compile targeted.
+	[extern(get, "platform")]
+	external fun platform(self): str;
 
 	/// On the "formatted" event: whether the buffer actually changed.
 	[extern(get, "changed")]
@@ -161,6 +177,8 @@ fun main() {
 	let diagnostics: Signal<List<DiagRow>> = Signal::new([]);
 	let console_lines: Signal<List<ConsoleRow>> = Signal::new([]);
 	let can_format = Signal::new(false);
+	let can_platform = Signal::new(false);
+	let mode = Signal::new("browser");
 	let share_label = Signal::new("Share");
 	let next_row_id = Shared::new(0);
 
@@ -180,7 +198,15 @@ fun main() {
 
 	let share = || request_share();
 
+	// An example carries its leg: picking the server example flips the mode
+	// to node (and any other example flips it back), BEFORE the doc loads so
+	// the auto-run compiles under the right platform.
 	let pick = |name: str| {
+		let platform = match name {
+			"server" => "node",
+			_ => "browser",
+		};
+		set_mode(platform);
 		editor_set_doc(example_source(name));
 		diagnostics.set([]);
 		console_lines.set([]);
@@ -241,7 +267,7 @@ fun main() {
 		rows.len()
 	};
 
-	let _root = mount_root("app", || playground_page(status, diagnostics, console_lines, can_format, share_label, run, format, share));
+	let _root = mount_root("app", || playground_page(status, diagnostics, console_lines, can_format, can_platform, share_label, mode, run, format, share));
 
 	editor_init("#editor", example_source("counter"));
 
@@ -249,6 +275,7 @@ fun main() {
 		let kind = event.kind();
 		if kind == "ready" {
 			can_format.set(event.can_format());
+			can_platform.set(event.can_platform());
 			status.set(i"Ready (vilan {event.version()})");
 			compiler_ready.write() = true;
 			run_on_arrival();
@@ -263,6 +290,8 @@ fun main() {
 				format();
 			} else if command == "pick" {
 				pick(event.name());
+			} else if command == "mode" {
+				mode.set(event.name());
 			}
 		} else if kind == "formatted" {
 			if event.changed() {
@@ -282,7 +311,11 @@ fun main() {
 			// A live check: diagnostics move, the running program does not.
 			let count = apply_diagnostics(event);
 			if event.ok() {
-				status.set(i"No problems (vilan {event.version()}).");
+				if event.platform() == "node" {
+					status.set(i"No problems (server check, vilan {event.version()}).");
+				} else {
+					status.set(i"No problems (vilan {event.version()}).");
+				}
 			} else if count == 1 {
 				status.set("1 problem; see the diagnostics.");
 			} else {
@@ -290,13 +323,23 @@ fun main() {
 			}
 		} else if kind == "result" {
 			let _count = apply_diagnostics(event);
-			console_lines.set([]);
-			if event.ok() {
-				status.set(i"Compiled (vilan {event.version()})");
-				run_program(event.js(), event.css());
+			if event.platform() == "node" {
+				// Server results are checks: the browser has no process host,
+				// so the mounted program and its console are left alone.
+				if event.ok() {
+					status.set(i"Server program checks clean (vilan {event.version()}).");
+				} else {
+					status.set("Build failed; see the diagnostics.");
+				}
 			} else {
-				status.set("Build failed; see the diagnostics.");
-				clear_program();
+				console_lines.set([]);
+				if event.ok() {
+					status.set(i"Compiled (vilan {event.version()})");
+					run_program(event.js(), event.css());
+				} else {
+					status.set("Build failed; see the diagnostics.");
+					clear_program();
+				}
 			}
 		} else if kind == "crash" {
 			status.set("The compiler crashed on this input; it has been restarted. Please report the program that did it.");
