@@ -2,7 +2,7 @@
 // stylesheet at build time, and the classes below are its hashed names.
 
 import std::style::{ Color, Length, space, style };
-import std::ui::{ mount, view };
+import std::ui::{ mount_root, view };
 
 let card = const style()
 	.background(Color::hex("#1B060D"))
@@ -13,9 +13,10 @@ let card = const style()
 let title = const style().color(Color::hex("#EB682E")).margin(space(0));
 
 fun main() {
-	let content = view("div")
-		.styled(card)
-		.child(view("h2").styled(title).text("Styled at compile time"))
-		.child(view("p").text("This card's CSS came out of the compiler."));
-	mount("app", content);
+	let _root = mount_root("app", || {
+		view("div")
+			.styled(card)
+			.child(view("h2").styled(title).text("Styled at compile time"))
+			.child(view("p").text("This card's CSS came out of the compiler."))
+	});
 }
