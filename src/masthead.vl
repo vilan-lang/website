@@ -12,6 +12,7 @@ import std::style::{
 	Overflow,
 	Position,
 	TextAlign,
+	UserSelect,
 	space,
 	style,
 };
@@ -39,7 +40,7 @@ let topbar = const style()
 	.raw("top", "0")
 	.raw("z-index", "100")
 	.raw("background", "rgba(18, 0, 4, calc(var(--nav-fade, 0) * 0.86))")
-	.raw("border-bottom", "1px solid rgba(249, 223, 231, calc(var(--nav-fade, 0) * 0.10))")
+	.border_bottom(Length::px(1.0), Color::hex("rgba(249, 223, 231, calc(var(--nav-fade, 0) * 0.10))"))
 	.raw("backdrop-filter", "blur(calc(var(--nav-fade, 0) * 14px))");
 
 let nav_row = const style()
@@ -53,7 +54,7 @@ let nav_brand = const style()
 	.align_items(AlignItems::Center)
 	.gap(space(3))
 	.font_weight(600)
-	.raw("letter-spacing", "0.35em")
+	.letter_spacing(Length::em(0.35))
 	.font_size(Length::px(13.0));
 
 let nav_links = const style().display(Display::Flex).gap(space(6));
@@ -61,8 +62,8 @@ let nav_links = const style().display(Display::Flex).gap(space(6));
 let nav_link = const style()
 	.color(blush)
 	.opacity(0.8)
-	.raw("text-decoration", "none")
-	.raw("user-select", "none")
+	.text_decoration("none")
+	.user_select(UserSelect::Off)
 	.hover(style().opacity(1.0));
 
 fun top_bar(scroll_fade: Signal<str>): View {
@@ -117,7 +118,7 @@ let bloom_field = const (style()
 	.raw("top", "0")
 	.raw("left", "0")
 	.width(Length::pct(100.0))
-	.raw("height", i"calc(64px + {hero_scale} * 0.570864)")
+	.height(Length::calc(i"64px + {hero_scale} * 0.570864"))
 	.overflow(Overflow::Hidden)
 	.raw("pointer-events", "none")
 	+ no_select);
@@ -138,11 +139,11 @@ let bloom_blurwrap = const style()
 
 let bloom_band_geometry = const style()
 	.position(Position::Absolute)
-	.raw("left", "50%")
-	.raw("transform", "translateX(-50%)")
-	.raw("top", i"calc(64px - {hero_scale} * 0.049226)")
+	.left(Length::pct(50.0))
+	.transform("translateX(-50%)")
+	.top(Length::calc(i"64px - {hero_scale} * 0.049226"))
 	.raw("width", hero_scale)
-	.raw("height", i"calc({hero_scale} * 0.62009)")
+	.height(Length::calc(i"{hero_scale} * 0.62009"))
 	.raw("-webkit-mask-size", "100% 100%")
 	.raw("mask-size", "100% 100%");
 
@@ -186,25 +187,25 @@ let hero_block = const style()
 	.display(Display::Flex)
 	.flex_direction(FlexDirection::Column)
 	.align_items(AlignItems::Center)
-	.raw("height", i"calc({hero_scale} * 0.52917)")
-	.raw("padding-top", i"calc({hero_scale} * 0.15208)")
-	.raw("gap", i"calc({hero_scale} * 0.03333)")
+	.height(Length::calc(i"{hero_scale} * 0.52917"))
+	.padding_top(Length::calc(i"{hero_scale} * 0.15208"))
+	.gap(Length::calc(i"{hero_scale} * 0.03333"))
 	.raw("box-sizing", "border-box");
 
 let hero_mark = const (style()
-	.raw("width", i"calc({hero_scale} * 0.05208)")
+	.width(Length::calc(i"{hero_scale} * 0.05208"))
 	.height(Length::auto())
 	+ no_drag);
 
 let hero_wordmark = const (style()
-	.raw("width", i"calc({hero_scale} * 0.16198)")
+	.width(Length::calc(i"{hero_scale} * 0.16198"))
 	.height(Length::auto())
 	+ no_drag);
 
 let hero_tagline = const style()
-	.raw("font-family", display_face)
+	.font_family(display_face)
 	.raw("font-size", i"max(18px, {hero_scale} * 0.01667)")
-	.raw("line-height", "1.5")
+	.line_height(1.5)
 	.font_weight(600)
 	.color(ink)
 	.margin(space(0))

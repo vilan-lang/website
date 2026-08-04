@@ -10,10 +10,31 @@
 // stand-ins, the same split as `page()`.
 
 import std::reactive::Signal;
-import std::style::{ Display, FlexDirection, Length, Overflow, space, style };
+import std::style::{
+	AlignItems,
+	Cursor,
+	Display,
+	FlexDirection,
+	JustifyContent,
+	Length,
+	Overflow,
+	WhiteSpace,
+	space,
+	style,
+};
 import std::ui::{ View, view };
 import pkg::masthead::top_bar;
-import pkg::theme::{ blush, ember, hairline, mono, no_select, panel, rose, shell };
+import pkg::theme::{
+	blush,
+	ember,
+	hairline_color,
+	hairline_width,
+	mono,
+	no_select,
+	panel,
+	rose,
+	shell,
+};
 
 /// One row of the diagnostics pane — the wire diagnostic flattened to plain
 /// data (line and column already one-based for display). Both rows derive
@@ -53,23 +74,23 @@ let wide_column = const style()
 let page_fill = const style()
 	.display(Display::Flex)
 	.flex_direction(FlexDirection::Column)
-	.raw("min-height", "100vh");
+	.min_height(Length::vh(100.0));
 
 let workbench = const style()
 	.display(Display::Flex)
 	.flex_direction(FlexDirection::Column)
 	.gap(space(4))
 	.padding_y(space(6))
-	.raw("flex", "1 1 auto")
+	.flex("1 1 auto")
 	.raw("min-height", "0")
-	.raw("width", "100%")
+	.width(Length::pct(100.0))
 	.raw("box-sizing", "border-box");
 
 let panes = const style()
 	.display(Display::Flex)
 	.flex_direction(FlexDirection::Column)
 	.gap(space(4))
-	.raw("flex", "1 1 auto")
+	.flex("1 1 auto")
 	.raw("min-height", "0")
 	.lg(style().flex_direction(FlexDirection::Row));
 
@@ -78,13 +99,13 @@ let pane = const style()
 	.flex_direction(FlexDirection::Column)
 	.gap(space(3))
 	.raw("min-width", "0")
-	.raw("flex", "1 1 0");
+	.flex("1 1 0");
 
 let pane_label = const (style()
 	.margin(space(0))
 	.opacity(0.6)
 	.font_size(Length::px(12.0))
-	.raw("letter-spacing", "0.14em")
+	.letter_spacing(Length::em(0.14))
 	.raw("text-transform", "uppercase")
 	+ no_select);
 
@@ -93,9 +114,9 @@ let pane_label = const (style()
 let editor_host = const style()
 	.background(panel)
 	.radius(space(3))
-	.raw("border", hairline)
+	.border(hairline_width, hairline_color)
 	.overflow(Overflow::Hidden)
-	.raw("flex", "1 1 auto")
+	.flex("1 1 auto")
 	.min_height(Length::px(320.0));
 
 // The runner host: each Run swaps a sandboxed iframe in; between runs it holds
@@ -103,9 +124,9 @@ let editor_host = const style()
 let runner_host = const style()
 	.background(panel)
 	.radius(space(3))
-	.raw("border", hairline)
+	.border(hairline_width, hairline_color)
 	.overflow(Overflow::Hidden)
-	.raw("flex", "1 1 auto")
+	.flex("1 1 auto")
 	.min_height(Length::px(320.0))
 	.display(Display::Flex);
 
@@ -114,18 +135,18 @@ let runner_host = const style()
 let controls = const style()
 	.display(Display::Flex)
 	.raw("flex-wrap", "wrap")
-	.raw("align-items", "center")
+	.align_items(AlignItems::Center)
 	.gap(space(3));
 
 let run_button = const (style()
 	.background(ember)
 	.color(blush)
 	.font_weight(600)
-	.raw("border", "none")
+	.border_none()
 	.radius(space(2))
 	.raw("padding", "8px 20px")
-	.raw("cursor", "pointer")
-	.raw("font-family", "inherit")
+	.cursor(Cursor::Pointer)
+	.font_family("inherit")
 	.font_size(Length::px(14.0))
 	.hover(style().opacity(0.9))
 	+ no_select);
@@ -133,11 +154,11 @@ let run_button = const (style()
 let example_button = const (style()
 	.background(panel)
 	.color(blush)
-	.raw("border", hairline)
+	.border(hairline_width, hairline_color)
 	.radius(space(2))
 	.raw("padding", "7px 14px")
-	.raw("cursor", "pointer")
-	.raw("font-family", "inherit")
+	.cursor(Cursor::Pointer)
+	.font_family("inherit")
 	.font_size(Length::px(13.0))
 	.opacity(0.85)
 	.hover(style().opacity(1.0))
@@ -147,24 +168,24 @@ let status_line = const style()
 	.margin(space(0))
 	.opacity(0.7)
 	.font_size(Length::px(13.0))
-	.raw("margin-left", "auto");
+	.margin_left(Length::auto());
 
 // The Program pane's header row: the label left, the example picker right.
 // The picker lives beside the editor because it changes the program; the
 // toolbar keeps the verbs.
 let pane_head = const style()
 	.display(Display::Flex)
-	.raw("align-items", "center")
-	.raw("justify-content", "space-between");
+	.align_items(AlignItems::Center)
+	.justify_content(JustifyContent::Between);
 
 let template_select = const (style()
 	.background(panel)
 	.color(blush)
-	.raw("border", hairline)
+	.border(hairline_width, hairline_color)
 	.radius(space(2))
 	.raw("padding", "6px 10px")
-	.raw("cursor", "pointer")
-	.raw("font-family", "inherit")
+	.cursor(Cursor::Pointer)
+	.font_family("inherit")
 	.font_size(Length::px(13.0))
 	.opacity(0.85)
 	.hover(style().opacity(1.0))
@@ -184,11 +205,11 @@ let report_pre = const style()
 	.overflow(Overflow::Auto)
 	.font_size(Length::px(13.0))
 	.line_height(1.6)
-	.raw("font-family", mono)
-	.raw("white-space", "pre-wrap")
+	.font_family(mono)
+	.white_space(WhiteSpace::PreWrap)
 	.min_height(Length::px(96.0))
-	.raw("max-height", "240px")
-	.raw("border", hairline);
+	.max_height(Length::px(240.0))
+	.border(hairline_width, hairline_color);
 
 let diag_error = const style().color(ember).font_weight(700);
 let diag_warning = const style().color(rose).font_weight(700);
