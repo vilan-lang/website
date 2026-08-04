@@ -24,7 +24,17 @@ import std::style::{
 };
 import std::ui::{ View, view };
 import pkg::masthead::top_bar;
-import pkg::theme::{ blush, ember, hairline_color, hairline_width, mono, no_select, panel, rose, shell };
+import pkg::theme::{
+	blush,
+	ember,
+	hairline_color,
+	hairline_width,
+	mono,
+	no_select,
+	panel,
+	rose,
+	shell,
+};
 
 /// One row of the diagnostics pane — the wire diagnostic flattened to plain
 /// data (line and column already one-based for display). Both rows derive

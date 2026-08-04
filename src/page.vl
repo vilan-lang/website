@@ -622,7 +622,9 @@ fun dogfood(): View {
 			.child(docs_link("https://github.com/vilan-lang/website", "Read this page's source")))
 }
 
-let footer_block = const style().border_top(hairline_width, hairline_color).padding_y(Length::px(128.0));
+let footer_block = const style()
+	.border_top(hairline_width, hairline_color)
+	.padding_y(Length::px(128.0));
 
 let footer_grid = const style()
 	.display(Display::Grid)

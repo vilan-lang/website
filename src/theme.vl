@@ -2,7 +2,17 @@
 // palette, type faces, asset roots, and the page-wide layout/texture styles
 // (shell, column, stack, reveal, dividers, grain).
 
-import std::style::{ Color, Display, FlexDirection, Length, Overflow, Position, UserSelect, space, style };
+import std::style::{
+	Color,
+	Display,
+	FlexDirection,
+	Length,
+	Overflow,
+	Position,
+	UserSelect,
+	space,
+	style,
+};
 import std::ui::{ View, view };
 
 // --- the brand palette ---
