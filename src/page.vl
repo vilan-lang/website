@@ -32,6 +32,8 @@ import std::style::{
 	Overflow,
 	Position,
 	TextAlign,
+	UserSelect,
+	WhiteSpace,
 	space,
 	style,
 };
@@ -97,7 +99,7 @@ let install_label = const style()
 	.color(ember)
 	.font_size(Length::px(12.0))
 	.font_weight(600)
-	.raw("letter-spacing", "0.12em")
+	.letter_spacing(Length::em(0.12))
 	.raw("text-transform", "uppercase")
 	.margin_y(space(1));
 
@@ -108,18 +110,18 @@ let install_command = const style()
 	.background(panel)
 	.radius(space(2))
 	.font_size(Length::px(13.0))
-	.raw("font-family", mono)
+	.font_family(mono)
 	.border(hairline_width, hairline_color);
 
 let install_command_text = const style()
-	.raw("display", "block")
+	.display(Display::Block)
 	.overflow(Overflow::Auto)
 	.raw("scrollbar-width", "none")
-	.raw("white-space", "pre")
+	.white_space(WhiteSpace::Pre)
 	.padding_y(space(3))
-	.raw("padding-left", "16px")
-	.raw("padding-right", "48px")
-	.raw("user-select", "all");
+	.padding_left(Length::px(16.0))
+	.padding_right(Length::px(48.0))
+	.user_select(UserSelect::All);
 
 // min-width 0: as a grid item, the default min-width:auto would let the
 // commands' pre-formatted min-content width blow the column open on phones.
@@ -127,8 +129,8 @@ let install_command_text = const style()
 // icon button in the top-right that flips to a check for a moment.
 let copy_button = const (style()
 	.position(Position::Absolute)
-	.raw("top", "6px")
-	.raw("right", "8px")
+	.top(Length::px(6.0))
+	.right(Length::px(8.0))
 	.display(Display::Flex)
 	.align_items(AlignItems::Center)
 	.justify_content(JustifyContent::Center)
@@ -139,8 +141,8 @@ let copy_button = const (style()
 	.border(hairline_width, hairline_color)
 	.cursor(Cursor::Pointer)
 	.transition("border-color 140ms ease, transform 120ms ease")
-	.hover(style().raw("border-color", "rgba(235, 104, 46, 0.6)"))
-	.active(style().raw("transform", "scale(0.92)"))
+	.hover(style().border_color(Color::hex("rgba(235, 104, 46, 0.6)")))
+	.active(style().transform("scale(0.92)"))
 	+ no_select);
 
 let copy_icon = const (style().width(Length::px(15.0)).height(Length::px(15.0)) + no_drag);
@@ -154,13 +156,13 @@ let install_grid = const style()
 let install_split = const (style()
 	.display(Display::Grid)
 	.gap(space(8))
-	.raw("align-items", "center")
-	.lg(style().raw("grid-template-columns", "6fr 5fr"))
+	.align_items(AlignItems::Center)
+	.lg(style().grid_template_columns("6fr 5fr"))
 	+ reveal);
 
 let install_art_cell = const (style()
-	.raw("display", "none")
-	.lg(style().raw("display", "block"))
+	.display(Display::Hidden)
+	.lg(style().display(Display::Block))
 	+ no_select);
 
 fun install_row(label: str, command: str, copy: |str| void): View {
@@ -219,15 +221,15 @@ fun install_section(copy: |str| void): View {
 let showcase_grid = const (style()
 	.display(Display::Grid)
 	.gap(space(8))
-	.raw("align-items", "center")
-	.lg(style().raw("grid-template-columns", "5fr 6fr"))
+	.align_items(AlignItems::Center)
+	.lg(style().grid_template_columns("5fr 6fr"))
 	+ reveal);
 
 let showcase_grid_flipped = const (style()
 	.display(Display::Grid)
 	.gap(space(8))
-	.raw("align-items", "center")
-	.lg(style().raw("grid-template-columns", "6fr 5fr"))
+	.align_items(AlignItems::Center)
+	.lg(style().grid_template_columns("6fr 5fr"))
 	+ reveal);
 
 let showcase_copy = const style()
@@ -264,14 +266,14 @@ let demo_button = const style()
 	.padding_y(space(2))
 	.padding_x(space(5))
 	.radius(Length::px(999.0))
-	.raw("border", "none")
+	.border_none()
 	.font_size(Length::px(14.0))
-	.raw("font-family", body_face)
-	.raw("user-select", "none")
+	.font_family(body_face)
+	.user_select(UserSelect::Off)
 	.cursor(Cursor::Pointer)
 	.transition("transform 120ms ease, opacity 120ms ease")
 	.hover(style().opacity(0.88))
-	.active(style().raw("transform", "scale(0.95)"));
+	.active(style().transform("scale(0.95)"));
 
 let demo_label = const style().margin(space(0)).opacity(0.85);
 
@@ -391,9 +393,9 @@ let diag_pre = const style()
 	.overflow(Overflow::Auto)
 	.font_size(Length::px(13.0))
 	.line_height(1.65)
-	.raw("font-family", mono)
-	.raw("border", "1px solid rgba(235, 104, 46, 0.35)")
-	.raw("white-space", "pre");
+	.font_family(mono)
+	.border(Length::px(1.0), Color::hex("rgba(235, 104, 46, 0.35)"))
+	.white_space(WhiteSpace::Pre);
 
 let diag_error = const style().color(ember).font_weight(700);
 let diag_frame = const style().opacity(0.5);
@@ -454,8 +456,8 @@ let cards_grid = const (style()
 	.display(Display::Grid)
 	.gap(space(4))
 	.raw("background", "radial-gradient(340px circle at var(--glow-x, -999px) var(--glow-y, -999px), rgba(235, 104, 46, 0.10), transparent 70%)")
-	.sm(style().raw("grid-template-columns", "1fr 1fr"))
-	.lg(style().raw("grid-template-columns", "1fr 1fr 1fr"))
+	.sm(style().grid_template_columns("1fr 1fr"))
+	.lg(style().grid_template_columns("1fr 1fr 1fr"))
 	+ reveal);
 
 let card = const style()
@@ -468,12 +470,12 @@ let card = const style()
 	.border(hairline_width, hairline_color)
 	.transition("transform 180ms ease, border-color 180ms ease, box-shadow 180ms ease")
 	.hover(style()
-		.raw("transform", "translateY(-3px)")
-		.raw("border-color", "rgba(249, 223, 231, 0.22)")
-		.raw("box-shadow", "0 10px 32px rgba(0, 0, 0, 0.4)"));
+		.transform("translateY(-3px)")
+		.border_color(Color::hex("rgba(249, 223, 231, 0.22)"))
+		.box_shadow("0 10px 32px rgba(0, 0, 0, 0.4)"));
 
 let card_title = const style()
-	.raw("font-family", display_face)
+	.font_family(display_face)
 	.font_size(Length::px(20.0))
 	.raw("line-height", "28px")
 	.font_weight(600)
@@ -485,14 +487,14 @@ let card_body = const style().margin(space(0)).opacity(0.78);
 // text-align, which only reaches an inline-level box.
 let card_link = const style()
 	.raw("align-self", "flex-start")
-	.raw("display", "inline-flex")
+	.display(Display::InlineFlex)
 	.align_items(AlignItems::Center)
 	.gap(space(1))
 	.color(ember)
 	.font_size(Length::px(13.0))
-	.raw("text-decoration", "none")
-	.raw("user-select", "none")
-	.hover(style().raw("text-decoration", "underline"));
+	.text_decoration("none")
+	.user_select(UserSelect::Off)
+	.hover(style().text_decoration("underline"));
 
 // The links' arrow: Lucide move-right, baked ember like the card icons, so
 // every "go somewhere" affordance draws its arrow the same way.
@@ -510,13 +512,13 @@ let button_link_style = const style()
 	.padding_x(space(5))
 	.gap(space(1))
 	.radius(Length::px(999.0))
-	.raw("border", "1px solid rgba(235, 104, 46, 0.45)")
-	.raw("text-decoration", "none")
-	.raw("user-select", "none")
+	.border(Length::px(1.0), Color::hex("rgba(235, 104, 46, 0.45)"))
+	.text_decoration("none")
+	.user_select(UserSelect::Off)
 	.transition("background-color 160ms ease, border-color 160ms ease")
 	.hover(style()
 		.raw("background", "rgba(235, 104, 46, 0.12)")
-		.raw("border-color", "rgba(235, 104, 46, 0.8)"));
+		.border_color(Color::hex("rgba(235, 104, 46, 0.8)")));
 
 fun button_link(href: str, label: str): View {
 	view("a")
@@ -625,7 +627,7 @@ let footer_block = const style().border_top(hairline_width, hairline_color).padd
 let footer_grid = const style()
 	.display(Display::Grid)
 	.gap(space(8))
-	.lg(style().raw("grid-template-columns", "2fr 1fr 1fr 1fr"));
+	.lg(style().grid_template_columns("2fr 1fr 1fr 1fr"));
 
 let footer_head = const style().font_weight(600).margin_y(space(2));
 
@@ -637,9 +639,9 @@ let footer_list = const style()
 let footer_link = const style()
 	.color(blush)
 	.opacity(0.7)
-	.raw("text-decoration", "none")
-	.raw("user-select", "none")
-	.hover(style().opacity(1.0).raw("text-decoration", "underline"));
+	.text_decoration("none")
+	.user_select(UserSelect::Off)
+	.hover(style().opacity(1.0).text_decoration("underline"));
 
 let footer_mark = const (style()
 	.raw("align-self", "center")
@@ -652,7 +654,7 @@ let footer_micro = const style()
 	.raw("flex-wrap", "wrap")
 	.gap(space(2))
 	.border_top(hairline_width, hairline_color)
-	.raw("margin-top", "96px")
+	.margin_top(Length::px(96.0))
 	.padding_y(space(6))
 	.font_size(Length::px(12.0))
 	.opacity(0.55);
