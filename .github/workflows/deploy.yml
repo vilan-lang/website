@@ -158,4 +158,9 @@ jobs:
           git -c user.name="vilan-site-deploy[bot]" \
               -c user.email="310328521+vilan-site-deploy[bot]@users.noreply.github.com" \
             commit -m "site: deploy vilan-lang/website@${GITHUB_SHA::7}"
-          git push || (git pull --rebase && git push)
+          # The rebase fallback needs the identity too: a concurrent docs
+          # publish can win the push race, and a rebase with no committer
+          # identity dies where the plain push would have retried fine.
+          git push || (git -c user.name="vilan-site-deploy[bot]" \
+              -c user.email="310328521+vilan-site-deploy[bot]@users.noreply.github.com" \
+            pull --rebase && git push)
