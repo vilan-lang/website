@@ -19,11 +19,16 @@ cd "$(dirname "$0")/.."
 # Authenticated when GITHUB_TOKEN is set (CI passes the job token through) -
 # the anonymous rate limit on api.github.com is tight enough that a run can
 # lose the race on its own, unauthenticated, with no wrongdoing involved.
-set --
-if [ -n "${GITHUB_TOKEN:-}" ]; then
-	set -- -H "Authorization: Bearer $GITHUB_TOKEN"
-fi
-VER="$(curl -fsSL "$@" https://api.github.com/repos/vilan-lang/vilan/releases/latest \
+# A function rather than `set --`: the script's own "$@" carries the extra
+# release tags the download loop iterates, and must not be clobbered.
+api_get() {
+	if [ -n "${GITHUB_TOKEN:-}" ]; then
+		curl -fsSL -H "Authorization: Bearer $GITHUB_TOKEN" "$1"
+	else
+		curl -fsSL "$1"
+	fi
+}
+VER="$(api_get https://api.github.com/repos/vilan-lang/vilan/releases/latest \
 	| sed -n 's/.*"tag_name": *"\([^"]*\)".*/\1/p' | head -n 1)"
 [ -n "$VER" ] || { echo "fetch-wasm: could not resolve the latest release tag" >&2; exit 1; }
 
