@@ -25,7 +25,8 @@ import pkg::theme::{
 	desktop_only,
 	display_face,
 	ember,
-	hairline,
+	hairline_color,
+	hairline_width,
 	ink,
 	mono,
 	no_drag,
@@ -51,7 +52,7 @@ let art_blob = const style()
 let art_card = const style()
 	.position(Position::Relative)
 	.raw("background", "rgba(27, 6, 13, 0.88)")
-	.raw("border", hairline)
+	.border(hairline_width, hairline_color)
 	.radius(Length::px(14.0))
 	.padding_y(space(4))
 	.padding_x(space(5))

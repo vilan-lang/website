@@ -13,7 +13,7 @@ import std::reactive::Signal;
 import std::style::{ Display, FlexDirection, Length, Overflow, space, style };
 import std::ui::{ View, view };
 import pkg::masthead::top_bar;
-import pkg::theme::{ blush, ember, hairline, mono, no_select, panel, rose, shell };
+import pkg::theme::{ blush, ember, hairline_color, hairline_width, mono, no_select, panel, rose, shell };
 
 /// One row of the diagnostics pane — the wire diagnostic flattened to plain
 /// data (line and column already one-based for display). Both rows derive
@@ -93,7 +93,7 @@ let pane_label = const (style()
 let editor_host = const style()
 	.background(panel)
 	.radius(space(3))
-	.raw("border", hairline)
+	.border(hairline_width, hairline_color)
 	.overflow(Overflow::Hidden)
 	.raw("flex", "1 1 auto")
 	.min_height(Length::px(320.0));
@@ -103,7 +103,7 @@ let editor_host = const style()
 let runner_host = const style()
 	.background(panel)
 	.radius(space(3))
-	.raw("border", hairline)
+	.border(hairline_width, hairline_color)
 	.overflow(Overflow::Hidden)
 	.raw("flex", "1 1 auto")
 	.min_height(Length::px(320.0))
@@ -133,7 +133,7 @@ let run_button = const (style()
 let example_button = const (style()
 	.background(panel)
 	.color(blush)
-	.raw("border", hairline)
+	.border(hairline_width, hairline_color)
 	.radius(space(2))
 	.raw("padding", "7px 14px")
 	.raw("cursor", "pointer")
@@ -160,7 +160,7 @@ let pane_head = const style()
 let template_select = const (style()
 	.background(panel)
 	.color(blush)
-	.raw("border", hairline)
+	.border(hairline_width, hairline_color)
 	.radius(space(2))
 	.raw("padding", "6px 10px")
 	.raw("cursor", "pointer")
@@ -188,7 +188,7 @@ let report_pre = const style()
 	.raw("white-space", "pre-wrap")
 	.min_height(Length::px(96.0))
 	.raw("max-height", "240px")
-	.raw("border", hairline);
+	.border(hairline_width, hairline_color);
 
 let diag_error = const style().color(ember).font_weight(700);
 let diag_warning = const style().color(rose).font_weight(700);

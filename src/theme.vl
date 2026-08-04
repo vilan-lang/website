@@ -2,7 +2,7 @@
 // palette, type faces, asset roots, and the page-wide layout/texture styles
 // (shell, column, stack, reveal, dividers, grain).
 
-import std::style::{ Color, Display, FlexDirection, Length, Overflow, Position, space, style };
+import std::style::{ Color, Display, FlexDirection, Length, Overflow, Position, UserSelect, space, style };
 import std::ui::{ View, view };
 
 // --- the brand palette ---
@@ -19,7 +19,8 @@ let repo = "https://github.com/vilan-lang/vilan";
 let body_face = "'Inter', system-ui, -apple-system, sans-serif";
 let display_face = "'Vilan Display', system-ui, -apple-system, sans-serif";
 let mono = "ui-monospace, SFMono-Regular, Menlo, Consolas, monospace";
-let hairline = "1px solid rgba(249, 223, 231, 0.10)";
+let hairline_width = const Length::px(1.0);
+let hairline_color = const Color::hex("rgba(249, 223, 231, 0.10)");
 
 // The grain that rides every piece of art: an SVG turbulence tile, inline —
 // still zero fetches.
@@ -31,7 +32,7 @@ let shell = const style()
 	.background(ink)
 	.color(blush)
 	.min_height(Length::pct(100.0))
-	.raw("font-family", body_face)
+	.font_family(body_face)
 	.font_size(Length::px(14.0))
 	.raw("line-height", "18px");
 
@@ -44,9 +45,9 @@ let column = const style()
 // Chrome (logos, art, buttons, nav/footer links) is not selectable text;
 // body copy and code stay selectable, and the install commands stay
 // deliberately select-all.
-let no_select = const style().raw("user-select", "none");
+let no_select = const style().user_select(UserSelect::Off);
 
-let no_drag = const style().raw("user-select", "none").raw("-webkit-user-drag", "none");
+let no_drag = const style().user_select(UserSelect::Off).raw("-webkit-user-drag", "none");
 
 let section_block = const style().padding_y(space(24));
 
@@ -69,7 +70,7 @@ let stack = const style()
 let reveal = const style().raw("--reveal", "1");
 
 let heading = const (style()
-	.raw("font-family", display_face)
+	.font_family(display_face)
 	.font_size(Length::px(32.0))
 	.raw("line-height", "48px")
 	.font_weight(600)
@@ -106,4 +107,4 @@ let visually_hidden = const style()
 	.overflow(Overflow::Hidden)
 	.raw("clip-path", "inset(50%)");
 
-let desktop_only = const style().raw("display", "none").lg(style().raw("display", "block"));
+let desktop_only = const style().display(Display::Hidden).lg(style().display(Display::Block));

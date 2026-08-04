@@ -49,7 +49,8 @@ import pkg::theme::{
 	display_face,
 	divider,
 	ember,
-	hairline,
+	hairline_color,
+	hairline_width,
 	heading,
 	ink,
 	lead,
@@ -108,7 +109,7 @@ let install_command = const style()
 	.radius(space(2))
 	.font_size(Length::px(13.0))
 	.raw("font-family", mono)
-	.raw("border", hairline);
+	.border(hairline_width, hairline_color);
 
 let install_command_text = const style()
 	.raw("display", "block")
@@ -135,7 +136,7 @@ let copy_button = const (style()
 	.height(Length::px(30.0))
 	.radius(Length::px(8.0))
 	.raw("background", "rgba(27, 6, 13, 0.85)")
-	.raw("border", hairline)
+	.border(hairline_width, hairline_color)
 	.cursor(Cursor::Pointer)
 	.transition("border-color 140ms ease, transform 120ms ease")
 	.hover(style().raw("border-color", "rgba(235, 104, 46, 0.6)"))
@@ -254,7 +255,7 @@ let demo_box = const style()
 	.margin_y(space(4))
 	.padding(space(4))
 	.radius(space(3))
-	.raw("border", hairline);
+	.border(hairline_width, hairline_color);
 
 let demo_button = const style()
 	.background(blush)
@@ -464,7 +465,7 @@ let card = const style()
 	.padding(space(5))
 	.radius(space(3))
 	.background(panel)
-	.raw("border", hairline)
+	.border(hairline_width, hairline_color)
 	.transition("transform 180ms ease, border-color 180ms ease, box-shadow 180ms ease")
 	.hover(style()
 		.raw("transform", "translateY(-3px)")
@@ -619,7 +620,7 @@ fun dogfood(): View {
 			.child(docs_link("https://github.com/vilan-lang/website", "Read this page's source")))
 }
 
-let footer_block = const style().raw("border-top", hairline).padding_y(Length::px(128.0));
+let footer_block = const style().border_top(hairline_width, hairline_color).padding_y(Length::px(128.0));
 
 let footer_grid = const style()
 	.display(Display::Grid)
@@ -650,7 +651,7 @@ let footer_micro = const style()
 	.justify_content(JustifyContent::Between)
 	.raw("flex-wrap", "wrap")
 	.gap(space(2))
-	.raw("border-top", hairline)
+	.border_top(hairline_width, hairline_color)
 	.raw("margin-top", "96px")
 	.padding_y(space(6))
 	.font_size(Length::px(12.0))
