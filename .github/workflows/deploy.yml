@@ -53,6 +53,8 @@ jobs:
           echo "$HOME/.vilan/bin" >> "$GITHUB_PATH"
           "$HOME/.vilan/bin/vilan" --version
       - name: Fetch the playground compiler
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
         run: sh scripts/fetch-wasm.sh
       - name: Build the site
         run: vilan build .
