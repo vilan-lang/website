@@ -44,7 +44,7 @@ let shell = const style()
 	.min_height(Length::pct(100.0))
 	.font_family(body_face)
 	.font_size(Length::px(14.0))
-	.raw("line-height", "18px");
+	.line_height_length(Length::px(18.0));
 
 // The content column: 1200px of content plus the 32px side padding.
 let column = const style()
@@ -82,16 +82,14 @@ let reveal = const style().raw("--reveal", "1");
 let heading = const (style()
 	.font_family(display_face)
 	.font_size(Length::px(32.0))
-	.raw("line-height", "48px")
+	.line_height_length(Length::px(48.0))
 	.font_weight(600)
 	.margin(space(0))
 	+ reveal);
 
 let lead = const (style().opacity(0.82).max_width(Length::rem(36.0)).margin(space(0)) + reveal);
 
-let rule_line = const style()
-	.height(Length::px(1.0))
-	.raw("background", "rgba(249, 223, 231, 0.10)");
+let rule_line = const style().height(Length::px(1.0)).background(Color::rgba(249, 223, 231, 0.10));
 
 fun divider(): View {
 	view("div").styled(column).child(view("div").styled(rule_line))
@@ -99,10 +97,10 @@ fun divider(): View {
 
 let grain_overlay = const (style()
 	.position(Position::Absolute)
-	.raw("inset", "0")
+	.inset(Length::zero())
 	.opacity(0.55)
 	.raw("mix-blend-mode", "overlay")
-	.raw("background-image", grain_tile)
+	.background_image(grain_tile)
 	.raw("pointer-events", "none")
 	+ no_select);
 
