@@ -76,10 +76,11 @@ fun code_panel(lines: List<View>): View {
 let leaf_style = const style()
 	.font_family(mono)
 	.font_size(Length::px(12.0))
-	.raw("background", "rgba(27, 6, 13, 0.9)")
+	.background(Color::rgba(27, 6, 13, 0.9))
 	.border(hairline_width, hairline_color)
 	.radius(Length::px(6.0))
-	.raw("padding", "1px 6px")
+	.padding_y(Length::px(1.0))
+	.padding_x(Length::px(6.0))
 	.white_space(WhiteSpace::Nowrap);
 
 let leaf_link_style = const (leaf_style + style()
