@@ -8,10 +8,12 @@ import std::style::{
 	Color,
 	Display,
 	FlexDirection,
+	Gradient,
 	JustifyContent,
 	Length,
 	Overflow,
 	Position,
+	RadialExtent,
 	TextAlign,
 	WhiteSpace,
 	space,
@@ -52,7 +54,7 @@ let art_blob = const style()
 
 let art_card = const style()
 	.position(Position::Relative)
-	.raw("background", "rgba(27, 6, 13, 0.88)")
+	.background(Color::rgba(27, 6, 13, 0.88))
 	.border(hairline_width, hairline_color)
 	.radius(Length::px(14.0))
 	.padding_y(space(4))
@@ -83,27 +85,27 @@ let art_caption = const style()
 
 let dot = const style().width(Length::px(9.0)).height(Length::px(9.0)).radius(Length::pct(50.0));
 
-let dot_magenta = const (dot + style().raw("background", "#8B2786"));
-let dot_orange = const (dot + style().raw("background", "#EB682E"));
+let dot_magenta = const (dot + style().background(Color::hex("#8B2786")));
+let dot_orange = const (dot + style().background(Color::hex("#EB682E")));
 
 let arrow_head_left = const style()
 	.width(Length::px(8.0))
 	.height(Length::px(8.0))
-	.raw("background", "#EB682E")
+	.background(Color::hex("#EB682E"))
 	.raw("clip-path", "polygon(100% 0, 0 50%, 100% 100%)")
 	.flex_shrink(0.0);
 
 let arrow_head_right_rose = const style()
 	.width(Length::px(8.0))
 	.height(Length::px(8.0))
-	.raw("background", "#E5AFD9")
+	.background(Color::hex("#E5AFD9"))
 	.raw("clip-path", "polygon(0 0, 100% 50%, 0 100%)")
 	.flex_shrink(0.0);
 
 let arrow_head_right = const style()
 	.width(Length::px(8.0))
 	.height(Length::px(8.0))
-	.raw("background", "#EB682E")
+	.background(Color::hex("#EB682E"))
 	.raw("clip-path", "polygon(0 0, 100% 50%, 0 100%)")
 	.flex_shrink(0.0);
 
@@ -114,21 +116,27 @@ let dg_blob_top = const (art_blob + style()
 	.top(Length::pct(-14.0))
 	.width(Length::pct(42.0))
 	.height(Length::pct(55.0))
-	.raw("background", "radial-gradient(closest-side, rgba(178, 48, 86, 0.5), transparent)"));
+	.background_gradient(Gradient::radial(RadialExtent::ClosestSide)
+		.stop(Color::rgba(178, 48, 86, 0.5), 0.0)
+		.stop(Color::transparent(), 100.0)));
 
 let dg_blob_left = const (art_blob + style()
 	.left(Length::pct(-8.0))
 	.bottom(Length::pct(-18.0))
 	.width(Length::pct(36.0))
 	.height(Length::pct(52.0))
-	.raw("background", "radial-gradient(closest-side, rgba(103, 34, 131, 0.5), transparent)"));
+	.background_gradient(Gradient::radial(RadialExtent::ClosestSide)
+		.stop(Color::rgba(103, 34, 131, 0.5), 0.0)
+		.stop(Color::transparent(), 100.0)));
 
 let dg_blob_right = const (art_blob + style()
 	.right(Length::pct(-8.0))
 	.bottom(Length::pct(-14.0))
 	.width(Length::pct(38.0))
 	.height(Length::pct(52.0))
-	.raw("background", "radial-gradient(closest-side, rgba(235, 104, 46, 0.4), transparent)"));
+	.background_gradient(Gradient::radial(RadialExtent::ClosestSide)
+		.stop(Color::rgba(235, 104, 46, 0.4), 0.0)
+		.stop(Color::transparent(), 100.0)));
 
 let dg_source = const (art_card + style().max_width(Length::px(460.0)).margin_x(Length::auto()));
 
@@ -148,14 +156,18 @@ let dg_wire_left = const (dg_wire + style()
 	.left(Length::pct(50.0))
 	.top(Length::px(8.0))
 	.width(Length::px(210.0))
-	.raw("background", "linear-gradient(to left, #B23056, #672283)")
+	.background_gradient(Gradient::linear(270.0)
+		.stop(Color::hex("#B23056"), 0.0)
+		.stop(Color::hex("#672283"), 100.0))
 	.transform("translateX(-40px) rotate(160deg)"));
 
 let dg_wire_right = const (dg_wire + style()
 	.left(Length::pct(50.0))
 	.top(Length::px(8.0))
 	.width(Length::px(210.0))
-	.raw("background", "linear-gradient(to right, #D84730, #EB682E)")
+	.background_gradient(Gradient::linear(90.0)
+		.stop(Color::hex("#D84730"), 0.0)
+		.stop(Color::hex("#EB682E"), 100.0))
 	.transform("translateX(40px) rotate(20deg)"));
 
 let dg_wire_label = const style()
@@ -217,7 +229,7 @@ let dg_mid_label_rose = const style()
 
 let dg_line_row = const style().display(Display::Flex).align_items(AlignItems::Center);
 
-let dg_line = const style().flex("1").height(Length::px(2.0)).raw("background", "#EB682E");
+let dg_line = const style().flex("1").height(Length::px(2.0)).background(Color::hex("#EB682E"));
 
 let dg_line_dashed = const style()
 	.flex("1")
@@ -311,18 +323,22 @@ let ed_blob_a = const (art_blob + style()
 	.top(Length::pct(-20.0))
 	.width(Length::pct(62.0))
 	.height(Length::pct(62.0))
-	.raw("background", "radial-gradient(closest-side, rgba(178, 48, 86, 0.55), transparent)"));
+	.background_gradient(Gradient::radial(RadialExtent::ClosestSide)
+		.stop(Color::rgba(178, 48, 86, 0.55), 0.0)
+		.stop(Color::transparent(), 100.0)));
 
 let ed_blob_b = const (art_blob + style()
 	.right(Length::pct(-14.0))
 	.bottom(Length::pct(-20.0))
 	.width(Length::pct(48.0))
 	.height(Length::pct(53.0))
-	.raw("background", "radial-gradient(closest-side, rgba(235, 104, 46, 0.35), transparent)"));
+	.background_gradient(Gradient::radial(RadialExtent::ClosestSide)
+		.stop(Color::rgba(235, 104, 46, 0.35), 0.0)
+		.stop(Color::transparent(), 100.0)));
 
 let ed_window = const style()
 	.position(Position::Relative)
-	.raw("background", "#180509")
+	.background(Color::hex("#180509"))
 	.border(Length::px(1.0), Color::hex("rgba(249, 223, 231, 0.14)"))
 	.radius(Length::px(12.0))
 	.overflow(Overflow::Hidden)
@@ -335,7 +351,7 @@ let ed_titlebar = const style()
 	.gap(space(2))
 	.padding_y(space(3))
 	.padding_x(space(4))
-	.raw("background", "rgba(249, 223, 231, 0.04)")
+	.background(Color::rgba(249, 223, 231, 0.04))
 	.border_bottom(Length::px(1.0), Color::hex("rgba(249, 223, 231, 0.08)"));
 
 let ed_dot = const style()
@@ -344,9 +360,9 @@ let ed_dot = const style()
 	.radius(Length::pct(50.0))
 	.opacity(0.85);
 
-let ed_dot_red = const (ed_dot + style().raw("background", "#D84730"));
-let ed_dot_orange = const (ed_dot + style().raw("background", "#EB682E"));
-let ed_dot_magenta = const (ed_dot + style().raw("background", "#8B2786"));
+let ed_dot_red = const (ed_dot + style().background(Color::hex("#D84730")));
+let ed_dot_orange = const (ed_dot + style().background(Color::hex("#EB682E")));
+let ed_dot_magenta = const (ed_dot + style().background(Color::hex("#8B2786")));
 
 let ed_title = const style().margin_x(Length::auto()).font_size(Length::px(12.0)).opacity(0.55);
 
@@ -355,7 +371,7 @@ let ed_body = const style()
 	.padding_y(space(4))
 	.font_family(mono)
 	.font_size(Length::px(13.0))
-	.raw("line-height", "24px");
+	.line_height_length(Length::px(24.0));
 
 let ed_gutter = const (style()
 	.white_space(WhiteSpace::Pre)
@@ -378,17 +394,17 @@ let ed_caret = const style()
 	.display(Display::InlineBlock)
 	.width(Length::px(2.0))
 	.height(Length::px(15.0))
-	.raw("background", "#F9DFE7")
+	.background(Color::hex("#F9DFE7"))
 	.raw("vertical-align", "text-bottom")
 	.margin_left(Length::px(1.0))
 	.raw("animation", "caret-blink 1.1s step-start infinite");
 
 let ed_hover = const style()
 	.position(Position::Absolute)
-	.raw("left", "clamp(120px, 30%, 185px)")
+	.left(Length::css("clamp(120px, 30%, 185px)"))
 	.top(Length::px(300.0))
-	.raw("width", "min(400px, 70%)")
-	.raw("background", "#22080f")
+	.width(Length::css("min(400px, 70%)"))
+	.background(Color::hex("#22080f"))
 	.border(Length::px(1.0), Color::hex("rgba(249, 223, 231, 0.18)"))
 	.radius(Length::px(10.0))
 	.padding_y(space(3))
@@ -488,25 +504,31 @@ let tc_blob_a = const (art_blob + style()
 	.top(Length::pct(22.0))
 	.width(Length::pct(64.0))
 	.height(Length::pct(58.0))
-	.raw("background", "radial-gradient(closest-side, rgba(178, 48, 86, 0.6), transparent)"));
+	.background_gradient(Gradient::radial(RadialExtent::ClosestSide)
+		.stop(Color::rgba(178, 48, 86, 0.6), 0.0)
+		.stop(Color::transparent(), 100.0)));
 
 let tc_blob_b = const (art_blob + style()
 	.left(Length::pct(4.0))
 	.top(Length::pct(2.0))
 	.width(Length::pct(44.0))
 	.height(Length::pct(42.0))
-	.raw("background", "radial-gradient(closest-side, rgba(139, 39, 134, 0.5), transparent)"));
+	.background_gradient(Gradient::radial(RadialExtent::ClosestSide)
+		.stop(Color::rgba(139, 39, 134, 0.5), 0.0)
+		.stop(Color::transparent(), 100.0)));
 
 let tc_blob_c = const (art_blob + style()
 	.right(Length::pct(-4.0))
 	.bottom(Length::pct(-2.0))
 	.width(Length::pct(46.0))
 	.height(Length::pct(46.0))
-	.raw("background", "radial-gradient(closest-side, rgba(235, 104, 46, 0.45), transparent)"));
+	.background_gradient(Gradient::radial(RadialExtent::ClosestSide)
+		.stop(Color::rgba(235, 104, 46, 0.45), 0.0)
+		.stop(Color::transparent(), 100.0)));
 
 let tc_spoke = const style()
 	.position(Position::Absolute)
-	.raw("background", "rgba(249, 223, 231, 0.22)")
+	.background(Color::rgba(249, 223, 231, 0.22))
 	.raw("transform-origin", "left center");
 
 let tc_spoke_up = const (tc_spoke + style()
@@ -550,7 +572,7 @@ let tc_chip = const style()
 	.display(Display::Flex)
 	.align_items(AlignItems::Center)
 	.gap(space(2))
-	.raw("background", "rgba(27, 6, 13, 0.92)")
+	.background(Color::rgba(27, 6, 13, 0.92))
 	.border(Length::px(1.0), Color::hex("rgba(249, 223, 231, 0.16)"))
 	.radius(Length::px(999.0))
 	.padding_y(space(2))
@@ -575,7 +597,9 @@ let tc_center_mask = const style()
 	.transform("translate(-50%, -50%)")
 	.width(Length::px(250.0))
 	.height(Length::px(140.0))
-	.raw("background", "radial-gradient(closest-side, #120004d6 35%, transparent)");
+	.background_gradient(Gradient::radial(RadialExtent::ClosestSide)
+		.stop(Color::hex("#120004d6"), 35.0)
+		.stop(Color::transparent(), 100.0));
 
 let tc_center = const (style()
 	.position(Position::Absolute)
@@ -636,14 +660,18 @@ let df_blob_a = const (art_blob + style()
 	.top(Length::pct(-30.0))
 	.width(Length::pct(30.0))
 	.height(Length::pct(120.0))
-	.raw("background", "radial-gradient(closest-side, rgba(139, 39, 134, 0.45), transparent)"));
+	.background_gradient(Gradient::radial(RadialExtent::ClosestSide)
+		.stop(Color::rgba(139, 39, 134, 0.45), 0.0)
+		.stop(Color::transparent(), 100.0)));
 
 let df_blob_b = const (art_blob + style()
 	.right(Length::pct(0.0))
 	.top(Length::pct(-20.0))
 	.width(Length::pct(34.0))
 	.height(Length::pct(120.0))
-	.raw("background", "radial-gradient(closest-side, rgba(216, 71, 48, 0.5), transparent)"));
+	.background_gradient(Gradient::radial(RadialExtent::ClosestSide)
+		.stop(Color::rgba(216, 71, 48, 0.5), 0.0)
+		.stop(Color::transparent(), 100.0)));
 
 let df_row = const style()
 	.position(Position::Relative)

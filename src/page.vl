@@ -137,7 +137,7 @@ let copy_button = const (style()
 	.width(Length::px(30.0))
 	.height(Length::px(30.0))
 	.radius(Length::px(8.0))
-	.raw("background", "rgba(27, 6, 13, 0.85)")
+	.background(Color::rgba(27, 6, 13, 0.85))
 	.border(hairline_width, hairline_color)
 	.cursor(Cursor::Pointer)
 	.transition("border-color 140ms ease, transform 120ms ease")
@@ -151,7 +151,7 @@ let install_grid = const style()
 	.display(Display::Flex)
 	.flex_direction(FlexDirection::Column)
 	.gap(space(4))
-	.raw("min-width", "0");
+	.min_width(Length::zero());
 
 let install_split = const (style()
 	.display(Display::Grid)
@@ -405,7 +405,7 @@ let diag_stack = const style()
 	.display(Display::Flex)
 	.flex_direction(FlexDirection::Column)
 	.gap(space(3))
-	.raw("min-width", "0");
+	.min_width(Length::zero());
 
 fun showcase_compiler(): View {
 	view("section")
@@ -477,7 +477,7 @@ let card = const style()
 let card_title = const style()
 	.font_family(display_face)
 	.font_size(Length::px(20.0))
-	.raw("line-height", "28px")
+	.line_height_length(Length::px(28.0))
 	.font_weight(600)
 	.margin(space(0));
 
@@ -517,7 +517,7 @@ let button_link_style = const style()
 	.user_select(UserSelect::Off)
 	.transition("background-color 160ms ease, border-color 160ms ease")
 	.hover(style()
-		.raw("background", "rgba(235, 104, 46, 0.12)")
+		.background(Color::rgba(235, 104, 46, 0.12))
 		.border_color(Color::hex("rgba(235, 104, 46, 0.8)")));
 
 fun button_link(href: str, label: str): View {
