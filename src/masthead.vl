@@ -37,7 +37,7 @@ import pkg::theme::{
 // the scroll, which also serves users with smooth scrolling off.
 let topbar = const style()
 	.position(Position::Sticky)
-	.raw("top", "0")
+	.top(Length::zero())
 	.raw("z-index", "100")
 	.raw("background", "rgba(18, 0, 4, calc(var(--nav-fade, 0) * 0.86))")
 	.border_bottom(Length::px(1.0), Color::hex("rgba(249, 223, 231, calc(var(--nav-fade, 0) * 0.10))"))
@@ -115,8 +115,8 @@ let duo_tile_uri = "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/200
 // and gradient move as one.
 let bloom_field = const (style()
 	.position(Position::Absolute)
-	.raw("top", "0")
-	.raw("left", "0")
+	.top(Length::zero())
+	.left(Length::zero())
 	.width(Length::pct(100.0))
 	.height(Length::calc(i"64px + {hero_scale} * 0.570864"))
 	.overflow(Overflow::Hidden)
@@ -125,7 +125,7 @@ let bloom_field = const (style()
 
 let bloom_drift = const style()
 	.position(Position::Absolute)
-	.raw("inset", "0")
+	.inset(Length::zero())
 	.raw("animation", "bloom-drift-a 44s ease-in-out infinite alternate");
 
 // The design's layer blur, literally: the wrapper blurs the whole masked
@@ -134,7 +134,7 @@ let bloom_drift = const style()
 // so its coverage matches the silhouette.
 let bloom_blurwrap = const style()
 	.position(Position::Absolute)
-	.raw("inset", "0")
+	.inset(Length::zero())
 	.raw("filter", i"blur(calc({hero_scale} * 0.052)) saturate(1.25) brightness(1.12) url(#bloom-texture)");
 
 let bloom_band_geometry = const style()
@@ -142,7 +142,7 @@ let bloom_band_geometry = const style()
 	.left(Length::pct(50.0))
 	.transform("translateX(-50%)")
 	.top(Length::calc(i"64px - {hero_scale} * 0.049226"))
-	.raw("width", hero_scale)
+	.width(Length::css(hero_scale))
 	.height(Length::calc(i"{hero_scale} * 0.62009"))
 	.raw("-webkit-mask-size", "100% 100%")
 	.raw("mask-size", "100% 100%");
@@ -159,12 +159,12 @@ let bloom_band_sharp = const (bloom_band_geometry + style()
 // sized to the design's 1500px square and repeating - the second tile's
 // purple edge enters on the right exactly as it does in the design.
 let bloom_gradient = const (bloom_band_sharp + style()
-	.raw("background-image", "radial-gradient(30% 10% ellipse at 61% 24%, rgb(226 184 231), rgb(247 229 249 / 70%) 74%, transparent 80%), radial-gradient(42% 40% ellipse at 62% 40%, rgb(255 106 0 / 95%), rgb(217 118 48 / 65%) 50%, transparent 78%), radial-gradient(61% 67% ellipse at 23% 48%, rgb(175 38 168 / 95%), rgb(237 64 7 / 60%) 45%, transparent 76%), radial-gradient(40% 46% ellipse at 92% 48%, rgba(216, 71, 48, 0.95), rgba(216, 71, 48, 0.7) 45%, transparent 78%), radial-gradient(26% 40% ellipse at 2% 50%, rgba(216, 71, 48, 0.9), transparent 74%), radial-gradient(36% 26% ellipse at 45% 78%, rgba(178, 48, 86, 0.7), transparent 76%), radial-gradient(22% 20% ellipse at 20% 84%, rgba(103, 34, 131, 0.8), transparent 74%), linear-gradient(100deg, #95304d 0%, #8B2786 25%, #EB682E 55%, #D84730 85%, #D84730 100%)")
-	.raw("background-size", i"calc({hero_scale} * 0.78125) calc({hero_scale} * 0.78125)"));
+	.background_image("radial-gradient(30% 10% ellipse at 61% 24%, rgb(226 184 231), rgb(247 229 249 / 70%) 74%, transparent 80%), radial-gradient(42% 40% ellipse at 62% 40%, rgb(255 106 0 / 95%), rgb(217 118 48 / 65%) 50%, transparent 78%), radial-gradient(61% 67% ellipse at 23% 48%, rgb(175 38 168 / 95%), rgb(237 64 7 / 60%) 45%, transparent 76%), radial-gradient(40% 46% ellipse at 92% 48%, rgba(216, 71, 48, 0.95), rgba(216, 71, 48, 0.7) 45%, transparent 78%), radial-gradient(26% 40% ellipse at 2% 50%, rgba(216, 71, 48, 0.9), transparent 74%), radial-gradient(36% 26% ellipse at 45% 78%, rgba(178, 48, 86, 0.7), transparent 76%), radial-gradient(22% 20% ellipse at 20% 84%, rgba(103, 34, 131, 0.8), transparent 74%), linear-gradient(100deg, #95304d 0%, #8B2786 25%, #EB682E 55%, #D84730 85%, #D84730 100%)")
+	.background_size(i"calc({hero_scale} * 0.78125) calc({hero_scale} * 0.78125)"));
 
 let bloom_duo = const (bloom_band + style()
-	.raw("background-image", duo_tile_uri)
-	.raw("background-size", "120px 120px")
+	.background_image(duo_tile_uri)
+	.background_size("120px 120px")
 	.raw("mix-blend-mode", "soft-light"));
 
 fun bloom(): View {
