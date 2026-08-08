@@ -63,7 +63,7 @@ jobs:
       - name: Render the pages
         run: |
           mkdir -p export/playground
-          node dist/server.js &
+          node dist/server.mjs &
           server=$!
           curl -sS --fail --retry 30 --retry-delay 1 --retry-connrefused \
             http://localhost:3000/ -o export/index.html
