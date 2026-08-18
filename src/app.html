@@ -36,9 +36,24 @@
 			font-display: swap;
 			src: url(https://vilan-lang.org/assets/fonts/vilan-display-600-latin.woff2) format("woff2");
 		}
-		html, body { margin: 0; height: 100%; background: #120004; }
-		/* Selection inverts the page: ink on blush. */
-		::selection { background: #F9DFE7; color: #120004; }
+		/* CommitMono V143, the code face for every vilan surface (the ratified
+		   spec, design-language.md 2.3). The variable file: 200-700 is the
+		   font's REAL wght axis range, so declaring it keeps the axis live and
+		   lets the browser refuse to synthesize outside it. font-synthesis:none
+		   for the same reason — a faked bold on a mono face breaks the grid.
+		   The feature settings (ss01-ss05, cv04/cv06/cv08) are NOT set here:
+		   they are a token in theme.vl, applied per code surface. */
+		@font-face {
+			font-family: "CommitMonoV143";
+			font-style: normal;
+			font-weight: 200 700;
+			font-display: swap;
+			font-synthesis: none;
+			src: url(https://vilan-lang.org/assets/fonts/commit-mono-v143.woff2) format("woff2");
+		}
+		html, body { margin: 0; height: 100%; background: var(--down-dim, #120004); }
+		/* Selection inverts the page: the ground on the brightest text. */
+		::selection { background: var(--up-bright, #F9DFE7); color: var(--down-dim, #120004); }
 		/* The hero bloom's drift (the wrapper references this by name). Small
 		   amplitude on purpose — weather, not motion. */
 		@keyframes bloom-drift-a {

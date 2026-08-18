@@ -34,8 +34,19 @@
 			font-display: swap;
 			src: url(https://vilan-lang.org/assets/fonts/vilan-display-600-latin.woff2) format("woff2");
 		}
-		html, body { margin: 0; height: 100%; background: #120004; }
-		::selection { background: #F9DFE7; color: #120004; }
+		/* The code face, declared here for the same reason as the other two:
+		   both shells load the same faces. The editor's own theme moves onto
+		   it in slice 2 (K10) — this slice only makes the face available. */
+		@font-face {
+			font-family: "CommitMonoV143";
+			font-style: normal;
+			font-weight: 200 700;
+			font-display: swap;
+			font-synthesis: none;
+			src: url(https://vilan-lang.org/assets/fonts/commit-mono-v143.woff2) format("woff2");
+		}
+		html, body { margin: 0; height: 100%; background: var(--down-dim, #120004); }
+		::selection { background: var(--up-bright, #F9DFE7); color: var(--down-dim, #120004); }
 		/* The editor host is a plain div until CodeMirror mounts; the widget
 		   and the per-Run iframe both fill whatever box the page gives them.
 		   #app spans the viewport so the workbench can flex to the fold. */
