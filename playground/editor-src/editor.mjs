@@ -347,6 +347,7 @@ function init(selector, doc) {
 				EditorView.updateListener.of((update) => {
 					if (update.docChanged) {
 						persist();
+						refreshPicker();
 						scheduleCheck();
 					}
 				}),
@@ -362,27 +363,81 @@ function init(selector, doc) {
 		}),
 	});
 	placeholder();
-	wirePicker(fragment == null && fallback === doc);
+	wirePicker();
+	refreshPicker();
 	if (fragment == null) {
 		dispatch({ kind: "doc" });
 	}
 }
 
-// The template picker is rendered by the page; the value read needs the DOM,
-// so the wiring lives here and a pick travels as a command event. The select
-// shows Counter when the seeded default is what actually loaded, and holds
-// its placeholder for a custom buffer (restored or shared).
-function wirePicker(seededDefaultLoaded) {
-	const picker = document.getElementById("template");
-	if (!picker) return;
-	if (seededDefaultLoaded) {
-		picker.value = "counter";
+// --- the template picker: which example the buffer is, and whether it still
+// --- is it ---
+//
+// The select carries two facts, and it only ever shows the true one: which
+// seeded example the buffer came from, and whether it has diverged since.
+// Diverged, the select falls back to its placeholder — which the page then
+// labels "Modified — Counter". That single move buys three things: the
+// divergence is visible (K2); the committed value is no longer the template,
+// so picking that same template DOES fire `change` and the pristine copy is
+// reachable again (K3); and a pick can never leave the control showing a
+// choice the buffer has not taken, so a refused replacement (K4) has nothing
+// to undo.
+//
+// `activeTemplate` is content-derived and sticky: a buffer that IS an example
+// verbatim claims it (however it arrived — seeded, restored, or shared), and
+// it keeps the claim through the edits that follow so the marker can name
+// what was modified. A buffer that matches nothing and never did has no
+// template to be modified from, but it is still someone's program: it reads
+// as dirty so the page guards it.
+let activeTemplate = null;
+let reportedTemplate = null;
+let reportedDirty = false;
+
+function templateFor(text) {
+	const examples = window.VILAN_EXAMPLES || {};
+	for (const name of Object.keys(examples)) {
+		if (examples[name] === text) return name;
 	}
-	picker.addEventListener("change", () => {
-		if (picker.value) {
-			dispatch({ kind: "command", command: "pick", name: picker.value });
-		}
-	});
+	return null;
+}
+
+// Point the select at what the buffer actually is, and tell the page when
+// that answer changes. Cheap enough to run on every keystroke: four string
+// comparisons against sources of a few hundred bytes.
+function refreshPicker() {
+	const text = value();
+	const match = templateFor(text);
+	if (match != null) activeTemplate = match;
+	const dirty = activeTemplate == null ? text.trim() !== "" : text !== example(activeTemplate);
+	const picker = document.getElementById("template");
+	// The placeholder holds the seat for everything that is not a pristine
+	// example — a modified buffer, a shared one, an empty one.
+	if (picker) picker.value = !dirty && activeTemplate != null ? activeTemplate : "";
+	if (activeTemplate === reportedTemplate && dirty === reportedDirty) return;
+	reportedTemplate = activeTemplate;
+	reportedDirty = dirty;
+	// `name` is the template the marker should name — empty when the buffer
+	// is pristine, and empty too when it descends from no example at all.
+	dispatch({ kind: "dirty", name: dirty ? (activeTemplate ?? "") : "", changed: dirty });
+}
+
+// The picker is rendered by the page; the value read needs the DOM, so the
+// wiring lives here and a pick travels as a command event — whether it is
+// honored is the page's call, not this file's.
+function wirePicker() {
+	const picker = document.getElementById("template");
+	if (picker) {
+		picker.addEventListener("change", () => {
+			const name = picker.value;
+			// Snap the control back to the buffer's own state before the
+			// page hears about the pick: the select states what IS loaded,
+			// never what has merely been asked for.
+			refreshPicker();
+			if (name) {
+				dispatch({ kind: "command", command: "pick", name });
+			}
+		});
+	}
 	const mode = document.getElementById("mode");
 	if (mode) {
 		mode.addEventListener("change", () => setMode(mode.value));

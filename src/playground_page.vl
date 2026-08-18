@@ -198,6 +198,57 @@ fun template_option(value: str, label: str): View {
 	view("option").attr("value", value).text(label)
 }
 
+/// An example's bare name. The option labels carry the one-line pitch — the
+/// modified marker and the confirm bar want only the name, and want it from
+/// one place.
+fun template_title(name: str): str {
+	match name {
+		"counter" => "Counter",
+		"hello" => "Hello",
+		"styles" => "Styles",
+		"server" => "Server",
+		_ => name,
+	}
+}
+
+// The confirm bar: a replacement destroys whatever is in the buffer, so it
+// asks first. Inline in the Program pane, right above the editor it is about
+// to overwrite — the site has no dialog idiom to borrow, and a modal for one
+// yes/no question would invent one. Built from the same tokens as everything
+// else in this file.
+//
+// It rides inside a bare wrapper because `show()` hides by setting `hidden`,
+// and the UA rule that gives `[hidden]` its `display: none` loses to any
+// author `display` — a flex row would stay on screen. The wrapper takes the
+// hiding; the row keeps the layout.
+let confirm_bar = const style()
+	.display(Display::Flex)
+	.raw("flex-wrap", "wrap")
+	.align_items(AlignItems::Center)
+	.gap(space(3))
+	.background(panel)
+	.border(hairline_width, hairline_color)
+	.radius(space(2))
+	.padding_y(Length::px(10.0))
+	.padding_x(Length::px(14.0))
+	.font_size(Length::px(13.0));
+
+let confirm_question = const style().margin(space(0)).margin_right(Length::auto());
+
+let confirm_button = const (style()
+	.background(ember)
+	.color(blush)
+	.font_weight(600)
+	.border_none()
+	.radius(space(2))
+	.padding_y(Length::px(7.0))
+	.padding_x(Length::px(14.0))
+	.cursor(Cursor::Pointer)
+	.font_family("inherit")
+	.font_size(Length::px(13.0))
+	.hover(style().opacity(0.9))
+	+ no_select);
+
 // --- diagnostics and console ---
 
 let report_pre = const style()
@@ -256,9 +307,13 @@ fun playground_page(
 	can_platform: Signal<bool>,
 	share_label: Signal<str>,
 	mode: Signal<str>,
+	modified_from: Signal<str>,
+	confirm_target: Signal<str>,
 	run: || void,
 	format: || void,
 	share: || void,
+	confirm_replace: || void,
+	cancel_replace: || void,
 ): View {
 	view("div").styled(shell + page_fill).child(top_bar(Signal::new("1"))).child(view("main")
 		.styled(wide_column + workbench)
@@ -308,11 +363,30 @@ fun playground_page(
 							.attr("value", "")
 							.attr("disabled", "true")
 							.attr("hidden", "true")
-							.text("Examples"))
+							.bind_text(modified_from.map(|name| match name {
+								"" => "Examples",
+								_ => i"Modified — {template_title(name)}",
+							})))
 						.child(template_option("counter", "Counter: reactive state"))
 						.child(template_option("hello", "Hello: mount and print"))
 						.child(template_option("styles", "Styles: compile-time CSS"))
 						.child(template_option("server", "Server: typed HTTP, checked").show(can_platform))))
+				.child(view("div")
+					.attr("role", "alert")
+					.show(confirm_target.map(|name| name != ""))
+					.child(view("div")
+						.styled(confirm_bar)
+						.child(view("p")
+							.styled(confirm_question)
+							.bind_text(confirm_target.map(|name| i"Replace the current program with {template_title(name)}? The edits are not kept.")))
+						.child(view("button")
+							.styled(example_button)
+							.text("Keep editing")
+							.on("click", || cancel_replace()))
+						.child(view("button")
+							.styled(confirm_button)
+							.text("Replace")
+							.on("click", || confirm_replace()))))
 				.child(view("div")
 					.styled(editor_host)
 					.attr("id", "editor")
@@ -358,9 +432,10 @@ fun playground_page(
 	// The bundle wires the change event (the value read needs
 	// the DOM); a pick arrives as a "command" event.
 
-	// The placeholder holds the seat while the buffer is
-	// custom (restored or shared); the bundle points the
-	// select at Counter when the seeded default loaded.
+	// The placeholder holds the seat for every buffer that is not
+	// a pristine example — restored, shared, or edited — and names
+	// what was edited when there is something to name. The bundle
+	// owns the value; this only labels it.
 
 	// Picking this also flips the mode to Server; hidden
 	// (with the mode select) on a wasm without compile_for.

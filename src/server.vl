@@ -80,7 +80,11 @@ async fun main() {
 		wasm_manifest = fs::read_file_to_str("playground/wasm/manifest.json");
 		for name in read_dir("playground/wasm") {
 			if name.starts_with("v") {
-				wasm_pairs.push(WasmPair { version = name, glue = fs::read_file_to_str(i"playground/wasm/{name}/vilan_wasm.js"), gz = read_file_raw(i"playground/wasm/{name}/vilan_wasm_bg.wasm.gz") });
+				wasm_pairs.push(WasmPair {
+					version = name,
+					glue = fs::read_file_to_str(i"playground/wasm/{name}/vilan_wasm.js"),
+					gz = read_file_raw(i"playground/wasm/{name}/vilan_wasm_bg.wasm.gz"),
+				});
 			}
 		}
 	}
@@ -102,7 +106,7 @@ async fun main() {
 		run_with_owner(owner, || {
 			let no_diagnostics: Signal<List<DiagRow>> = Signal::new([]);
 			let no_console: Signal<List<ConsoleRow>> = Signal::new([]);
-			markup = render(playground_page(Signal::new("Loading the compiler…"), no_diagnostics, no_console, Signal::new(false), Signal::new(false), Signal::new("Share"), Signal::new("browser"), || {}, || {}, || {}));
+			markup = render(playground_page(Signal::new("Loading the compiler…"), no_diagnostics, no_console, Signal::new(false), Signal::new(false), Signal::new("Share"), Signal::new("browser"), Signal::new(""), Signal::new(""), || {}, || {}, || {}, || {}, || {}));
 		});
 		html(playground_shell, markup)
 	};
