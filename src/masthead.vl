@@ -19,12 +19,15 @@ import std::style::{
 import std::ui::{ View, view };
 import pkg::theme::{
 	assets,
-	blush,
+	bloom_palette,
 	column,
 	display_face,
-	ink,
+	down_dim,
+	motion_ambient,
 	no_drag,
 	no_select,
+	up_bright,
+	up_normal,
 	visually_hidden,
 };
 
@@ -35,12 +38,16 @@ import pkg::theme::{
 // top, 1 = a full toolbar-height down), and background, divider, and blur
 // are all that variable times their full value. No transition - the fade IS
 // the scroll, which also serves users with smooth scrolling off.
+//
+// Both fading values are the token seen through the fade: the relative-color
+// form keeps `--down-dim` and `--stroke-hard` as the identities underneath, so
+// the bar re-themes with everything else instead of pinning the old hexes.
 let topbar = const style()
 	.position(Position::Sticky)
 	.top(Length::zero())
 	.raw("z-index", "100")
-	.raw("background", "rgba(18, 0, 4, calc(var(--nav-fade, 0) * 0.86))")
-	.border_bottom(Length::px(1.0), Color::hex("rgba(249, 223, 231, calc(var(--nav-fade, 0) * 0.10))"))
+	.raw("background", "rgb(from var(--down-dim) r g b / calc(var(--nav-fade, 0) * 0.86))")
+	.border_bottom(Length::px(1.0), Color::hex("rgb(from var(--stroke-hard) r g b / calc(var(--nav-fade, 0) * 0.9))"))
 	.raw("backdrop-filter", "blur(calc(var(--nav-fade, 0) * 14px))");
 
 let nav_row = const style()
@@ -59,12 +66,15 @@ let nav_brand = const style()
 
 let nav_links = const style().display(Display::Flex).gap(space(6));
 
+// Tone carries the state, not opacity: the links rest at the body tier and
+// come up to the bright one under the pointer.
 let nav_link = const style()
-	.color(blush)
-	.opacity(0.8)
+	.color(up_normal)
+	.font_size(Length::px(13.0))
 	.text_decoration("none")
 	.user_select(UserSelect::Off)
-	.hover(style().opacity(1.0));
+	.transition(i"color {motion_ambient}")
+	.hover(style().color(up_bright));
 
 fun top_bar(scroll_fade: Signal<str>): View {
 	view("nav")
@@ -88,6 +98,7 @@ fun top_bar(scroll_fade: Signal<str>): View {
 					.styled(nav_link)
 					.attr("href", "/docs/tour/hello-vilan.html")
 					.text("Learn"))
+				.child(view("a").styled(nav_link).attr("href", "/playground").text("Playground"))
 				.child(view("a").styled(nav_link).attr("href", "/docs/").text("Docs"))))
 }
 
@@ -113,6 +124,8 @@ let duo_tile_uri = "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/200
 // The field clips horizontal overflow below the 1100px floor and spans the
 // toolbar + hero + blur tail; the drift wrapper animates inside it so mask
 // and gradient move as one.
+// It also carries `bloom_palette`, which scopes the art's spine tokens to
+// everything the bloom draws inside it.
 let bloom_field = const (style()
 	.position(Position::Absolute)
 	.top(Length::zero())
@@ -121,7 +134,8 @@ let bloom_field = const (style()
 	.height(Length::calc(i"64px + {hero_scale} * 0.570864"))
 	.overflow(Overflow::Hidden)
 	.raw("pointer-events", "none")
-	+ no_select);
+	+ no_select
+	+ bloom_palette);
 
 let bloom_drift = const style()
 	.position(Position::Absolute)
@@ -159,7 +173,7 @@ let bloom_band_sharp = const (bloom_band_geometry + style()
 // sized to the design's 1500px square and repeating - the second tile's
 // purple edge enters on the right exactly as it does in the design.
 let bloom_gradient = const (bloom_band_sharp + style()
-	.background_image("radial-gradient(30% 10% ellipse at 61% 24%, rgb(226 184 231), rgb(247 229 249 / 70%) 74%, transparent 80%), radial-gradient(42% 40% ellipse at 62% 40%, rgb(255 106 0 / 95%), rgb(217 118 48 / 65%) 50%, transparent 78%), radial-gradient(61% 67% ellipse at 23% 48%, rgb(175 38 168 / 95%), rgb(237 64 7 / 60%) 45%, transparent 76%), radial-gradient(40% 46% ellipse at 92% 48%, rgba(216, 71, 48, 0.95), rgba(216, 71, 48, 0.7) 45%, transparent 78%), radial-gradient(26% 40% ellipse at 2% 50%, rgba(216, 71, 48, 0.9), transparent 74%), radial-gradient(36% 26% ellipse at 45% 78%, rgba(178, 48, 86, 0.7), transparent 76%), radial-gradient(22% 20% ellipse at 20% 84%, rgba(103, 34, 131, 0.8), transparent 74%), linear-gradient(100deg, #95304d 0%, #8B2786 25%, #EB682E 55%, #D84730 85%, #D84730 100%)")
+	.background_image("radial-gradient(30% 10% ellipse at 61% 24%, rgb(226 184 231), rgb(247 229 249 / 70%) 74%, transparent 80%), radial-gradient(42% 40% ellipse at 62% 40%, rgb(255 106 0 / 95%), rgb(217 118 48 / 65%) 50%, transparent 78%), radial-gradient(61% 67% ellipse at 23% 48%, rgb(175 38 168 / 95%), rgb(237 64 7 / 60%) 45%, transparent 76%), radial-gradient(40% 46% ellipse at 92% 48%, rgba(216, 71, 48, 0.95), rgba(216, 71, 48, 0.7) 45%, transparent 78%), radial-gradient(26% 40% ellipse at 2% 50%, rgba(216, 71, 48, 0.9), transparent 74%), radial-gradient(36% 26% ellipse at 45% 78%, rgba(178, 48, 86, 0.7), transparent 76%), radial-gradient(22% 20% ellipse at 20% 84%, rgba(103, 34, 131, 0.8), transparent 74%), linear-gradient(100deg, var(--bloom-plum) 0%, var(--bloom-violet) 25%, var(--primary) 55%, var(--bloom-scarlet) 85%, var(--bloom-scarlet) 100%)")
 	.background_size(i"calc({hero_scale} * 0.78125) calc({hero_scale} * 0.78125)"));
 
 let bloom_duo = const (bloom_band + style()
@@ -207,7 +221,7 @@ let hero_tagline = const style()
 	.raw("font-size", i"max(18px, {hero_scale} * 0.01667)")
 	.line_height(1.5)
 	.font_weight(600)
-	.color(ink)
+	.color(down_dim)
 	.margin(space(0))
 	.text_align(TextAlign::Center);
 

@@ -36,7 +36,7 @@ You need the `vilan` CLI on your PATH — grab it from the
 ```sh
 vilan run .            # build every entry and serve http://localhost:3000/
 vilan run . --watch    # the dev loop: rebuild + HMR on save
-vilan build .          # compile only (dist/client.js, dist/client.css, dist/server.js, dist/playground.*)
+vilan build .          # compile only (dist/client.js, dist/client.css, dist/server.mjs, dist/playground.*)
 vilan fmt              # format the sources
 ```
 

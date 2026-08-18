@@ -1,6 +1,6 @@
-// The design tokens and base vocabulary every module shares: the brand
-// palette, type faces, asset roots, and the page-wide layout/texture styles
-// (shell, column, stack, reveal, dividers, grain).
+// The design tokens and base vocabulary every module shares: the semantic
+// role palette, type faces, asset roots, and the page-wide layout/texture
+// styles (shell, column, stack, reveal, dividers, grain).
 
 import std::style::{
 	Color,
@@ -15,22 +15,161 @@ import std::style::{
 };
 import std::ui::{ View, view };
 
-// --- the brand palette ---
+// --- the token system ---
+//
+// The role vocabulary is kolt's, adopted verbatim (design-language.md §2.1,
+// ruling Q5): `up-*` is what sits ON the page (text), `down-*` is what the
+// page is MADE of (surfaces), `stroke-*` are the hairlines between them,
+// `primary` is the one accent. Naming a role rather than a swatch is what
+// makes restyling a surface a token edit instead of a component hunt.
+//
+// Each token is a CSS custom property carrying its own value — std's own
+// `ramp`/`space` mechanism — so the compiled stylesheet gets one `:root` line
+// per token and a THEME SWAP IS A TOKEN SWAP: slice 3's light theme
+// redeclares this block behind a selector and every surface below follows on
+// its own. Nothing past this block names a hex.
 
-let ink = const Color::hex("#120004");
-let blush = const Color::hex("#F9DFE7");
-let panel = const Color::hex("#1B060D");
-let ember = const Color::hex("#EB682E");
-let rose = const Color::hex("#E5AFD9");
+/// A design token: the value lives in one `:root` custom property, so every
+/// surface consuming the token re-themes when that property is redeclared.
+fun token(name: str, value: str): Color {
+	Color { css = i"var(--{name})", root = i":root\{--{name}:{value}\}" }
+}
 
-let assets = "https://vilan-lang.org/assets";
-let repo = "https://github.com/vilan-lang/vilan";
+// The brand palette, mapped into the roles per §2.1 — ink family to the
+// `down` layers, blush family to the `up` hierarchy, ember to `primary`, rose
+// to the secondary `accent`. The two ladders are the only derived values, and
+// both step deliberately rather than by a formula:
+//
+//   down  #120004 -> #1B060D -> #28101A
+//         ink, then the existing panel, then one more of the SAME step. The
+//         brand ships only the first two (a +9/+6/+9 rise); the third
+//         continues it at +13/+10/+13 so a raised surface reads as raised
+//         next to a panel that sits on the ground. Keeping the first two at
+//         their shipped hexes is deliberate: the page ground and every
+//         existing panel do not move, so this slice re-skins without
+//         re-grounding the site (and the playground, which shares `shell`,
+//         stays exactly where it was).
+//
+//   up    #F9DFE7 -> #D8BEC8 -> #9A7F8B
+//         blush, then two steps pulled toward the ground along the same warm
+//         pink. These replace the opacity-dimmed text the page used to do by
+//         hand (blush at .82/.78/.55): tone becomes a role, not a per-element
+//         number, which is the whole point of the ladder. Contrast on the
+//         `down-dim` ground is 16.3:1 / 11.9:1 / 5.6:1 — the dim tier still
+//         clears 4.5:1, so nothing in the hierarchy is decorative-only.
+//
+// `stroke-hard` #402C32 is the visible hairline; `stroke-soft` is that hue at
+// half strength, which lands within a point per channel of the 10%-blush
+// dividers the page already drew — the rules stay put, they just stop being a
+// literal.
+//
+// Only the semantic hues are fixed across themes, per kolt: zinc-100,
+// amber-400, rose-400, emerald-500.
+
+// The `down` ladder — surfaces, dimmest (the ground) to brightest (raised).
+let down_dim = const token("down-dim", "#120004");
+let down_normal = const token("down-normal", "#1B060D");
+let down_bright = const token("down-bright", "#28101A");
+
+// The `up` ladder — text, brightest (headings) to dimmest (captions).
+let up_bright = const token("up-bright", "#F9DFE7");
+let up_normal = const token("up-normal", "#D8BEC8");
+let up_dim = const token("up-dim", "#9A7F8B");
+
+// The state overlays. Six and ten percent, not kolt's ten and fifteen: this
+// ground is far darker than kolt's #282420, so the same alpha reads as a much
+// larger step — these match its PERCEIVED hover and press.
+let down_hover = const token("down-hover", "rgba(255, 255, 255, 0.06)");
+let down_active = const token("down-active", "rgba(255, 255, 255, 0.10)");
+
+// The hairlines.
+let stroke_hard = const token("stroke-hard", "#402C32");
+let stroke_soft = const token("stroke-soft", "rgba(64, 44, 50, 0.5)");
+
+// The one accent, and what sits on top of it.
+let primary = const token("primary", "#EB682E");
+let primary_on = const token("primary-on", "#120004");
+
+// The secondary accent — rose. Code literals and the quieter highlights.
+let accent = const token("accent", "#E5AFD9");
+
+// The fixed semantic hues (Tailwind's, as kolt pins them). Unused by this
+// slice's surfaces; the playground's diagnostics pane picks them up in slice
+// 2, which is when their `:root` lines start being emitted.
+let up_info = const token("up-info", "#F4F4F5");
+let up_caution = const token("up-caution", "#FBBF24");
+let up_error = const token("up-error", "#FB7185");
+let down_info = const token("down-info", "#10B981");
+let down_caution = const token("down-caution", "#FBBF24");
+let down_danger = const token("down-danger", "#FB7185");
+
+// --- the hero palette (the fenced indulgence, ruling Q1) ---
+//
+// The bloom is the one marketing-register surface left on the page, and it is
+// built FROM tokens like everything else: its gradient spine is declared here
+// and scoped onto the bloom element, so the art re-themes with the system
+// instead of pinning hexes inside a background-image string. It rides the
+// element rather than `:root` because a token only reaches the stylesheet
+// through a typed setter, and these are consumed by a raw `background-image`.
+//
+// The spine is all that is tokenised: the bloom's radial overlays keep the
+// designer's own composition, which is precisely the indulgence being fenced
+// — art, not a role the rest of the site may reach for.
+let bloom_palette = const style()
+	.raw("--bloom-plum", "#95304D")
+	.raw("--bloom-violet", "#8B2786")
+	.raw("--bloom-scarlet", "#D84730");
+
+// --- shape and motion tokens ---
+
+// Radius by elevation, per kolt's 4/6/8: flat things that sit IN text, panels
+// that sit ON the ground, and surfaces that float above it.
+let radius_flat = const Length::px(4.0);
+let radius_panel = const Length::px(6.0);
+let radius_float = const Length::px(8.0);
+
+let hairline_width = const Length::px(1.0);
+
+// Motion stays under 200ms everywhere (§2.2): ambient state changes are
+// nearly instant, and only deliberate affordances get the longer beat.
+let motion_ambient = "80ms ease";
+let motion_deliberate = "160ms ease";
+
+// --- typography tokens ---
 
 let body_face = "'Inter', system-ui, -apple-system, sans-serif";
 let display_face = "'Vilan Display', system-ui, -apple-system, sans-serif";
-let mono = "ui-monospace, SFMono-Regular, Menlo, Consolas, monospace";
-let hairline_width = const Length::px(1.0);
-let hairline_color = const Color::hex("rgba(249, 223, 231, 0.10)");
+
+// CommitMono V143, self-hosted, per the ratified spec (§2.3). The face is the
+// variable font — the @font-face in app.html/playground.html declares its real
+// axis range (wght 200-700) so the weight axis is live.
+let code_face = "'CommitMonoV143', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace";
+
+// The owner's own editor settings, ratified as the canonical form for EVERY
+// vilan code surface: stylistic sets ss01-ss05 and character variants cv04,
+// cv06, cv08 — which is also the ligature ruling, on. One definition; slice 2
+// generates it outward to the CodeMirror theme (K10).
+let code_features = "\"ss01\", \"ss02\", \"ss03\", \"ss04\", \"ss05\", \"cv04\", \"cv06\", \"cv08\"";
+
+/// Every code surface wears this: the face and its feature settings together,
+/// so the two can never drift apart.
+let code_type = const style().font_family(code_face).raw("font-feature-settings", code_features);
+
+// --- slice-1 aliases ---
+//
+// The old swatch names, pointing at the roles that replaced them, so the
+// modules this slice does not touch keep compiling unchanged. SLICE 2 REMOVES
+// THESE — when it lands, every consumer names a role instead.
+let ink = const down_dim;
+let blush = const up_bright;
+let panel = const down_normal;
+let ember = const primary;
+let rose = const accent;
+let mono = const code_face;
+let hairline_color = const stroke_soft;
+
+let assets = "https://vilan-lang.org/assets";
+let repo = "https://github.com/vilan-lang/vilan";
 
 // The grain that rides every piece of art: an SVG turbulence tile, inline —
 // still zero fetches.
@@ -39,8 +178,8 @@ let grain_tile = "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/
 // --- shared styles ---
 
 let shell = const style()
-	.background(ink)
-	.color(blush)
+	.background(down_dim)
+	.color(up_normal)
 	.min_height(Length::pct(100.0))
 	.font_family(body_face)
 	.font_size(Length::px(14.0))
@@ -84,12 +223,15 @@ let heading = const (style()
 	.font_size(Length::px(32.0))
 	.line_height_length(Length::px(48.0))
 	.font_weight(600)
+	.color(up_bright)
 	.margin(space(0))
 	+ reveal);
 
-let lead = const (style().opacity(0.82).max_width(Length::rem(36.0)).margin(space(0)) + reveal);
+// The section lead. Tone is a role now, not an opacity — `up-normal` is the
+// body tier the shell already sets, named here so the lead re-themes with it.
+let lead = const (style().color(up_normal).max_width(Length::rem(36.0)).margin(space(0)) + reveal);
 
-let rule_line = const style().height(Length::px(1.0)).background(Color::rgba(249, 223, 231, 0.10));
+let rule_line = const style().height(Length::px(1.0)).background(stroke_soft);
 
 fun divider(): View {
 	view("div").styled(column).child(view("div").styled(rule_line))

@@ -1,10 +1,10 @@
 # The vilan promo website — built with vilan itself.
 #
-# One package, two entries (the walkthrough shape): `src/page.vl` is the one
-# `fun page(): View` both entries build. `std::ui` resolves per entry platform —
-# live DOM in the client build, an HTML string tree in the server build — so the
-# server renders the page to markup for first paint and the client rebuilds it
-# live and replaces on boot.
+# One package, three entries: the client and the server both build the one
+# `fun page(): View` in `src/page.vl`, and the playground builds its own.
+# `std::ui` resolves per entry platform — live DOM in the browser builds, an
+# HTML string tree in the server build — so the server renders each page to
+# markup for first paint and the browser rebuilds it live and replaces on boot.
 #
 #   vilan run .            build everything and serve http://localhost:3000/
 #   vilan run . --watch    the dev loop (rebuild + HMR on save)

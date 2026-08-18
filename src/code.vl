@@ -4,33 +4,51 @@
 
 import std::style::{ Color, Length, Overflow, WhiteSpace, space, style };
 import std::ui::{ View, view };
-import pkg::theme::{ blush, ember, hairline_color, hairline_width, mono, panel, rose };
+import pkg::theme::{
+	accent,
+	code_type,
+	down_bright,
+	down_normal,
+	hairline_width,
+	primary,
+	radius_flat,
+	radius_panel,
+	stroke_hard,
+	up_bright,
+	up_normal,
+};
 
 // --- code panels ---
 
-let code_pre = const style()
-	.background(panel)
-	.radius(space(3))
+// A panel sits ON the ground: `down-normal` behind it, a hard hairline around
+// it, and the panel radius. `code_type` carries the face AND its feature
+// settings, so no code surface can wear one without the other.
+let code_pre = const (style()
+	.background(down_normal)
+	.radius(radius_panel)
 	.padding(space(5))
 	.margin(space(0))
 	.overflow(Overflow::Auto)
 	.font_size(Length::px(13.0))
 	.line_height(1.65)
-	.font_family(mono)
-	.border(hairline_width, hairline_color)
-	.white_space(WhiteSpace::Pre);
+	.border(hairline_width, stroke_hard)
+	.white_space(WhiteSpace::Pre)
+	+ code_type);
 
 // The palette the playground's editor also speaks (editor-src/editor.mjs
-// hardcodes the same values — resync both when either moves): ember
-// keywords, rose literals, bold-blush types, and peach — the one derived
-// tint (ember pulled toward blush) — for callables. An i-string's hole
-// braces mark themselves in ember.
-let tk_keyword = const style().color(ember);
-let tk_string = const style().color(rose);
-let tk_plain = const style().opacity(0.92);
+// hardcodes the same values — resync both when either moves; slice 2's K10
+// ends the hand-sync by generating the editor theme from these tokens):
+// `primary` keywords, `accent` literals, bright bold types, and peach — the
+// one derived tint, primary pulled toward the up ladder — for callables. An
+// i-string's hole braces mark themselves in `primary`.
+let tk_keyword = const style().color(primary);
+let tk_string = const style().color(accent);
+// Plain code text is the body tier; types below claim the bright tier, so the
+// panel gets its hierarchy from the `up` ladder rather than from opacity.
+let tk_plain = const style().color(up_normal);
 let tk_callable = const style().color(Color::hex("#F0A886"));
-let tk_type = const style().color(blush).font_weight(600);
-let tk_hole = const style().color(ember);
+let tk_type = const style().color(up_bright).font_weight(600);
+let tk_hole = const style().color(primary);
 
 fun kw(text: str): View {
 	view("span").styled(tk_keyword).text(text)
@@ -73,21 +91,23 @@ fun code_panel(lines: List<View>): View {
 
 // Inline code leaf — `[rpc]`, `vilan upgrade`, and friends read as code, not
 // bare prose. The linked flavor also jumps to the docs.
-let leaf_style = const style()
-	.font_family(mono)
+// A leaf is a chip raised out of the prose it sits in: `down-bright`, the
+// flat radius, and the tightest padding on the page.
+let leaf_style = const (style()
 	.font_size(Length::px(12.0))
-	.background(Color::rgba(27, 6, 13, 0.9))
-	.border(hairline_width, hairline_color)
-	.radius(Length::px(6.0))
+	.background(down_bright)
+	.border(hairline_width, stroke_hard)
+	.radius(radius_flat)
 	.padding_y(Length::px(1.0))
 	.padding_x(Length::px(6.0))
-	.white_space(WhiteSpace::Nowrap);
+	.white_space(WhiteSpace::Nowrap)
+	+ code_type);
 
 let leaf_link_style = const (leaf_style + style()
-	.color(blush)
-	.text_decoration("underline dotted rgba(235, 104, 46, 0.7) 1px")
+	.color(up_bright)
+	.text_decoration("underline dotted rgb(from var(--primary) r g b / 0.7) 1px")
 	.raw("text-underline-offset", "3px")
-	.hover(style().border_color(Color::hex("rgba(235, 104, 46, 0.6)"))));
+	.hover(style().border_color(primary)));
 
 fun leaf(text: str): View {
 	view("code").styled(leaf_style).text(text)
