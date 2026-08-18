@@ -107,7 +107,9 @@ impl CompilerEvent {
 	[extern(get, "platform")]
 	external fun platform(self): str;
 
-	/// On the "formatted" event: whether the buffer actually changed.
+	/// On the "formatted" event: whether the buffer actually changed. On the
+	/// "dirty" event: whether the buffer has diverged from the example it
+	/// came from (or, for a buffer that came from no example, is non-empty).
 	[extern(get, "changed")]
 	external fun changed(self): bool;
 
@@ -116,12 +118,14 @@ impl CompilerEvent {
 	[extern(get, "copied")]
 	external fun copied(self): bool;
 
-	/// On the "command" event: what the editor or the template picker asked
-	/// for ("run", "format", "pick").
+	/// On the "command" event: what the editor, the template picker or the
+	/// mode select asked for ("run", "format", "pick", "mode").
 	[extern(get, "command")]
 	external fun command(self): str;
 
-	/// On a "pick" command: the chosen example's name.
+	/// On a "pick" command: the chosen example's name. On a "mode" command:
+	/// the leg. On the "dirty" event: the example the buffer was modified
+	/// from, empty when there is none to name.
 	[extern(get, "name")]
 	external fun name(self): str;
 
@@ -182,6 +186,21 @@ fun main() {
 	let share_label = Signal::new("Share");
 	let next_row_id = Shared::new(0);
 
+	// The buffer's relationship to the seeded examples, as the bundle reports
+	// it. `modified_from` names the example the picker's marker should call
+	// out (empty when the buffer is a pristine example, and empty too when it
+	// descends from none); `buffer_dirty` is the broader fact — there is work
+	// in the buffer that a replacement would destroy — and it is what gates
+	// the confirmation. A shared or restored program is nobody's template but
+	// it is still somebody's program.
+	let modified_from = Signal::new("");
+	let buffer_dirty = Shared::new(false);
+
+	// The example a pending replacement would load, empty when none is
+	// pending. It is the confirm bar's whole state: what it asks about, and
+	// whether it is there at all.
+	let confirm_target = Signal::new("");
+
 	let run = || {
 		if request_compile(editor_value()) {
 			status.set("Compiling…");
@@ -201,7 +220,7 @@ fun main() {
 	// An example carries its leg: picking the server example flips the mode
 	// to node (and any other example flips it back), BEFORE the doc loads so
 	// the auto-run compiles under the right platform.
-	let pick = |name: str| {
+	let load_example = |name: str| {
 		let platform = match name {
 			"server" => "node",
 			_ => "browser",
@@ -212,6 +231,30 @@ fun main() {
 		console_lines.set([]);
 		run();
 	};
+
+	// Every replacement lands here — another example, or the same one again
+	// (the picker offers that once the buffer diverges, which is the only way
+	// back to a pristine copy). A buffer with work in it gets asked first;
+	// the answer is the confirm bar's, and until it comes nothing moves. The
+	// bundle already keeps the select pointed at what is actually loaded, so
+	// a refusal has nothing to put back.
+	let pick = |name: str| {
+		if buffer_dirty.read() {
+			confirm_target.set(name);
+		} else {
+			load_example(name);
+		}
+	};
+
+	let confirm_replace = || {
+		let name = confirm_target.get();
+		confirm_target.set("");
+		if name != "" {
+			load_example(name);
+		}
+	};
+
+	let cancel_replace = || confirm_target.set("");
 
 	// Run once on arrival, when the compiler is up AND the initial doc is
 	// settled (a shared link inflates asynchronously; racing it would
@@ -251,7 +294,15 @@ fun main() {
 		mut rows: List<DiagRow> = [];
 		mut id = next_row_id.read();
 		for diagnostic in event.diagnostics() {
-			rows.push(DiagRow { id = id, severity = diagnostic.severity(), file = diagnostic.file(), line = diagnostic.line() + 1, column = diagnostic.column() + 1, message = diagnostic.message(), note = diagnostic.note() });
+			rows.push(DiagRow {
+				id = id,
+				severity = diagnostic.severity(),
+				file = diagnostic.file(),
+				line = diagnostic.line() + 1,
+				column = diagnostic.column() + 1,
+				message = diagnostic.message(),
+				note = diagnostic.note(),
+			});
 			id = id + 1;
 		}
 		next_row_id.write() = id;
@@ -259,7 +310,7 @@ fun main() {
 		rows.len()
 	};
 
-	let _root = mount_root("app", || playground_page(status, diagnostics, console_lines, can_format, can_platform, share_label, mode, run, format, share));
+	let _root = mount_root("app", || playground_page(status, diagnostics, console_lines, can_format, can_platform, share_label, mode, modified_from, confirm_target, run, format, share, confirm_replace, cancel_replace));
 
 	editor_init("#editor", example_source("counter"));
 
@@ -279,6 +330,15 @@ fun main() {
 		} else if kind == "doc" {
 			doc_ready.write() = true;
 			run_on_arrival();
+		} else if kind == "dirty" {
+			buffer_dirty.write() = event.changed();
+			modified_from.set(event.name());
+			// A replacement the visitor is still deciding about is stale the
+			// moment the buffer becomes replaceable — a Format or an undo
+			// back to the pristine text answers the question by itself.
+			if !event.changed() {
+				confirm_target.set("");
+			}
 		} else if kind == "command" {
 			let command = event.command();
 			if command == "run" {
