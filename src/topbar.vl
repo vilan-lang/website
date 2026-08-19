@@ -1,0 +1,117 @@
+// The site chrome: the sticky scroll-faded toolbar every surface wears — the
+// landing page, the playground, and (exported by the chrome leg, see
+// chrome.vl) the book. Its own module so a leg that wants only the bar reaches
+// only the bar's rules: the masthead's bloom and hero are the landing page's.
+
+import std::reactive::Signal;
+import std::style::{
+	AlignItems,
+	Color,
+	Display,
+	JustifyContent,
+	Length,
+	Position,
+	UserSelect,
+	space,
+	style,
+};
+import std::ui::{ View, view };
+import pkg::theme::{
+	assets,
+	column,
+	down_dim,
+	motion_ambient,
+	no_drag,
+	stroke_hard,
+	up_bright,
+	up_normal,
+};
+
+// Sticky across the whole page, its chrome linked 1:1 to scroll position:
+// the client publishes --nav-fade as scroll/64 clamped to [0,1] (0 = page
+// top, 1 = a full toolbar-height down), and background, divider, and blur
+// are all that variable times their full value. No transition - the fade IS
+// the scroll, which also serves users with smooth scrolling off.
+
+/// A token seen through the fade: the relative-color form keeps the role as
+/// the identity underneath, so the bar re-themes with everything else instead
+/// of pinning the old hexes — and the token's own `:root` line travels with
+/// it, so a stylesheet that reaches only this bar still declares what it names.
+fun faded(role: Color, strength: str): Color {
+	Color {
+		css = i"rgb(from {role.css} r g b / calc(var(--nav-fade, 0) * {strength}))",
+		root = role.root,
+	}
+}
+
+let topbar = const style()
+	.position(Position::Sticky)
+	.top(Length::zero())
+	.raw("z-index", "100")
+	.background(faded(down_dim, "0.86"))
+	.border_bottom(Length::px(1.0), faded(stroke_hard, "0.9"))
+	.raw("backdrop-filter", "blur(calc(var(--nav-fade, 0) * 14px))");
+
+let nav_row = const style()
+	.display(Display::Flex)
+	.align_items(AlignItems::Center)
+	.justify_content(JustifyContent::Between)
+	.height(Length::px(64.0));
+
+let nav_brand = const style()
+	.display(Display::Flex)
+	.align_items(AlignItems::Center)
+	.gap(space(3))
+	.font_weight(600)
+	.letter_spacing(Length::em(0.35))
+	.font_size(Length::px(13.0));
+
+// The mark follows `up-bright` like the wordmark text beside it: the brand
+// asset is one colour, so it is drawn as a mask over the role rather than as
+// an <img> — an image is blush on every ground, which is invisible on the
+// light one (and in the book, wrong whenever the book's theme is not the
+// OS's). 400x200 is the asset's own box; 18px tall keeps the old size.
+let nav_mark = const style()
+	.display(Display::Block)
+	.width(Length::px(36.0))
+	.height(Length::px(18.0))
+	.background(up_bright)
+	.raw("-webkit-mask", i"url({assets}/mark.svg) center / contain no-repeat")
+	.raw("mask", i"url({assets}/mark.svg) center / contain no-repeat");
+
+let nav_links = const style().display(Display::Flex).gap(space(6));
+
+// Tone carries the state, not opacity: the links rest at the body tier and
+// come up to the bright one under the pointer.
+let nav_link = const style()
+	.color(up_normal)
+	.font_size(Length::px(13.0))
+	.text_decoration("none")
+	.user_select(UserSelect::Off)
+	.transition(i"color {motion_ambient}")
+	.hover(style().color(up_bright));
+
+// Every href is absolute from the site root: the same bar is served from /,
+// /playground/, and every /docs/ page, so a relative target would resolve
+// against whichever page happens to carry it.
+fun top_bar(scroll_fade: Signal<str>): View {
+	view("nav")
+		.styled(topbar)
+		.style_var("--nav-fade", scroll_fade)
+		.child(view("div")
+			.styled(column + nav_row)
+			.child(view("a")
+				.styled(nav_brand + nav_link)
+				.attr("href", "/")
+				.child(view("span").styled(nav_mark + no_drag).attr("aria-hidden", "true"))
+				.child(view("span").text("VILAN")))
+			.child(view("div")
+				.styled(nav_links)
+				.child(view("a").styled(nav_link).attr("href", "/#install").text("Install"))
+				.child(view("a")
+					.styled(nav_link)
+					.attr("href", "/docs/tour/hello-vilan.html")
+					.text("Learn"))
+				.child(view("a").styled(nav_link).attr("href", "/playground/").text("Playground"))
+				.child(view("a").styled(nav_link).attr("href", "/docs/").text("Docs"))))
+}

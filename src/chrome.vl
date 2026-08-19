@@ -1,0 +1,45 @@
+// The chrome export: the masthead rendered once, as a fragment, for the book.
+//
+// vilan-lang.org/docs/ is mdBook's output, not this package's — but its pages
+// should wear the same masthead as the landing page and the playground, and
+// that masthead must never be hand-copied (its classes are build hashes). So
+// this leg renders `top_bar` through the same SSR path the server uses and
+// writes the result out as two files the pages repo serves under /chrome/:
+//
+//   header.html  the rendered <nav>, one root element, nothing around it —
+//                what the book's docs.yml copies in as theme/header.hbs
+//   header.css   this leg's own emitted stylesheet: exactly the rules the
+//                masthead reaches and no other — what the book's head.hbs
+//                links
+//
+// The stylesheet names every colour as a `var(--role)` and declares the
+// site's defaults at `:root` (specificity 0,1,0). The book declares the same
+// roles on `html.light` / `html.navy`, later in its <head> and one level more
+// specific, so the masthead follows whichever theme the BOOK is showing — the
+// fragment takes the host's palette, never brings its own. Usage:
+//
+//   node dist/chrome.mjs <out-dir>      (deploy.yml: export/chrome)
+
+import std::fs;
+import std::print;
+import std::process::args;
+import std::reactive::{ Owner, Signal, run_with_owner };
+import std::ui::render;
+import pkg::topbar::top_bar;
+
+async fun main() {
+	let out = args()[0];
+	// The bar at full fade: the page under it is the book's, which scrolls
+	// the whole page rather than its content, so the sticky bar always sits
+	// on a painted ground — the same constant the playground page passes.
+	let owner = Owner::new();
+	mut markup = "";
+	run_with_owner(owner, || {
+		markup = render(top_bar(Signal::new("1")));
+	});
+	fs::write_file(i"{out}/header.html", markup);
+	// The stylesheet is the compiler's, already scoped to this leg: the
+	// build emits one per entry holding only the rules that entry reaches.
+	fs::write_file(i"{out}/header.css", fs::read_file_to_str("dist/chrome.css"));
+	print(i"chrome: {out}/header.html + header.css");
+}

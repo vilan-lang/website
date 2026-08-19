@@ -3,8 +3,12 @@
 <head>
 	<meta charset="utf-8">
 	<meta name="viewport" content="width=device-width, initial-scale=1">
-	<meta name="color-scheme" content="dark">
-	<meta name="theme-color" content="#120004">
+	<!-- Dark is the default, light follows the OS (theme.vl's token block is
+	     redeclared behind prefers-color-scheme: light); the UA is told both so
+	     its own chrome - form controls, scrollbars - agrees with the page. -->
+	<meta name="color-scheme" content="dark light">
+	<meta name="theme-color" content="#120004" media="(prefers-color-scheme: dark)">
+	<meta name="theme-color" content="#F9DFE7" media="(prefers-color-scheme: light)">
 	<title>Vilan — The Modern Web Language</title>
 	<meta name="description" content="Vilan is a language for building full-stack web apps: one small toolchain, reactive UI, and a compiler that checks what you usually find out at runtime.">
 	<link rel="icon" href="https://vilan-lang.org/favicon.ico" sizes="48x48">

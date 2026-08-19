@@ -41,7 +41,7 @@ import std::time::Timer;
 import std::ui::{ View, view };
 import pkg::art::{ dataflow_art, diagram, editor_art, toolchain_art };
 import pkg::code::{ blank, code_panel, fn, hl, kw, leaf, leaf_link, ln, pt, st, t, ty };
-import pkg::masthead::{ bloom, masthead, top_bar };
+import pkg::masthead::{ bloom, masthead };
 import pkg::theme::{
 	assets,
 	body_face,
@@ -74,6 +74,7 @@ import pkg::theme::{
 	up_dim,
 	up_normal,
 };
+import pkg::topbar::top_bar;
 
 // --- the page ---
 

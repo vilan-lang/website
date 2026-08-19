@@ -5,7 +5,7 @@ vilan itself: one fullstack package in the render-then-replace SSR shape.
 
 ## Layout
 
-One package, three entries. Every file is visible to every entry; the compiler
+One package, four entries. Every file is visible to every entry; the compiler
 sorts out what may run where by what each entry reaches.
 
 - **`src/page.vl`** — the one `fun page(): View` the landing entries build, plus
@@ -17,6 +17,28 @@ sorts out what may run where by what each entry reaches.
   fully painted (first paint, SEO).
 - **`src/client.vl`** — the landing page's browser entry. `mount_root` clears
   the server markup on boot and mounts the same page as live DOM.
+- **`src/topbar.vl`** — the sticky toolbar every surface wears (the landing
+  page, the playground, and the book); its own module so a leg that wants only
+  the bar reaches only the bar's rules. **`src/chrome.vl`** is the node entry
+  that exports it for the book: `node dist/chrome.mjs <dir>` renders `top_bar`
+  through the same SSR path the server uses and writes `<dir>/header.html`
+  (the `<nav>`, one root element, nothing around it) and `<dir>/header.css`
+  (the chrome leg's own emitted stylesheet — exactly the rules the bar
+  reaches). Every colour in it is a `var(--role)`; the `:root` values it
+  declares (dark, and light behind `prefers-color-scheme`) sit at
+  specificity (0,1,0), so a host that declares the same roles on
+  `html.light` / `html.navy` (the book) re-themes the bar to itself. The
+  pages repo's README states the contract in full.
+- **`src/theme.vl`** — the tokens. Each is one custom property with two
+  values: dark at `:root` (the default) and light behind
+  `@media (prefers-color-scheme: light)` — the site follows the OS; it has no
+  picker of its own. The light column is `design-language.md` §2.5. The
+  section art (`src/art.vl`) is composed on the roles too, so each piece is a
+  light composition in light and renders as drawn in dark; only the bloom's
+  own glows and the plum/violet/scarlet marks stay literal (the art's header
+  says which and why), and the two values the roles don't name — the art's
+  shadow and its diagnostic red — are tokens with both values. The hero is
+  the one fenced exception: the bloom is the same art in both themes.
 - **`src/playground.vl`** + **`src/playground_page.vl`** — the /playground
   page: the compiler itself, compiled to WebAssembly, compiles and runs
   visitor programs in the browser (no server anywhere). The page is vilan like
@@ -61,13 +83,16 @@ vilan-lang.org serves a static export of this site from the
 [vilan-lang.github.io](https://github.com/vilan-lang/vilan-lang.github.io)
 repository: each server-rendered page is captured as its `index.html` and
 copied over together with its bundles — the landing trio at the root, the
-playground set (page, bundles, wasm compiler) under `playground/`. Every push
-to `main` does this automatically. [deploy.yml](.github/workflows/deploy.yml)
+playground set (page, bundles, wasm compiler) under `playground/`, and the
+chrome pair (`header.html` + `header.css`, the masthead for the book) under
+`chrome/`. Every push to `main` does this automatically.
+[deploy.yml](.github/workflows/deploy.yml)
 installs the toolchain from the latest release, downloads the playground's
 wasm from the same release, smoke-compiles every seeded example against it,
-renders the pages, and commits the export to the pages repository, touching
-only the allowlisted files (`docs/` and `assets/` there belong to other
-flows). The push authenticates as the
+renders the pages and the chrome export, and commits them to the pages
+repository, touching only the allowlisted files (`docs/` and `assets/` there
+belong to other flows; that repo's `docs.yml` copies `chrome/header.html` into
+the book's theme before each build). The push authenticates as the
 vilan-site-deploy GitHub App (contents read-write on the pages repository
 only), whose id and private key live in this repository's `DEPLOY_APP_ID`
 and `DEPLOY_APP_PRIVATE_KEY` secrets. Redeploy by hand with

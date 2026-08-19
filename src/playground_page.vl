@@ -24,7 +24,6 @@ import std::style::{
 	style,
 };
 import std::ui::{ View, view };
-import pkg::masthead::top_bar;
 import pkg::theme::{
 	code_palette,
 	code_size,
@@ -51,6 +50,7 @@ import pkg::theme::{
 	up_error,
 	up_normal,
 };
+import pkg::topbar::top_bar;
 
 /// One row of the diagnostics pane — the wire diagnostic flattened to plain
 /// data (line and column already one-based for display). Both rows derive

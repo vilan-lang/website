@@ -3,8 +3,12 @@
 <head>
 	<meta charset="utf-8">
 	<meta name="viewport" content="width=device-width, initial-scale=1">
-	<meta name="color-scheme" content="dark">
-	<meta name="theme-color" content="#120004">
+	<!-- Dark is the default, light follows the OS (theme.vl's token block is
+	     redeclared behind prefers-color-scheme: light); the UA is told both so
+	     its own chrome - form controls, scrollbars - agrees with the page. -->
+	<meta name="color-scheme" content="dark light">
+	<meta name="theme-color" content="#120004" media="(prefers-color-scheme: dark)">
+	<meta name="theme-color" content="#F9DFE7" media="(prefers-color-scheme: light)">
 	<title>Vilan Playground — run vilan in your browser</title>
 	<meta name="description" content="Write and run Vilan in your browser: the compiler itself runs client-side as WebAssembly — no install, no server.">
 	<link rel="icon" href="https://vilan-lang.org/favicon.ico" sizes="48x48">
@@ -54,7 +58,7 @@
 		#editor .cm-editor { height: 100%; }
 		#runner iframe { border: 0; width: 100%; height: 100%; background: #fff; }
 		button:focus-visible, select:focus-visible {
-			outline: 2px solid #EB682E;
+			outline: 2px solid var(--primary, #EB682E);
 			outline-offset: 2px;
 		}
 		@media (prefers-reduced-motion: reduce) {
