@@ -14,6 +14,18 @@ import { EditorView, keymap, lineNumbers, highlightActiveLine, highlightActiveLi
 import { EditorState } from "@codemirror/state";
 import { defaultKeymap, history, historyKeymap, indentWithTab } from "@codemirror/commands";
 import { bracketMatching, indentUnit, StreamLanguage, syntaxHighlighting, HighlightStyle } from "@codemirror/language";
+// `closeBrackets` is the only reason this package is here — bracket closing
+// ships inside @codemirror/autocomplete even though it is not completion. The
+// completion half of K9 is deliberately NOT wired: the wasm compiler exports
+// `compile`, `compile_for`, `format` and `version` and nothing else (see
+// playground/wasm/<version>/vilan_wasm.js; `CompileResult` carries js, css and
+// diagnostics), so there is no analyzer surface for a completion source to
+// ask. A keyword list hand-typed here would be a language feature invented on
+// the website side, which is the wrong side of the fence. `autocompletion` is
+// never imported, so esbuild drops the whole completion machinery — the
+// shipped bundle pays nothing for the unused half. When vilan-wasm grows a
+// `complete(source, offset)` export, it plugs in exactly where `scheduleCheck`
+// already round-trips this worker.
 import { closeBrackets } from "@codemirror/autocomplete";
 import { setDiagnostics, lintGutter } from "@codemirror/lint";
 import { tags } from "@lezer/highlight";
@@ -152,60 +164,107 @@ function codeToken(stream, state) {
 		return null;
 }
 
-// --- the brand look (theme.vl's palette: ink, blush, panel, ember, rose)
+// --- the look: theme.vl's palette, read out of CSS (K10) -------------------
+//
+// Not one value below is a colour. Every slot is a `--code-*` custom property
+// minted by theme.vl's `code_palette` onto the playground page's root element,
+// which this widget mounts inside — so the palette has exactly ONE home and a
+// token edit re-themes the editor with no rebuild of this bundle. That is what
+// ends the hand-sync src/code.vl used to concede.
+//
+// The names are EDITOR SLOTS, never site roles: which role plays "keyword", or
+// what that role's value is, are both decisions inside theme.vl. Nothing here
+// needs to know that a keyword is `primary`.
+//
+// No fallback values, on purpose: a fallback would be a second copy of the
+// palette, which is the duplication being removed. The only way these
+// properties go missing is the page's own stylesheet failing to load, and that
+// takes the page with it.
 
 const vilanTheme = EditorView.theme(
 	{
 		"&": {
-			backgroundColor: "#1B060D",
-			color: "#F9DFE7",
+			backgroundColor: "var(--code-bg)",
+			color: "var(--code-plain)",
 			height: "100%",
-			fontSize: "13px",
+			fontSize: "var(--code-size)",
 		},
-		".cm-content": {
-			fontFamily: "ui-monospace, SFMono-Regular, Menlo, Consolas, monospace",
-			caretColor: "#F9DFE7",
+		// CodeMirror's base theme puts `monospace` on the scroller, which would
+		// beat anything inherited from the page, so the code face and its
+		// ratified feature settings (§2.3) are claimed here — and claimed on
+		// content and gutters too, so neither can be reached without the other.
+		".cm-scroller, .cm-content, .cm-gutters": {
+			fontFamily: "var(--code-face)",
+			fontFeatureSettings: "var(--code-features)",
 		},
-		".cm-cursor, .cm-dropCursor": { borderLeftColor: "#F9DFE7" },
+		".cm-content": { caretColor: "var(--code-fg)" },
+		".cm-cursor, .cm-dropCursor": { borderLeftColor: "var(--code-fg)" },
 		".cm-gutters": {
-			backgroundColor: "#1B060D",
-			color: "rgba(249, 223, 231, 0.35)",
+			backgroundColor: "var(--code-bg)",
+			color: "var(--code-dim)",
 			border: "none",
-			borderRight: "1px solid rgba(249, 223, 231, 0.10)",
+			borderRight: "1px solid var(--code-gutter-edge)",
 		},
-		".cm-activeLine": { backgroundColor: "rgba(249, 223, 231, 0.04)" },
-		".cm-activeLineGutter": { backgroundColor: "rgba(249, 223, 231, 0.07)" },
+		".cm-activeLine": { backgroundColor: "var(--code-active-line)" },
+		".cm-activeLineGutter": { backgroundColor: "var(--code-active-gutter)" },
 		"&.cm-focused .cm-selectionBackground, .cm-selectionBackground, .cm-content ::selection":
-			{ backgroundColor: "rgba(249, 223, 231, 0.18) !important" },
+			{ backgroundColor: "var(--code-selection) !important" },
+		// The squiggles wear the diagnostics pane's own semantic hues, so one
+		// problem reads the same in the gutter, under the code, and in the list.
 		".cm-lintRange-error": {
 			backgroundImage: "none",
-			textDecoration: "underline wavy #EB682E 1px",
+			textDecoration: "underline wavy var(--code-error) 1px",
 		},
 		".cm-lintRange-warning": {
 			backgroundImage: "none",
-			textDecoration: "underline wavy #E5AFD9 1px",
+			textDecoration: "underline wavy var(--code-caution) 1px",
 		},
+		// The gutter markers, redrawn as flat dots: CodeMirror's own are inline
+		// SVGs with the colour baked into the data URI, which is precisely the
+		// duplication K10 exists to remove.
+		".cm-lint-marker": {
+			content: "none",
+			width: "8px",
+			height: "8px",
+			margin: "auto",
+			borderRadius: "50%",
+		},
+		".cm-lint-marker-error": { backgroundColor: "var(--code-error)" },
+		".cm-lint-marker-warning": { backgroundColor: "var(--code-caution)" },
+		// A lint tooltip is the only thing this widget ever floats, so it is the
+		// only thing that may cast a shadow (§2.2). Its severity edge is the
+		// same 2px the diagnostics rows carry, in the same hues.
+		".cm-tooltip": {
+			backgroundColor: "var(--code-bg)",
+			border: "1px solid var(--code-gutter-edge)",
+			borderRadius: "6px",
+			color: "var(--code-plain)",
+			boxShadow: "0 8px 24px rgb(0 0 0 / 0.45)",
+			overflow: "hidden",
+		},
+		".cm-diagnostic": { padding: "4px 8px", fontSize: "var(--code-size)" },
+		".cm-diagnostic-error": { borderLeft: "2px solid var(--code-error)" },
+		".cm-diagnostic-warning": { borderLeft: "2px solid var(--code-caution)" },
 	},
 	{ dark: true },
 );
 
-// One derived tint joins the brand palette: peach (#F0A886, ember pulled
-// toward blush) for callables. Everything else differentiates by weight and
-// opacity so the pane reads rich without leaving the brand. The home page's
-// code.vl carries the same values — resync both when either moves.
+// Same story for the syntax colours: slots, filled by theme.vl. The one value
+// with no role name is the callable tint — primary pulled toward the up ladder
+// — and it is a token there rather than a literal here.
 const vilanHighlight = HighlightStyle.define([
-	{ tag: tags.keyword, color: "#EB682E" },
-	{ tag: tags.atom, color: "#EB682E" },
-	{ tag: tags.string, color: "#E5AFD9" },
-	{ tag: tags.number, color: "#E5AFD9" },
-	{ tag: tags.lineComment, color: "rgba(249, 223, 231, 0.5)", fontStyle: "italic" },
-	{ tag: tags.typeName, color: "#F9DFE7", fontWeight: "600" },
-	{ tag: tags.function(tags.variableName), color: "#F0A886" },
-	{ tag: tags.function(tags.definition(tags.variableName)), color: "#F0A886", fontWeight: "600" },
-	{ tag: tags.meta, color: "rgba(235, 104, 46, 0.65)", fontStyle: "italic" },
-	{ tag: tags.special(tags.brace), color: "#EB682E" },
-	{ tag: tags.namespace, color: "rgba(249, 223, 231, 0.6)" },
-	{ tag: tags.operator, color: "rgba(249, 223, 231, 0.72)" },
+	{ tag: tags.keyword, color: "var(--code-keyword)" },
+	{ tag: tags.atom, color: "var(--code-keyword)" },
+	{ tag: tags.string, color: "var(--code-string)" },
+	{ tag: tags.number, color: "var(--code-string)" },
+	{ tag: tags.lineComment, color: "var(--code-comment)", fontStyle: "italic" },
+	{ tag: tags.typeName, color: "var(--code-type)", fontWeight: "600" },
+	{ tag: tags.function(tags.variableName), color: "var(--code-callable)" },
+	{ tag: tags.function(tags.definition(tags.variableName)), color: "var(--code-callable)", fontWeight: "600" },
+	{ tag: tags.meta, color: "var(--code-attr)", fontStyle: "italic" },
+	{ tag: tags.special(tags.brace), color: "var(--code-keyword)" },
+	{ tag: tags.namespace, color: "var(--code-path)" },
+	{ tag: tags.operator, color: "var(--code-operator)" },
 ]);
 
 // --- the editor ---
@@ -781,7 +840,9 @@ function placeholder() {
 	host.textContent = "";
 	const note = document.createElement("div");
 	note.textContent = "Press Run to build and mount the program.";
-	note.style.cssText = "margin:auto;opacity:.45;font-size:13px;padding:16px;";
+	// Off the same palette as everything else: the dim tier is a role now, not
+	// an opacity, and the size is the tool register's one size.
+	note.style.cssText = "margin:auto;padding:16px;color:var(--code-dim);font-size:var(--code-size);";
 	host.append(note);
 }
 

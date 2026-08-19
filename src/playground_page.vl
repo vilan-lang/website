@@ -12,6 +12,7 @@
 import std::reactive::Signal;
 import std::style::{
 	AlignItems,
+	Color,
 	Cursor,
 	Display,
 	FlexDirection,
@@ -25,15 +26,30 @@ import std::style::{
 import std::ui::{ View, view };
 import pkg::masthead::top_bar;
 import pkg::theme::{
-	blush,
-	ember,
-	hairline_color,
+	code_palette,
+	code_size,
+	code_type,
+	down_active,
+	down_bright,
+	down_caution,
+	down_danger,
+	down_hover,
+	down_normal,
 	hairline_width,
-	mono,
+	motion_ambient,
 	no_select,
-	panel,
-	rose,
+	primary,
+	primary_on,
+	radius_flat,
+	radius_panel,
 	shell,
+	stroke_hard,
+	stroke_soft,
+	up_bright,
+	up_caution,
+	up_dim,
+	up_error,
+	up_normal,
 };
 
 /// One row of the diagnostics pane — the wire diagnostic flattened to plain
@@ -62,14 +78,16 @@ struct ConsoleRow {
 
 // The workbench gets a wider column than the site's 1264px: code and output
 // earn the room. Still bounded — the two panes stop being readable as a pair
-// somewhere, and 1880 keeps the page composed on a 4K display.
+// somewhere, and 1880 keeps the page composed on a 4K display. The inset is
+// half the site column's: this is a workbench sitting under the marketing
+// rail, not another article laid out on it.
 let wide_column = const style()
 	.max_width(Length::px(1880.0))
 	.margin_x(Length::auto())
-	.padding_x(Length::px(32.0));
+	.padding_x(space(4));
 
-// The page fills the viewport and the panes take whatever the fold allows —
-// a workbench, not an article. The report panes keep bounded heights so the
+// The page fills the viewport and the panels take whatever the fold allows —
+// a workbench, not an article. The report panels keep bounded heights so the
 // editor and result always win the space.
 let page_fill = const style()
 	.display(Display::Flex)
@@ -79,8 +97,8 @@ let page_fill = const style()
 let workbench = const style()
 	.display(Display::Flex)
 	.flex_direction(FlexDirection::Column)
-	.gap(space(4))
-	.padding_y(space(6))
+	.gap(space(2))
+	.padding_y(space(3))
 	.flex("1 1 auto")
 	.min_height(Length::zero())
 	.width(Length::pct(100.0))
@@ -89,7 +107,7 @@ let workbench = const style()
 let panes = const style()
 	.display(Display::Flex)
 	.flex_direction(FlexDirection::Column)
-	.gap(space(4))
+	.gap(space(2))
 	.flex("1 1 auto")
 	.min_height(Length::zero())
 	.lg(style().flex_direction(FlexDirection::Row));
@@ -97,103 +115,175 @@ let panes = const style()
 let pane = const style()
 	.display(Display::Flex)
 	.flex_direction(FlexDirection::Column)
-	.gap(space(3))
+	.gap(space(2))
 	.min_width(Length::zero())
 	.flex("1 1 0");
 
-let pane_label = const (style()
-	.margin(space(0))
-	.opacity(0.6)
-	.font_size(Length::px(12.0))
-	.letter_spacing(Length::em(0.14))
-	.raw("text-transform", "uppercase")
-	+ no_select);
-
-// The editor host: the bundle mounts CodeMirror inside; the border and radius
-// stay ours so both panes read as one family.
-let editor_host = const style()
-	.background(panel)
-	.radius(space(3))
-	.border(hairline_width, hairline_color)
+// --- the panel, and the rail across its top ---
+//
+// Every region on this page is the same object: a bordered box on the ground,
+// a chrome rail across its top, one content well below it. A label never
+// floats above a box it does not belong to, and nothing casts a shadow —
+// separation is layer and hairline, which is the whole tool register (§2.2).
+//
+// Three surfaces do all of it: `down-dim` is the page, `down-normal` is a
+// well, `down-bright` is every rail. Two hairlines: `stroke-hard` around a
+// panel, `stroke-soft` inside one.
+let panel_box = const style()
+	.display(Display::Flex)
+	.flex_direction(FlexDirection::Column)
+	.background(down_normal)
+	.border(hairline_width, stroke_hard)
+	.radius(radius_panel)
 	.overflow(Overflow::Hidden)
-	.flex("1 1 auto")
-	.min_height(Length::px(320.0));
+	.min_width(Length::zero());
 
-// The runner host: each Run swaps a sandboxed iframe in; between runs it holds
-// the placeholder note.
+// The panel that owns the fold — the editor, the result — against the one that
+// only reports, which is content-sized and capped.
+let panel_grow = const (panel_box + style().flex("1 1 auto").min_height(Length::zero()));
+
+let panel_fixed = const (panel_box + style().flex("0 0 auto"));
+
+// 32px tall, 8px inset, 4px gaps: kolt's chrome rail, to the pixel. The page
+// toolbar is one; so is every panel header; so is the confirm bar.
+let rail = const style()
+	.display(Display::Flex)
+	.align_items(AlignItems::Center)
+	.raw("flex-wrap", "wrap")
+	.gap(space(1))
+	.background(down_bright)
+	.padding_x(space(2))
+	.padding_y(Length::px(4.0))
+	.min_height(Length::px(32.0))
+	.flex_shrink(0.0)
+	.raw("box-sizing", "border-box");
+
+// A rail inside a panel closes with a soft hairline. The toolbar is a rail
+// with no panel under it, so it closes all the way round with a hard one.
+let panel_head = const (rail + style()
+	.justify_content(JustifyContent::Between)
+	.border_bottom(hairline_width, stroke_soft));
+
+let toolbar = const (rail + style().border(hairline_width, stroke_hard).radius(radius_panel));
+
+// The rail's one internal seam, splitting the page's name off the verbs. It is
+// a hard hairline because it separates two different KINDS of thing, which is
+// the same reason the panels wear one.
+let rail_divider = const style()
+	.width(hairline_width)
+	.raw("align-self", "stretch")
+	.background(stroke_hard)
+	.margin_x(Length::px(2.0));
+
+// 13px on 16px with the tracking pulled a hair tight: kolt's `script-label`,
+// and the one size every piece of chrome on this page speaks. The uppercase,
+// letterspaced, half-opacity treatment the panes used to wear is a marketing
+// voice — a tool just says the word, in the tier it belongs to.
+let script_label = const style()
+	.font_size(Length::px(13.0))
+	.line_height_length(Length::px(16.0))
+	.letter_spacing(Length::em(-0.01));
+
+// The page's own name doubles as the toolbar's left label: a tool says what it
+// is on the rail it is worked from, rather than titling itself above.
+let page_title = const (script_label + style().margin(space(0)).color(up_bright).font_weight(600) + no_select);
+
+let panel_title = const (script_label + style().margin(space(0)).color(up_normal).font_weight(500) + no_select);
+
+// The two live hosts. The panel around them already owns the border, the
+// radius and the clipping, so these only claim the room: CodeMirror mounts
+// into one, and each Run swaps a sandboxed iframe into the other (between runs
+// it holds the bundle's placeholder note, which reads `--code-dim` off the
+// palette below like every other code surface).
+let editor_host = const style().flex("1 1 auto").min_height(Length::px(320.0));
+
 let runner_host = const style()
-	.background(panel)
-	.radius(space(3))
-	.border(hairline_width, hairline_color)
-	.overflow(Overflow::Hidden)
 	.flex("1 1 auto")
 	.min_height(Length::px(320.0))
-	.display(Display::Flex);
+	.display(Display::Flex)
+	.background(down_normal);
 
 // --- controls ---
+//
+// One box under every control: 4px over 8px on the 13px label is a 24px hit
+// target, and that target is the density system. Interaction is kolt's
+// white-alpha ladder — `down-hover`, then `down-active` — so a control answers
+// by lighting up, never by growing a border or a shadow.
 
-let controls = const style()
-	.display(Display::Flex)
-	.raw("flex-wrap", "wrap")
-	.align_items(AlignItems::Center)
-	.gap(space(3));
+let control_box = const (script_label + style()
+	.font_family("inherit")
+	.padding_y(Length::px(4.0))
+	.padding_x(space(2))
+	.radius(radius_flat)
+	.cursor(Cursor::Pointer)
+	.transition(i"background-color {motion_ambient}, border-color {motion_ambient}, color {motion_ambient}")
+	+ no_select);
 
-let run_button = const (style()
-	.background(ember)
-	.color(blush)
+// The quiet verbs — Format, Share, Keep editing. Share puts the buffer in the
+// URL itself (deflated, base64url), so no server holds anything; Format is the
+// compiler's own formatter and appears only when the loaded wasm exports it.
+let ghost_button = const (control_box + style()
+	.background(Color::transparent())
+	.color(up_normal)
+	.border_none()
+	.hover(style().background(down_hover).color(up_bright))
+	.active(style().background(down_active)));
+
+// The one filled verb. A fill has no white-alpha ladder to climb, so it
+// answers with light instead — on the same sub-200ms beat.
+let primary_button = const (control_box + style()
+	.background(primary)
+	.color(primary_on)
 	.font_weight(600)
 	.border_none()
-	.radius(space(2))
-	.padding_y(Length::px(8.0))
-	.padding_x(Length::px(20.0))
-	.cursor(Cursor::Pointer)
-	.font_family("inherit")
-	.font_size(Length::px(14.0))
-	.hover(style().opacity(0.9))
-	+ no_select);
+	.padding_x(space(3))
+	.transition(i"filter {motion_ambient}")
+	.hover(style().raw("filter", "brightness(1.08)"))
+	.active(style().raw("filter", "brightness(0.94)")));
 
-let example_button = const (style()
-	.background(panel)
-	.color(blush)
-	.border(hairline_width, hairline_color)
-	.radius(space(2))
-	.padding_y(Length::px(7.0))
-	.padding_x(Length::px(14.0))
-	.cursor(Cursor::Pointer)
-	.font_family("inherit")
-	.font_size(Length::px(13.0))
-	.opacity(0.85)
-	.hover(style().opacity(1.0))
-	+ no_select);
+// A select has to read as a field, so it is the one control that sits IN the
+// rail rather than on it: a well one layer down, hairlined soft. Three wear it:
+// the compile-mode select (server is check-only — the diagnostics, platform
+// colouring above all, are the product; running a process needs a real host, so
+// it is hidden entirely on a wasm without `compile_for`), the template picker,
+// and the version pin below.
+// The height is stated rather than composed: a `menulist` select lays its own
+// inner box out and ignores `line-height`, so leaving it to the padding gives
+// each select a different height depending on the face it is set in. 24px, and
+// they all agree with the buttons beside them.
+let select_box = const (control_box + style()
+	.background(down_normal)
+	.color(up_normal)
+	.border(hairline_width, stroke_soft)
+	.height(Length::px(24.0))
+	.padding_y(Length::zero())
+	.raw("box-sizing", "border-box")
+	.hover(style().background(down_bright).border_color(stroke_hard))
+	.active(style().background(down_active)));
 
-let status_line = const style()
+// The compiler pin reads as what it is — a version string — so it wears the
+// code face and the badge tier. It doubles as the version badge, and a pinned
+// version rides shared links so a repro stays a repro.
+let version_select = const (select_box + code_type + style().font_size(Length::px(12.0)));
+
+// The status readout. `role=status` on the element makes compile results
+// audible to a screen reader without stealing focus; the auto margin is what
+// splits the rail into kolt's left and right clusters.
+let status_line = const (script_label + style()
 	.margin(space(0))
-	.opacity(0.7)
-	.font_size(Length::px(13.0))
-	.margin_left(Length::auto());
+	.color(up_dim)
+	.margin_left(Length::auto())
+	.padding_x(space(1)));
 
-// The Program pane's header row: the label left, the example picker right.
-// The picker lives beside the editor because it changes the program; the
-// toolbar keeps the verbs.
-let pane_head = const style()
-	.display(Display::Flex)
-	.align_items(AlignItems::Center)
-	.justify_content(JustifyContent::Between);
-
-let template_select = const (style()
-	.background(panel)
-	.color(blush)
-	.border(hairline_width, hairline_color)
-	.radius(space(2))
-	.padding_y(Length::px(6.0))
-	.padding_x(Length::px(10.0))
-	.cursor(Cursor::Pointer)
-	.font_family("inherit")
-	.font_size(Length::px(13.0))
-	.opacity(0.85)
-	.hover(style().opacity(1.0))
-	+ no_select);
-
+// The template picker lives in the Program panel's header rather than the
+// toolbar, because it changes the program and the toolbar keeps the verbs. The
+// bundle wires its change event (the value read needs the DOM) and a pick
+// arrives back as a "command" event; its hidden placeholder option holds the
+// seat for every buffer that is not a pristine example — restored, shared or
+// edited — and names what was edited when there is something to name. The
+// bundle owns the value; this file only labels it. Picking the server example
+// also flips the mode to Server, so that option hides with the mode select on
+// a wasm without `compile_for`.
 fun template_option(value: str, label: str): View {
 	view("option").attr("value", value).text(label)
 }
@@ -212,65 +302,73 @@ fun template_title(name: str): str {
 }
 
 // The confirm bar: a replacement destroys whatever is in the buffer, so it
-// asks first. Inline in the Program pane, right above the editor it is about
-// to overwrite — the site has no dialog idiom to borrow, and a modal for one
-// yes/no question would invent one. Built from the same tokens as everything
-// else in this file.
+// asks first. Inline in the Program panel, right under its header and right
+// above the editor it is about to overwrite — the site has no dialog idiom to
+// borrow, and a modal for one yes/no question would invent one. It is simply a
+// second rail: a question the tool is asking is chrome, not content.
 //
 // It rides inside a bare wrapper because `show()` hides by setting `hidden`,
 // and the UA rule that gives `[hidden]` its `display: none` loses to any
 // author `display` — a flex row would stay on screen. The wrapper takes the
 // hiding; the row keeps the layout.
-let confirm_bar = const style()
-	.display(Display::Flex)
-	.raw("flex-wrap", "wrap")
-	.align_items(AlignItems::Center)
-	.gap(space(3))
-	.background(panel)
-	.border(hairline_width, hairline_color)
-	.radius(space(2))
-	.padding_y(Length::px(10.0))
-	.padding_x(Length::px(14.0))
-	.font_size(Length::px(13.0));
+let confirm_bar = const (rail + style().gap(space(2)).border_bottom(hairline_width, stroke_soft));
 
-let confirm_question = const style().margin(space(0)).margin_right(Length::auto());
-
-let confirm_button = const (style()
-	.background(ember)
-	.color(blush)
-	.font_weight(600)
-	.border_none()
-	.radius(space(2))
-	.padding_y(Length::px(7.0))
-	.padding_x(Length::px(14.0))
-	.cursor(Cursor::Pointer)
-	.font_family("inherit")
-	.font_size(Length::px(13.0))
-	.hover(style().opacity(0.9))
-	+ no_select);
+let confirm_question = const (script_label + style()
+	.margin(space(0))
+	.margin_right(Length::auto())
+	.color(up_normal));
 
 // --- diagnostics and console ---
 
-let report_pre = const style()
-	.background(panel)
-	.radius(space(3))
-	.padding(space(4))
+// A report is a scrolling well of rows, and the rows carry their own inset, so
+// the well carries none. Bounded so the editor and the result always win the
+// fold. Both wells wear the code face: a file:line:column and a program's own
+// output are code, and the ratified spec says every code surface is CommitMono
+// with the same feature settings.
+let report_well = const (code_type + style()
 	.margin(space(0))
+	.padding_y(Length::px(4.0))
 	.overflow(Overflow::Auto)
-	.font_size(Length::px(13.0))
-	.line_height(1.6)
-	.font_family(mono)
+	.font_size(code_size)
+	.line_height_length(Length::px(18.0))
 	.white_space(WhiteSpace::PreWrap)
+	.color(up_normal)
 	.min_height(Length::px(96.0))
-	.max_height(Length::px(240.0))
-	.border(hairline_width, hairline_color);
+	.max_height(Length::px(240.0)));
 
-let diag_error = const style().color(ember).font_weight(700);
-let diag_warning = const style().color(rose).font_weight(700);
-let diag_site = const style().opacity(0.55);
-let diag_note = const style().opacity(0.7);
-let console_error = const style().color(ember);
-let quiet_row = const style().opacity(0.45);
+// A diagnostic is a ROW, not a line of a transcript: an inset, a severity edge,
+// and the faintest wash of that severity behind it. The two semantic families
+// split the way kolt mints them — `up-error` / `up-caution` say the word,
+// `down-danger` / `down-caution` are the fill and the edge underneath — which
+// is also how the editor's own squiggles are coloured, so the gutter and this
+// pane report one problem in one voice.
+// A soft hairline keeps two problems of the same severity from reading as one
+// paragraph; the first row has the header's own seam above it already.
+let diag_row = const style()
+	.padding_y(Length::px(3.0))
+	.padding_x(space(2))
+	.border_top(hairline_width, stroke_soft)
+	.first(style().border_top(hairline_width, Color::transparent()))
+	.border_left(Length::px(2.0), stroke_hard);
+
+let diag_row_error = const (diag_row + style()
+	.border_left(Length::px(2.0), down_danger)
+	.background(down_danger.alpha(0.07)));
+
+let diag_row_warning = const (diag_row + style()
+	.border_left(Length::px(2.0), down_caution)
+	.background(down_caution.alpha(0.06)));
+
+let diag_error = const style().color(up_error).font_weight(600);
+let diag_warning = const style().color(up_caution).font_weight(600);
+let diag_site = const style().color(up_dim);
+let diag_note = const style().color(up_dim);
+
+let console_line = const style().padding_y(Length::px(1.0)).padding_x(space(2));
+let console_error = const (console_line + style().color(up_error));
+
+// What an empty well says. The dim tier is a role now, not an opacity.
+let quiet_row = const style().padding_y(Length::px(3.0)).padding_x(space(2)).color(up_dim);
 
 fun severity_tag(row: DiagRow): View {
 	match row.severity {
@@ -284,16 +382,20 @@ fun diagnostic_row(row: DiagRow): View {
 		.child(severity_tag(row))
 		.child(view("span").styled(diag_site).text(i" {row.file}:{row.line}:{row.column} "))
 		.child(view("span").text(row.message));
-	match row.note {
+	let body = match row.note {
 		"" => head,
 		_ => view("div").child(head).child(view("div").styled(diag_note).text(i"  note: {row.note}")),
+	};
+	match row.severity {
+		"error" => view("div").styled(diag_row_error).child(body),
+		_ => view("div").styled(diag_row_warning).child(body),
 	}
 }
 
 fun console_row(row: ConsoleRow): View {
 	match row.kind {
 		"error" => view("div").styled(console_error).text(row.text),
-		_ => view("div").text(row.text),
+		_ => view("div").styled(console_line).text(row.text),
 	}
 }
 
@@ -315,134 +417,121 @@ fun playground_page(
 	confirm_replace: || void,
 	cancel_replace: || void,
 ): View {
-	view("div").styled(shell + page_fill).child(top_bar(Signal::new("1"))).child(view("main")
-		.styled(wide_column + workbench)
-		.child(view("h1").styled(pane_label).text("Playground: vilan in the browser"))
-		.child(view("div")
-			.styled(controls)
-			.child(view("button")
-				.styled(run_button)
-				.bind_text(mode.map(|current| match current {
-					"node" => "Check",
-					_ => "Run",
-				}))
-				.on("click", || run()))
-			.child(view("select")
-				.styled(template_select)
-				.attr("id", "mode")
-				.attr("aria-label", "Compile mode")
-				.show(can_platform)
-				.child(template_option("browser", "Browser: compile and run"))
-				.child(template_option("node", "Server: check the process leg")))
-			.child(view("button")
-				.styled(example_button)
-				.text("Format")
-				.on("click", || format())
-				.show(can_format))
-			.child(view("button")
-				.styled(example_button)
-				.bind_text(share_label)
-				.on("click", || share()))
-			.child(view("p").styled(status_line).attr("role", "status").bind_text(status))
-			.child(view("select")
-				.styled(template_select)
-				.attr("id", "version")
-				.attr("aria-label", "Compiler version")))
-		.child(view("div")
-			.styled(panes)
+	view("div")
+		.styled(shell + page_fill + code_palette)
+		.child(top_bar(Signal::new("1")))
+		.child(view("main")
+			.styled(wide_column + workbench)
 			.child(view("div")
-				.styled(pane)
-				.child(view("div")
-					.styled(pane_head)
-					.child(view("p").styled(pane_label).text("Program"))
-					.child(view("select")
-						.styled(template_select)
-						.attr("id", "template")
-						.attr("aria-label", "Load an example")
-						.child(view("option")
-							.attr("value", "")
-							.attr("disabled", "true")
-							.attr("hidden", "true")
-							.bind_text(modified_from.map(|name| match name {
-								"" => "Examples",
-								_ => i"Modified — {template_title(name)}",
-							})))
-						.child(template_option("counter", "Counter: reactive state"))
-						.child(template_option("hello", "Hello: mount and print"))
-						.child(template_option("styles", "Styles: compile-time CSS"))
-						.child(template_option("server", "Server: typed HTTP, checked").show(can_platform))))
-				.child(view("div")
-					.attr("role", "alert")
-					.show(confirm_target.map(|name| name != ""))
-					.child(view("div")
-						.styled(confirm_bar)
-						.child(view("p")
-							.styled(confirm_question)
-							.bind_text(confirm_target.map(|name| i"Replace the current program with {template_title(name)}? The edits are not kept.")))
-						.child(view("button")
-							.styled(example_button)
-							.text("Keep editing")
-							.on("click", || cancel_replace()))
-						.child(view("button")
-							.styled(confirm_button)
-							.text("Replace")
-							.on("click", || confirm_replace()))))
-				.child(view("div")
-					.styled(editor_host)
-					.attr("id", "editor")
-					.attr("aria-label", "Program editor"))
-				.child(view("p").styled(pane_label).text("Diagnostics"))
-				.child(view("pre")
-					.styled(report_pre)
-					.child(view("div")
-						.styled(quiet_row)
-						.text("Nothing to report.")
-						.show(diagnostics.map(|rows| rows.len() == 0)))
-					.child(view("div").bind_each(diagnostics, |row| row.id, |row| diagnostic_row(row)))))
+				.styled(toolbar)
+				.child(view("h1").styled(page_title).text("Playground: vilan in the browser"))
+				.child(view("div").styled(rail_divider))
+				.child(view("button")
+					.styled(primary_button)
+					.bind_text(mode.map(|current| match current {
+						"node" => "Check",
+						_ => "Run",
+					}))
+					.on("click", || run()))
+				.child(view("select")
+					.styled(select_box)
+					.attr("id", "mode")
+					.attr("aria-label", "Compile mode")
+					.show(can_platform)
+					.child(template_option("browser", "Browser: compile and run"))
+					.child(template_option("node", "Server: check the process leg")))
+				.child(view("button")
+					.styled(ghost_button)
+					.text("Format")
+					.on("click", || format())
+					.show(can_format))
+				.child(view("button")
+					.styled(ghost_button)
+					.bind_text(share_label)
+					.on("click", || share()))
+				.child(view("p").styled(status_line).attr("role", "status").bind_text(status))
+				.child(view("select")
+					.styled(version_select)
+					.attr("id", "version")
+					.attr("aria-label", "Compiler version")))
 			.child(view("div")
-				.styled(pane)
-				.child(view("p").styled(pane_label).text("Result"))
+				.styled(panes)
 				.child(view("div")
-					.styled(runner_host)
-					.attr("id", "runner")
-					.attr("aria-label", "Program result"))
-				.child(view("p").styled(pane_label).text("Console"))
-				.child(view("pre")
-					.styled(report_pre)
+					.styled(pane)
 					.child(view("div")
-						.styled(quiet_row)
-						.text("Program output lands here.")
-						.show(console_lines.map(|rows| rows.len() == 0)))
-					.child(view("div").bind_each(console_lines, |row| row.id, |row| console_row(row)))))))
-	// Which leg the compiler targets. Server is check-only: the
-	// diagnostics (platform coloring above all) are the product;
-	// running a process needs a real host. Hidden on a wasm without
-	// compile_for.
-
-	// The label flips to the outcome for a moment (Copied!, or
-	// Link ready when the clipboard refuses).
-
-	// role=status makes compile results audible to a screen
-	// reader without stealing focus.
-
-	// The compiler pin, populated by the bundle from the manifest's
-	// inventory; it doubles as the version badge, and a pinned
-	// version rides shared links so a repro stays a repro.
-
-	// The bundle wires the change event (the value read needs
-	// the DOM); a pick arrives as a "command" event.
-
-	// The placeholder holds the seat for every buffer that is not
-	// a pristine example — restored, shared, or edited — and names
-	// what was edited when there is something to name. The bundle
-	// owns the value; this only labels it.
-
-	// Picking this also flips the mode to Server; hidden
-	// (with the mode select) on a wasm without compile_for.
-
-	// Share puts the buffer in the URL itself (deflated, base64url)
-	// — no server holds anything, per the proposal's §5.
-
-	// The compiler's own formatter; the button appears only when
-	// the loaded wasm exports it (older releases do not).
+						.styled(panel_grow)
+						.child(view("div")
+							.styled(panel_head)
+							.child(view("p").styled(panel_title).text("Program"))
+							.child(view("select")
+								.styled(select_box)
+								.attr("id", "template")
+								.attr("aria-label", "Load an example")
+								.child(view("option")
+									.attr("value", "")
+									.attr("disabled", "true")
+									.attr("hidden", "true")
+									.bind_text(modified_from.map(|name| match name {
+										"" => "Examples",
+										_ => i"Modified — {template_title(name)}",
+									})))
+								.child(template_option("counter", "Counter: reactive state"))
+								.child(template_option("hello", "Hello: mount and print"))
+								.child(template_option("styles", "Styles: compile-time CSS"))
+								.child(template_option("server", "Server: typed HTTP, checked").show(can_platform))))
+						.child(view("div")
+							.attr("role", "alert")
+							.show(confirm_target.map(|name| name != ""))
+							.child(view("div")
+								.styled(confirm_bar)
+								.child(view("p")
+									.styled(confirm_question)
+									.bind_text(confirm_target.map(|name| i"Replace the current program with {template_title(name)}? The edits are not kept.")))
+								.child(view("button")
+									.styled(ghost_button)
+									.text("Keep editing")
+									.on("click", || cancel_replace()))
+								.child(view("button")
+									.styled(primary_button)
+									.text("Replace")
+									.on("click", || confirm_replace()))))
+						.child(view("div")
+							.styled(editor_host)
+							.attr("id", "editor")
+							.attr("aria-label", "Program editor")))
+					.child(view("div")
+						.styled(panel_fixed)
+						.child(view("div")
+							.styled(panel_head)
+							.child(view("p").styled(panel_title).text("Diagnostics")))
+						.child(view("pre")
+							.styled(report_well)
+							.child(view("div")
+								.styled(quiet_row)
+								.text("Nothing to report.")
+								.show(diagnostics.map(|rows| rows.len() == 0)))
+							.child(view("div").bind_each(diagnostics, |row| row.id, |row| diagnostic_row(row))))))
+				.child(view("div")
+					.styled(pane)
+					.child(view("div")
+						.styled(panel_grow)
+						.child(view("div")
+							.styled(panel_head)
+							.child(view("p").styled(panel_title).text("Result")))
+						.child(view("div")
+							.styled(runner_host)
+							.attr("id", "runner")
+							.attr("aria-label", "Program result")))
+					.child(view("div")
+						.styled(panel_fixed)
+						.child(view("div")
+							.styled(panel_head)
+							.child(view("p").styled(panel_title).text("Console")))
+						.child(view("pre")
+							.styled(report_well)
+							.child(view("div")
+								.styled(quiet_row)
+								.text("Program output lands here.")
+								.show(console_lines.map(|rows| rows.len() == 0)))
+							.child(view("div").bind_each(console_lines, |row| row.id, |row| console_row(row))))))))
 }

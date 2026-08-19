@@ -2,10 +2,12 @@
 // over a pre) and the inline code leafs - `[rpc]`, `vilan upgrade`, and
 // friends read as code, not bare prose; the linked flavor jumps to the docs.
 
-import std::style::{ Color, Length, Overflow, WhiteSpace, space, style };
+import std::style::{ Length, Overflow, WhiteSpace, space, style };
 import std::ui::{ View, view };
 import pkg::theme::{
 	accent,
+	code_callable,
+	code_size,
 	code_type,
 	down_bright,
 	down_normal,
@@ -29,24 +31,25 @@ let code_pre = const (style()
 	.padding(space(5))
 	.margin(space(0))
 	.overflow(Overflow::Auto)
-	.font_size(Length::px(13.0))
+	.font_size(code_size)
 	.line_height(1.65)
 	.border(hairline_width, stroke_hard)
 	.white_space(WhiteSpace::Pre)
 	+ code_type);
 
-// The palette the playground's editor also speaks (editor-src/editor.mjs
-// hardcodes the same values — resync both when either moves; slice 2's K10
-// ends the hand-sync by generating the editor theme from these tokens):
-// `primary` keywords, `accent` literals, bright bold types, and peach — the
-// one derived tint, primary pulled toward the up ladder — for callables. An
-// i-string's hole braces mark themselves in `primary`.
+// The palette the playground's editor also speaks — and now speaks FROM: K10
+// moved the CodeMirror theme onto theme.vl's `code_palette`, so these spans
+// and the editor's tokens are two readings of one source and there is nothing
+// left to resync. `primary` keywords, `accent` literals, bright bold types,
+// and `code_callable` — the one derived tint, primary pulled toward the up
+// ladder — for callables. An i-string's hole braces mark themselves in
+// `primary`.
 let tk_keyword = const style().color(primary);
 let tk_string = const style().color(accent);
 // Plain code text is the body tier; types below claim the bright tier, so the
 // panel gets its hierarchy from the `up` ladder rather than from opacity.
 let tk_plain = const style().color(up_normal);
-let tk_callable = const style().color(Color::hex("#F0A886"));
+let tk_callable = const style().color(code_callable);
 let tk_type = const style().color(up_bright).font_weight(600);
 let tk_hole = const style().color(primary);
 

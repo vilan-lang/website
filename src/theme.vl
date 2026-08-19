@@ -93,9 +93,11 @@ let primary_on = const token("primary-on", "#120004");
 // The secondary accent — rose. Code literals and the quieter highlights.
 let accent = const token("accent", "#E5AFD9");
 
-// The fixed semantic hues (Tailwind's, as kolt pins them). Unused by this
-// slice's surfaces; the playground's diagnostics pane picks them up in slice
-// 2, which is when their `:root` lines start being emitted.
+// The fixed semantic hues (Tailwind's, as kolt pins them). `up-*` is the word
+// ("error", "warning"), `down-*` is the fill behind it — kolt's own split, and
+// what the playground's diagnostics pane spends them on. `up-info`/`down-info`
+// are still unspent: nothing on a compile surface means "notice" yet, and
+// inventing a use for emerald would be worse than leaving the role declared.
 let up_info = const token("up-info", "#F4F4F5");
 let up_caution = const token("up-caution", "#FBBF24");
 let up_error = const token("up-error", "#FB7185");
@@ -147,22 +149,71 @@ let code_face = "'CommitMonoV143', ui-monospace, SFMono-Regular, Menlo, Consolas
 
 // The owner's own editor settings, ratified as the canonical form for EVERY
 // vilan code surface: stylistic sets ss01-ss05 and character variants cv04,
-// cv06, cv08 — which is also the ligature ruling, on. One definition; slice 2
-// generates it outward to the CodeMirror theme (K10).
+// cv06, cv08 — which is also the ligature ruling, on. One definition, carried
+// outward by `code_palette` below (K10).
 let code_features = "\"ss01\", \"ss02\", \"ss03\", \"ss04\", \"ss05\", \"cv04\", \"cv06\", \"cv08\"";
 
 /// Every code surface wears this: the face and its feature settings together,
 /// so the two can never drift apart.
 let code_type = const style().font_family(code_face).raw("font-feature-settings", code_features);
 
+// Code is set one step under the body: 13px is the tool register's own size
+// (§2.2), and every code surface — panels, diagnostics, the editor — takes it
+// from here.
+let code_size = const Length::px(13.0);
+
+// --- the code-surface palette: one source, carried outward (K10) ---
+//
+// Every syntax color IS a role wherever a role says the right thing; the one
+// value with no role name is the callable tint — primary pulled toward the up
+// ladder — so it gets a token of its own rather than a literal at a call site.
+let code_callable = const token("tint-callable", "#F0A886");
+
+/// The whole code palette, minted as `--code-*` custom properties on whatever
+/// element wears this style. It is how K10's hand-sync dies: the CodeMirror
+/// theme in `playground/editor-src/editor.mjs` names these SLOTS and nothing
+/// else — never a hex, never a site role — so which role plays "keyword", and
+/// what that role's value is, are both edits to this file that re-theme the
+/// editor with no bundle rebuild. The vendored bundle is the only consumer
+/// that cannot import vilan; every other code surface takes the same values as
+/// typed `Color`s directly (see code.vl).
+///
+/// Values are given without a fallback on purpose. A fallback would be a
+/// second copy of the palette — exactly the duplication K10 removes — and the
+/// only way for these properties to go missing is the page's own stylesheet
+/// failing to load, which takes the rest of the page with it.
+let code_palette = const style()
+	.raw("--code-face", code_face)
+	.raw("--code-features", code_features)
+	.with_length("--code-size", code_size)
+	.with_color("--code-bg", down_normal)
+	.with_color("--code-fg", up_bright)
+	.with_color("--code-dim", up_dim)
+	.with_color("--code-gutter-edge", stroke_soft)
+	.with_color("--code-active-line", up_bright.alpha(0.04))
+	.with_color("--code-active-gutter", up_bright.alpha(0.07))
+	.with_color("--code-selection", up_bright.alpha(0.18))
+	.with_color("--code-keyword", primary)
+	.with_color("--code-string", accent)
+	.with_color("--code-plain", up_normal)
+	.with_color("--code-callable", code_callable)
+	.with_color("--code-type", up_bright)
+	.with_color("--code-comment", up_bright.alpha(0.5))
+	.with_color("--code-attr", primary.alpha(0.65))
+	.with_color("--code-path", up_bright.alpha(0.6))
+	.with_color("--code-operator", up_bright.alpha(0.72))
+	.with_color("--code-error", up_error)
+	.with_color("--code-caution", up_caution);
+
 // --- slice-1 aliases ---
 //
-// The old swatch names, pointing at the roles that replaced them, so the
-// modules this slice does not touch keep compiling unchanged. SLICE 2 REMOVES
-// THESE — when it lands, every consumer names a role instead.
+// The old swatch names, pointing at the roles that replaced them. Slice 2 took
+// the playground off the last of them, which retires `panel`; the six that
+// remain are held open by `art.vl` alone — the fenced marketing register, whose
+// composition is the one thing this slice was told not to touch. They go with
+// the art, not before it.
 let ink = const down_dim;
 let blush = const up_bright;
-let panel = const down_normal;
 let ember = const primary;
 let rose = const accent;
 let mono = const code_face;
