@@ -40,10 +40,19 @@ import pkg::theme::{
 
 // --- shared art vocabulary ---
 
+// Every piece is composed on ink, its text the dark body tier — the art's own
+// swatches, not the page's roles — so the canvas says so explicitly: in the
+// dark theme it is indistinguishable from the ground it was drawn against
+// (same ink, same #D8BEC8 the shell's `up-normal` is there), and in the light
+// theme the piece stays the same picture, sitting on the page rather than
+// re-lit by it. Text inside a piece inherits from here; nothing in the art was
+// ever composed against a light ground.
+let art_canvas = const style().background(ink).color(Color::hex("#D8BEC8"));
+
 let art_stage = const (style()
 	.position(Position::Relative)
 	.overflow(Overflow::Hidden)
-	.background(ink)
+	+ art_canvas
 	+ reveal);
 
 let art_blob = const style()
@@ -496,7 +505,7 @@ let tc_wrap = const (style()
 	.width(Length::px(420.0))
 	.height(Length::px(430.0))
 	.margin_x(Length::auto())
-	.background(ink)
+	+ art_canvas
 	+ no_select);
 
 let tc_blob_a = const (art_blob + style()
@@ -649,10 +658,10 @@ fun toolchain_art(): View {
 let df_wrap = const (style()
 	.position(Position::Relative)
 	.overflow(Overflow::Hidden)
-	.background(ink)
 	.padding_y(space(8))
 	.display(Display::Hidden)
 	.lg(style().display(Display::Block))
+	+ art_canvas
 	+ no_select);
 
 let df_blob_a = const (art_blob + style()

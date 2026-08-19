@@ -17,7 +17,7 @@ import pkg::theme::{
 	assets,
 	bloom_palette,
 	display_face,
-	down_dim,
+	ink,
 	no_drag,
 	no_select,
 	visually_hidden,
@@ -137,12 +137,15 @@ let hero_wordmark = const (style()
 	.height(Length::auto())
 	+ no_drag);
 
+// The tagline sits on the bloom, not on the ground, and the bloom is the same
+// art in both themes — so it wears the art's own ink, like the mark and the
+// wordmark beside it, not the `down-dim` role that inverts with the scheme.
 let hero_tagline = const style()
 	.font_family(display_face)
 	.raw("font-size", i"max(18px, {hero_scale} * 0.01667)")
 	.line_height(1.5)
 	.font_weight(600)
-	.color(down_dim)
+	.color(ink)
 	.margin(space(0))
 	.text_align(TextAlign::Center);
 

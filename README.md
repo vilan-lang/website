@@ -24,10 +24,17 @@ sorts out what may run where by what each entry reaches.
   through the same SSR path the server uses and writes `<dir>/header.html`
   (the `<nav>`, one root element, nothing around it) and `<dir>/header.css`
   (the chrome leg's own emitted stylesheet — exactly the rules the bar
-  reaches). Every colour in it is a `var(--role)`; the `:root` defaults it
-  declares sit at specificity (0,1,0), so a host that declares the same roles
-  on `html.light` / `html.navy` (the book) re-themes the bar to itself. The
+  reaches). Every colour in it is a `var(--role)`; the `:root` values it
+  declares (dark, and light behind `prefers-color-scheme`) sit at
+  specificity (0,1,0), so a host that declares the same roles on
+  `html.light` / `html.navy` (the book) re-themes the bar to itself. The
   pages repo's README states the contract in full.
+- **`src/theme.vl`** — the tokens. Each is one custom property with two
+  values: dark at `:root` (the default) and light behind
+  `@media (prefers-color-scheme: light)` — the site follows the OS; it has no
+  picker of its own. The light column is `design-language.md` §2.5. The
+  section art (`src/art.vl`) and the hero are the fenced exception: composed
+  on ink in both themes, they take the brand swatches, not the roles.
 - **`src/playground.vl`** + **`src/playground_page.vl`** — the /playground
   page: the compiler itself, compiled to WebAssembly, compiles and runs
   visitor programs in the browser (no server anywhere). The page is vilan like

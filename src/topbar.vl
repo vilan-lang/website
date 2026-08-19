@@ -66,6 +66,19 @@ let nav_brand = const style()
 	.letter_spacing(Length::em(0.35))
 	.font_size(Length::px(13.0));
 
+// The mark follows `up-bright` like the wordmark text beside it: the brand
+// asset is one colour, so it is drawn as a mask over the role rather than as
+// an <img> — an image is blush on every ground, which is invisible on the
+// light one (and in the book, wrong whenever the book's theme is not the
+// OS's). 400x200 is the asset's own box; 18px tall keeps the old size.
+let nav_mark = const style()
+	.display(Display::Block)
+	.width(Length::px(36.0))
+	.height(Length::px(18.0))
+	.background(up_bright)
+	.raw("-webkit-mask", i"url({assets}/mark.svg) center / contain no-repeat")
+	.raw("mask", i"url({assets}/mark.svg) center / contain no-repeat");
+
 let nav_links = const style().display(Display::Flex).gap(space(6));
 
 // Tone carries the state, not opacity: the links rest at the body tier and
@@ -90,11 +103,7 @@ fun top_bar(scroll_fade: Signal<str>): View {
 			.child(view("a")
 				.styled(nav_brand + nav_link)
 				.attr("href", "/")
-				.child(view("img")
-					.styled(no_drag)
-					.attr("src", i"{assets}/mark.svg")
-					.attr("alt", "")
-					.attr("height", "18"))
+				.child(view("span").styled(nav_mark + no_drag).attr("aria-hidden", "true"))
 				.child(view("span").text("VILAN")))
 			.child(view("div")
 				.styled(nav_links)

@@ -23,22 +23,43 @@ import std::ui::{ View, view };
 // `primary` is the one accent. Naming a role rather than a swatch is what
 // makes restyling a surface a token edit instead of a component hunt.
 //
-// Each token is a CSS custom property carrying its own value — std's own
-// `ramp`/`space` mechanism — so the compiled stylesheet gets one `:root` line
-// per token and a THEME SWAP IS A TOKEN SWAP: slice 3's light theme
-// redeclares this block behind a selector and every surface below follows on
-// its own. Nothing past this block names a hex.
+// Each token is a CSS custom property carrying its own values — std's own
+// `ramp`/`space` mechanism — so the compiled stylesheet gets one `:root`
+// declaration per token and a THEME SWAP IS A TOKEN SWAP: the light variant
+// is this same block redeclared behind `prefers-color-scheme: light`, and
+// every surface below follows on its own. Nothing past this block names a hex.
+//
+// The media query, not a selector, is the v1 switch: the site has no theme
+// picker, so "follow the OS" is the honest promise, and the two shells say so
+// with `color-scheme: dark light` (dark is the default — `:root` — and light
+// the redeclaration). The book's mdBook picker declares the same roles on
+// `html.light` / `html.navy` instead (design-language.md §2.5), which beats
+// both of these blocks by specificity — so the exported masthead follows the
+// book's choice there, and the OS everywhere else.
 
-/// A design token: the value lives in one `:root` custom property, so every
-/// surface consuming the token re-themes when that property is redeclared.
-fun token(name: str, value: str): Color {
-	Color { css = i"var(--{name})", root = i":root\{--{name}:{value}\}" }
+/// A design token with its two values: `dark` is the default, declared at
+/// `:root`; `light` is the same property redeclared behind the media query.
+/// One declaration string carries both, so wherever the token reaches a
+/// stylesheet it arrives themed — no surface can pick up the dark value
+/// without the light one.
+fun token(name: str, dark: str, light: str): Color {
+	Color {
+		css = i"var(--{name})",
+		root = i":root\{--{name}:{dark}\}@media (prefers-color-scheme: light)\{:root\{--{name}:{light}\}\}",
+	}
 }
 
 // The brand palette, mapped into the roles per §2.1 — ink family to the
 // `down` layers, blush family to the `up` hierarchy, ember to `primary`, rose
-// to the secondary `accent`. The two ladders are the only derived values, and
-// both step deliberately rather than by a formula:
+// to the secondary `accent`. Each token names its dark value first and its
+// light value second. The light column is design-language.md §2.5, verbatim:
+// the brand INVERTED — ink on blush where dark is blush on ink, the ground the
+// brand's own blush, the ladders stepping away from it with the same shape the
+// dark ladders have (raised surfaces go lighter in both themes), ember and
+// rose deepened until they carry text on blush, and the semantic text tier
+// stepped down the same Tailwind ladder until it clears 4.5:1. The dark
+// ladders are the only derived values here, and both step deliberately rather
+// than by a formula:
 //
 //   down  #120004 -> #1B060D -> #28101A
 //         ink, then the existing panel, then one more of the SAME step. The
@@ -67,43 +88,50 @@ fun token(name: str, value: str): Color {
 // amber-400, rose-400, emerald-500.
 
 // The `down` ladder — surfaces, dimmest (the ground) to brightest (raised).
-let down_dim = const token("down-dim", "#120004");
-let down_normal = const token("down-normal", "#1B060D");
-let down_bright = const token("down-bright", "#28101A");
+let down_dim = const token("down-dim", "#120004", "#F9DFE7");
+let down_normal = const token("down-normal", "#1B060D", "#FBE7ED");
+let down_bright = const token("down-bright", "#28101A", "#FDF3F6");
 
 // The `up` ladder — text, brightest (headings) to dimmest (captions).
-let up_bright = const token("up-bright", "#F9DFE7");
-let up_normal = const token("up-normal", "#D8BEC8");
-let up_dim = const token("up-dim", "#9A7F8B");
+let up_bright = const token("up-bright", "#F9DFE7", "#120004");
+let up_normal = const token("up-normal", "#D8BEC8", "#3B262D");
+let up_dim = const token("up-dim", "#9A7F8B", "#6A535B");
 
 // The state overlays. Six and ten percent, not kolt's ten and fifteen: this
 // ground is far darker than kolt's #282420, so the same alpha reads as a much
-// larger step — these match its PERCEIVED hover and press.
-let down_hover = const token("down-hover", "rgba(255, 255, 255, 0.06)");
-let down_active = const token("down-active", "rgba(255, 255, 255, 0.10)");
+// larger step — these match its PERCEIVED hover and press. Light inverts the
+// overlay too: ink at the same alpha on blush is the same perceived step.
+let down_hover = const token("down-hover", "rgba(255, 255, 255, 0.06)", "rgba(18, 0, 4, 0.06)");
+let down_active = const token("down-active", "rgba(255, 255, 255, 0.10)", "rgba(18, 0, 4, 0.10)");
 
 // The hairlines.
-let stroke_hard = const token("stroke-hard", "#402C32");
-let stroke_soft = const token("stroke-soft", "rgba(64, 44, 50, 0.5)");
+let stroke_hard = const token("stroke-hard", "#402C32", "#CFAFBA");
+let stroke_soft = const token("stroke-soft", "rgba(64, 44, 50, 0.5)", "rgba(207, 175, 186, 0.5)");
 
-// The one accent, and what sits on top of it.
-let primary = const token("primary", "#EB682E");
-let primary_on = const token("primary-on", "#120004");
+// The one accent, and what sits on top of it. Ember at its dark value reads
+// 2.6:1 on blush and cannot be a link, so light deepens it (same hue) until
+// it carries text — 5.0:1 — and what sits on it inverts with the ground.
+let primary = const token("primary", "#EB682E", "#AE3611");
+let primary_on = const token("primary-on", "#120004", "#F9DFE7");
 
 // The secondary accent — rose. Code literals and the quieter highlights.
-let accent = const token("accent", "#E5AFD9");
+let accent = const token("accent", "#E5AFD9", "#922A7C");
 
 // The fixed semantic hues (Tailwind's, as kolt pins them). `up-*` is the word
 // ("error", "warning"), `down-*` is the fill behind it — kolt's own split, and
 // what the playground's diagnostics pane spends them on. `up-info`/`down-info`
 // are still unspent: nothing on a compile surface means "notice" yet, and
 // inventing a use for emerald would be worse than leaving the role declared.
-let up_info = const token("up-info", "#F4F4F5");
-let up_caution = const token("up-caution", "#FBBF24");
-let up_error = const token("up-error", "#FB7185");
-let down_info = const token("down-info", "#10B981");
-let down_caution = const token("down-caution", "#FBBF24");
-let down_danger = const token("down-danger", "#FB7185");
+// The hue is fixed across themes; the `down-*` fills keep their 400/500 values
+// in both (borders and washes, never text), while the `up-*` text tier steps
+// down the same Tailwind ladder in light until it clears 4.5:1 on blush —
+// rose-700, amber-800, zinc-700 (§2.5).
+let up_info = const token("up-info", "#F4F4F5", "#3F3F46");
+let up_caution = const token("up-caution", "#FBBF24", "#92400E");
+let up_error = const token("up-error", "#FB7185", "#BE123C");
+let down_info = const token("down-info", "#10B981", "#10B981");
+let down_caution = const token("down-caution", "#FBBF24", "#FBBF24");
+let down_danger = const token("down-danger", "#FB7185", "#FB7185");
 
 // --- the hero palette (the fenced indulgence, ruling Q1) ---
 //
@@ -167,7 +195,15 @@ let code_size = const Length::px(13.0);
 // Every syntax color IS a role wherever a role says the right thing; the one
 // value with no role name is the callable tint — primary pulled toward the up
 // ladder — so it gets a token of its own rather than a literal at a call site.
-let code_callable = const token("tint-callable", "#F0A886");
+let code_callable = const token("tint-callable", "#F0A886", "#7F260D");
+
+// The comment tint is the one alpha that moves between themes: `up-bright` at
+// 0.5 clears 4.4:1 on the dark panel, but ink at 0.5 on the light panel is
+// 3.7:1, so light takes 0.6 (5.3:1, §2.5). A per-theme alpha needs a slot of
+// its own — the values are the typed role seen through each alpha, and the
+// role's own declaration reaches every stylesheet this palette does (it is
+// `--code-fg`, two lines down).
+let code_comment = const token("tint-comment", up_bright.alpha(0.5).css, up_bright.alpha(0.6).css);
 
 /// The whole code palette, minted as `--code-*` custom properties on whatever
 /// element wears this style. It is how K10's hand-sync dies: the CodeMirror
@@ -198,26 +234,32 @@ let code_palette = const style()
 	.with_color("--code-plain", up_normal)
 	.with_color("--code-callable", code_callable)
 	.with_color("--code-type", up_bright)
-	.with_color("--code-comment", up_bright.alpha(0.5))
+	.with_color("--code-comment", code_comment)
 	.with_color("--code-attr", primary.alpha(0.65))
 	.with_color("--code-path", up_bright.alpha(0.6))
 	.with_color("--code-operator", up_bright.alpha(0.72))
 	.with_color("--code-error", up_error)
 	.with_color("--code-caution", up_caution);
 
-// --- slice-1 aliases ---
+// --- the art's swatches (the slice-1 aliases, pinned) ---
 //
-// The old swatch names, pointing at the roles that replaced them. Slice 2 took
-// the playground off the last of them, which retires `panel`; the six that
-// remain are held open by `art.vl` alone — the fenced marketing register, whose
-// composition is the one thing this slice was told not to touch. They go with
-// the art, not before it.
-let ink = const down_dim;
-let blush = const up_bright;
-let ember = const primary;
-let rose = const accent;
+// The old swatch names. Slice 2 took the playground off the last of them,
+// which retires `panel`; the six that remain are held open by the art alone —
+// `art.vl`'s section pieces and the hero's tagline, the fenced marketing
+// register, whose composition is the one thing the token slices were told not
+// to touch. Slice 1 pointed them at the roles; the light variant is why they
+// are now the brand hexes themselves: the art is composed of literals (its
+// cards, chips, and glows never went onto the roles), so an alias that
+// flipped with the scheme would flip the art's TEXT while its cards stayed
+// dark — half a composition. Art keeps its own ink and blush in both themes,
+// exactly as the bloom palette above keeps its spine. They go with the art,
+// not before it.
+let ink = const Color::hex("#120004");
+let blush = const Color::hex("#F9DFE7");
+let ember = const Color::hex("#EB682E");
+let rose = const Color::hex("#E5AFD9");
 let mono = const code_face;
-let hairline_color = const stroke_soft;
+let hairline_color = const Color::hex("rgba(64, 44, 50, 0.5)");
 
 let assets = "https://vilan-lang.org/assets";
 let repo = "https://github.com/vilan-lang/vilan";
