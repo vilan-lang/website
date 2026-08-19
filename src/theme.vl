@@ -241,25 +241,41 @@ let code_palette = const style()
 	.with_color("--code-error", up_error)
 	.with_color("--code-caution", up_caution);
 
-// --- the art's swatches (the slice-1 aliases, pinned) ---
+// --- the art's own values ---
 //
-// The old swatch names. Slice 2 took the playground off the last of them,
-// which retires `panel`; the six that remain are held open by the art alone —
-// `art.vl`'s section pieces and the hero's tagline, the fenced marketing
-// register, whose composition is the one thing the token slices were told not
-// to touch. Slice 1 pointed them at the roles; the light variant is why they
-// are now the brand hexes themselves: the art is composed of literals (its
-// cards, chips, and glows never went onto the roles), so an alias that
-// flipped with the scheme would flip the art's TEXT while its cards stayed
-// dark — half a composition. Art keeps its own ink and blush in both themes,
-// exactly as the bloom palette above keeps its spine. They go with the art,
-// not before it.
+// The art (art.vl — the fenced marketing register) is composed ON THE ROLES:
+// its grounds are `down-dim`, its cards and chips `down-normal`, its hairlines
+// `stroke-soft` or `up-bright` seen through an alpha, its labels and code the
+// `up` ladder, its ember and rose marks `primary` and `accent` — so every
+// piece re-lights with the page, and the slice-1 swatch aliases the art held
+// open (blush, ember, rose, hairline_color, mono) are gone. What stays here is
+// what no role names.
+//
+// `ink`: the hero's tagline sits on the bloom, and the bloom is the same art
+// in both themes — so the tagline wears the brand's ink literally, like the
+// mark and the wordmark beside it. The one surface that must NOT invert.
 let ink = const Color::hex("#120004");
-let blush = const Color::hex("#F9DFE7");
-let ember = const Color::hex("#EB682E");
-let rose = const Color::hex("#E5AFD9");
-let mono = const code_face;
-let hairline_color = const Color::hex("rgba(64, 44, 50, 0.5)");
+
+// The shadow: the art is the only thing on the page that floats (§2.2), and
+// this is the hue and the STRENGTH of what it casts — black, full, in dark;
+// ink at roughly a third in light, where a shadow as heavy as the dark
+// composition's is a smear on blush. Each art surface states its own depth as
+// a fraction of this — `rgb(from var(--art-shadow) r g b / calc(alpha * 0.45))`,
+// the relative-colour form `Color::alpha` already commits the site to — so the
+// dark values stay the designer's exact 0.45 / 0.55 / 0.6, and light scales
+// all three by one number. A `box-shadow` is a string, so the token reaches
+// the stylesheet through a slot the canvas mints (`--art-shadow`, art.vl), the
+// way `code_palette` reaches the editor.
+let shadow = const token("shadow", "rgba(0, 0, 0, 1)", "rgba(18, 0, 4, 0.35)");
+
+// The art's diagnostic red: the bloom's scarlet (`--bloom-scarlet`, #D84730),
+// where the editor window says "error" — the squiggle, the hover's message,
+// the problem count. As a mark it is the brand; as TEXT on blush it is 3.4:1,
+// so light deepens it the way §2.5 deepened ember and rose (same hue, 8-9°):
+// #AD3520 is 5.1:1 on the ground, 5.4:1 on the panel, 5.8:1 on the floating
+// surface — the weight `primary` got. The tool register's errors are
+// `up-error` (rose); this is the art's, and it does not replace that.
+let art_error = const token("art-error", "#D84730", "#AD3520");
 
 let assets = "https://vilan-lang.org/assets";
 let repo = "https://github.com/vilan-lang/vilan";

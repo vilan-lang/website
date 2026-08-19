@@ -33,8 +33,12 @@ sorts out what may run where by what each entry reaches.
   values: dark at `:root` (the default) and light behind
   `@media (prefers-color-scheme: light)` — the site follows the OS; it has no
   picker of its own. The light column is `design-language.md` §2.5. The
-  section art (`src/art.vl`) and the hero are the fenced exception: composed
-  on ink in both themes, they take the brand swatches, not the roles.
+  section art (`src/art.vl`) is composed on the roles too, so each piece is a
+  light composition in light and renders as drawn in dark; only the bloom's
+  own glows and the plum/violet/scarlet marks stay literal (the art's header
+  says which and why), and the two values the roles don't name — the art's
+  shadow and its diagnostic red — are tokens with both values. The hero is
+  the one fenced exception: the bloom is the same art in both themes.
 - **`src/playground.vl`** + **`src/playground_page.vl`** — the /playground
   page: the compiler itself, compiled to WebAssembly, compiles and runs
   visitor programs in the browser (no server anywhere). The page is vilan like
