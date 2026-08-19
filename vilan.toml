@@ -1,16 +1,20 @@
 # The vilan promo website — built with vilan itself.
 #
-# One package, three entries: the client and the server both build the one
-# `fun page(): View` in `src/page.vl`, and the playground builds its own.
-# `std::ui` resolves per entry platform — live DOM in the browser builds, an
-# HTML string tree in the server build — so the server renders each page to
-# markup for first paint and the browser rebuilds it live and replaces on boot.
+# One package, four entries: the client and the server both build the one
+# `fun page(): View` in `src/page.vl`, the playground builds its own, and the
+# chrome leg exports the shared masthead for the book. `std::ui` resolves per
+# entry platform — live DOM in the browser builds, an HTML string tree in the
+# node builds — so the server renders each page to markup for first paint and
+# the browser rebuilds it live and replaces on boot.
 #
 #   vilan run .            build everything and serve http://localhost:3000/
 #   vilan run . --watch    the dev loop (rebuild + HMR on save)
 [package]
 name = "website"
 description = "The vilan promo site (vilan-lang.org), a fullstack SSR vilan package"
+# Two node legs (the server and the chrome export); `vilan run .` means the
+# server.
+default-entry = "server"
 
 [entry.client]
 target = "browser"
@@ -22,3 +26,8 @@ target = "browser"
 
 [entry.server]
 # target defaults to node; path defaults to src/server.vl
+
+[entry.chrome]
+# The book's masthead: the same `top_bar` the two pages render, exported once
+# as a fragment plus this leg's own stylesheet (see src/chrome.vl). A node
+# leg that writes two files and exits; `run` still means the server.

@@ -1,4 +1,7 @@
 dist/
+# The deploy's staging tree (the rendered pages and the chrome export); the
+# chrome leg writes here locally too.
+export/
 .claude/
 # The playground compiler is fetched from the toolchain's releases
 # (scripts/fetch-wasm.sh), never committed here.

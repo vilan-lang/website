@@ -1,7 +1,9 @@
 # Deploy the site to vilan-lang.org. Every push to main (and any manual
 # dispatch) rebuilds the package, captures the server-rendered pages, and
 # commits the static export - the landing trio (index.html, client.js,
-# client.css), the playground/ set, a root .nojekyll and nothing else - to
+# client.css), the playground/ set, the chrome/ pair (the masthead rendered
+# as a fragment plus its stylesheet, which that repo's docs.yml folds into
+# the book), a root .nojekyll and nothing else - to
 # vilan-lang/vilan-lang.github.io, whose branch-based Pages build publishes
 # main as-is. docs/ there belongs to that repo's docs.yml and assets/ to
 # hand deploys, so the commit stages only the allowlisted files.
@@ -62,7 +64,7 @@ jobs:
         run: node scripts/smoke-playground.mjs
       - name: Render the pages
         run: |
-          mkdir -p export/playground
+          mkdir -p export/playground export/chrome
           node dist/server.mjs &
           server=$!
           curl -sS --fail --retry 30 --retry-delay 1 --retry-connrefused \
@@ -75,6 +77,15 @@ jobs:
               exit 1
             fi
           done
+          # The chrome export: the masthead as a fragment (header.html) plus
+          # the chrome leg's own stylesheet (header.css), for the book. The
+          # fragment lands in an mdBook Handlebars template verbatim, so a
+          # stray mustache would break every docs build downstream.
+          node dist/chrome.mjs export/chrome
+          if grep -q '{{' export/chrome/header.html; then
+            echo "::error::export/chrome/header.html contains '{{' - the book's template engine would choke on it"
+            exit 1
+          fi
           cp dist/client.js dist/client.css export/
           cp dist/playground.js dist/playground.css export/playground/
           cp playground/editor.js playground/examples.js playground/worker.js export/playground/
@@ -121,6 +132,8 @@ jobs:
         if: steps.pages.outputs.deploy == 'true'
         run: |
           cp export/index.html export/client.js export/client.css site/
+          mkdir -p site/chrome
+          cp export/chrome/header.html export/chrome/header.css site/chrome/
           VER="$(cat playground/wasm/VERSION)"
           mkdir -p "site/playground/$VER"
           cp export/playground/index.html export/playground/playground.js \
@@ -147,6 +160,7 @@ jobs:
           # layout lands; a no-op on every deploy after the first.
           git rm -q --ignore-unmatch playground/vilan_wasm.js playground/vilan_wasm_bg.wasm.gz
           git add index.html client.js client.css .nojekyll \
+            chrome/header.html chrome/header.css \
             playground/index.html playground/playground.js playground/playground.css \
             playground/editor.js playground/examples.js playground/worker.js \
             playground/manifest.json \
