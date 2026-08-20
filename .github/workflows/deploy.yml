@@ -147,9 +147,22 @@ jobs:
              site/playground/
           cp "export/playground/$VER/vilan_wasm.js" \
              "export/playground/$VER/vilan_wasm_bg.wasm.gz" "site/playground/$VER/"
-          # The manifest's inventory is the pages repo itself: every version
-          # directory ever published, current first then descending - the
-          # version selector's option list.
+          # K11 retention (RULED 2026-08-20): the playground keeps the newest
+          # 6 version directories; git history keeps the rest, and shared
+          # links carry no version pin - docs-port.md 2.4: the docs' run
+          # buttons emit no &v=, so only the manifest's current entry is
+          # load-bearing. The current release is held out of the candidate
+          # list, so it survives regardless of sort quirks; with 6 or fewer
+          # directories the tail is empty and nothing is pruned. The prune
+          # runs before the manifest is built, so the manifest below reflects
+          # exactly the surviving directories.
+          for stale in $(ls -d site/playground/v*/ | xargs -n1 basename \
+              | sort -rV | grep -Fxv "$VER" | tail -n +6); do
+            git -C site rm -qr "playground/$stale"
+          done
+          # The manifest's inventory is the pages repo itself: the surviving
+          # version directories, current first then descending - the version
+          # selector's option list.
           versions="\"$VER\""
           for name in $(ls -d site/playground/v*/ | xargs -n1 basename | sort -rV); do
             [ "$name" = "$VER" ] && continue
