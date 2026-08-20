@@ -15,7 +15,8 @@
 //
 // The bloom and every piece of section art are BUILT HERE as styled views —
 // no image fetches, crisp at any size, animatable (the bloom drifts; the
-// keyframes and the reduced-motion switch live in app.html). The only raster
+// keyframes and the reduced-motion switch live in server.vl's `<style>`
+// hatch). The only raster
 // assets left are the brand marks and fonts, served from
 // vilan-lang.org/assets so dev and deployed builds see the same bytes.
 import std::option::Option::{ None, Some, self };

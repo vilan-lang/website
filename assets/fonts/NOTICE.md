@@ -26,7 +26,7 @@ unmodified, so the original name is kept.
 ### Deploying it
 
 This file is **staged here, not served from here**. The site's `@font-face`
-rules (`src/app.html`, `src/playground.html`) load it from
+rules (the `<style>` hatch in `src/server.vl`) load it from
 `https://vilan-lang.org/assets/fonts/commit-mono-v143.woff2`, alongside
 `inter-latin.woff2` and `vilan-display-600-latin.woff2` — and that `assets/`
 tree lives in the

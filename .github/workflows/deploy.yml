@@ -1,10 +1,13 @@
 # Deploy the site to vilan-lang.org. Every push to main (and any manual
 # dispatch) rebuilds the package, captures the server-rendered pages, and
-# commits the static export - the landing trio (index.html, client.js,
-# client.css), the playground/ set, the chrome/ set (the masthead rendered
-# as a fragment plus its stylesheet, which that repo's docs.yml folds into
-# the book, and the generated token palette), a root .nojekyll and nothing
-# else - to
+# commits the static export - the root set (index.html plus every build
+# artifact: client.js, client.css, playground.js, playground.css - the
+# server serves each leg's build at /<filename>, `serve_build`'s route
+# shape, and the pages repo mirrors it), the playground/ set (the rendered
+# page, the vendored editor pieces, and the versioned wasm), the chrome/
+# set (the masthead rendered as a fragment plus its stylesheet, which that
+# repo's docs.yml folds into the book, and the generated token palette), a
+# root .nojekyll and nothing else - to
 # vilan-lang/vilan-lang.github.io, whose branch-based Pages build publishes
 # main as-is. docs/ there belongs to that repo's docs.yml and assets/ to
 # hand deploys, so the commit stages only the allowlisted files.
@@ -72,9 +75,13 @@ jobs:
             http://localhost:3000/ -o export/index.html
           curl -sS --fail http://localhost:3000/playground -o export/playground/index.html
           kill "$server"
+          # Rung 2 has no ssr marker to leave behind: `Document::render`
+          # splices inside the mount element by construction. The failure
+          # mode that remains is a page that shipped UNRENDERED, so that is
+          # what the gate checks - an empty mount div means no splice.
           for page in export/index.html export/playground/index.html; do
-            if grep -q '<!--ssr-->' "$page"; then
-              echo "::error::$page still contains the ssr marker - the page did not splice"
+            if grep -q '<div id="app"></div>' "$page"; then
+              echo "::error::$page has an empty mount div - the page did not splice"
               exit 1
             fi
           done
@@ -87,8 +94,9 @@ jobs:
             echo "::error::export/chrome/header.html contains '{{' - the book's template engine would choke on it"
             exit 1
           fi
-          cp dist/client.js dist/client.css export/
-          cp dist/playground.js dist/playground.css export/playground/
+          # Every build artifact at the root, where the generated documents
+          # and `serve_build` both address them.
+          cp dist/client.js dist/client.css dist/playground.js dist/playground.css export/
           cp playground/editor.js playground/examples.js playground/worker.js export/playground/
           # The compiler ships under its versioned, immutable directory; only
           # the tiny manifest moves between releases, so browsers can never
@@ -132,7 +140,8 @@ jobs:
       - name: Commit if the site changed
         if: steps.pages.outputs.deploy == 'true'
         run: |
-          cp export/index.html export/client.js export/client.css site/
+          cp export/index.html export/client.js export/client.css \
+             export/playground.js export/playground.css site/
           mkdir -p site/chrome
           # tokens-fixture.css stays out on purpose: it is a repo artifact
           # (committed in the toolchain repo beside the book), not a served one.
@@ -140,8 +149,7 @@ jobs:
              export/chrome/tokens.css site/chrome/
           VER="$(cat playground/wasm/VERSION)"
           mkdir -p "site/playground/$VER"
-          cp export/playground/index.html export/playground/playground.js \
-             export/playground/playground.css export/playground/editor.js \
+          cp export/playground/index.html export/playground/editor.js \
              export/playground/examples.js export/playground/worker.js \
              export/playground/manifest.json \
              site/playground/
@@ -174,11 +182,15 @@ jobs:
           touch site/.nojekyll
           cd site
           # The pre-versioning flat pair is dead weight once the versioned
-          # layout lands; a no-op on every deploy after the first.
-          git rm -q --ignore-unmatch playground/vilan_wasm.js playground/vilan_wasm_bg.wasm.gz
-          git add index.html client.js client.css .nojekyll \
+          # layout lands, and the playground bundle pair moved to the root
+          # when the site climbed to rung 2 (the generated document addresses
+          # /playground.js, serve_build's route shape); each rm is a no-op on
+          # every deploy after its first.
+          git rm -q --ignore-unmatch playground/vilan_wasm.js playground/vilan_wasm_bg.wasm.gz \
+            playground/playground.js playground/playground.css
+          git add index.html client.js client.css playground.js playground.css .nojekyll \
             chrome/header.html chrome/header.css chrome/tokens.css \
-            playground/index.html playground/playground.js playground/playground.css \
+            playground/index.html \
             playground/editor.js playground/examples.js playground/worker.js \
             playground/manifest.json \
             "playground/$VER/vilan_wasm.js" "playground/$VER/vilan_wasm_bg.wasm.gz"
