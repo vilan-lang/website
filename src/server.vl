@@ -1,8 +1,14 @@
-// The server: read the client bundles, their stylesheets, and the HTML shells,
-// then serve. Each page route renders its view to markup and splices it into
-// its shell at the `<!--ssr-->` marker — a fresh render per request, created,
-// serialized, and discarded. The page arrives fully painted; the entry's own
-// bundle boots and replaces.
+// The server, at rung 2 (fullstack-dx.md §5.5): each page's document is
+// WRITTEN from its leg's build — `Document::of` derives the doctype, the
+// charset/viewport pair, the `<title>`, the stylesheet link, the mount div and
+// the module script from what the build emitted, so none of them can disagree
+// with the artifacts they name — and `serve_build` serves those artifacts on
+// the routes the document writes. There are no HTML shells and no `<!--ssr-->`
+// marker any more: `Document::render(view)` splices the server render INSIDE
+// the mount element the document itself wrote. What no build can know — the
+// UA theme metas, the icons, the social cards, the self-hosted fonts, each
+// page's frame rules, the playground's vendored scripts — rides the
+// `head()`/`body()` hatches below, and each hatch says why it exists.
 //
 // The playground's wasm compiler is NOT part of this package's build: in
 // production the deploy job downloads it from the toolchain's release assets,
@@ -10,25 +16,17 @@
 // README). The routes below answer 404 with a pointer until it exists, so the
 // landing page needs none of it.
 
+import std::build::{ LegBuild, require_build };
 import std::bytes::Bytes;
+import std::document::Document;
 import std::fs;
-import std::http::{ Request, Response, Server };
+import std::http::{ Response, Server };
 import std::option::Option::{ None, Some, self };
 import std::print;
 import std::process::env;
-import std::reactive::{ Owner, Signal, run_with_owner };
-import std::ui::render;
+import std::reactive::Signal;
 import pkg::page::page;
 import pkg::playground_page::{ ConsoleRow, DiagRow, playground_page };
-
-/// `readFile` with no encoding: the raw bytes, for the gzipped wasm.
-[extern("node:fs/promises", "readFile")]
-async external fun read_file_raw(path: str): Bytes;
-
-/// The version directories under playground/wasm, for serving every fetched
-/// compiler (the selector switches between them).
-[extern("node:fs", "readdirSync")]
-external fun read_dir(path: str): List<str>;
 
 /// One fetched compiler version's pair, served at its versioned paths.
 struct WasmPair {
@@ -37,11 +35,8 @@ struct WasmPair {
 	gz: Bytes,
 }
 
-fun html(shell: str, markup: str): Response {
-	Response::builder()
-		.set_header("Content-Type", "text/html")
-		.body(shell.replace("<!--ssr-->", markup))
-		.build()
+fun html(markup: str): Response {
+	Response::builder().set_header("Content-Type", "text/html").body(markup).build()
 }
 
 fun script(body: str): Response {
@@ -56,15 +51,159 @@ fun missing_wasm(): Response {
 		.build()
 }
 
-async fun main() {
-	// Read once at boot; the server runs from the project root (`vilan run .`).
-	let client_js = fs::read_file_to_str("dist/client.js");
-	let client_css = fs::read_file_to_str("dist/client.css");
-	let shell = fs::read_file_to_str("src/app.html");
+/// `lines` joined onto one indent level of the generated document —
+/// `Document::html()` inserts hatch markup at two tabs, so every line after
+/// the first needs its own two.
+fun joined(lines: List<str>, separator: str): str {
+	mut markup = "";
+	mut first = true;
+	for line in lines {
+		if first {
+			markup = line;
+			first = false;
+		} else {
+			markup = markup + separator + line;
+		}
+	}
+	markup
+}
 
-	let playground_js = fs::read_file_to_str("dist/playground.js");
-	let playground_css = fs::read_file_to_str("dist/playground.css");
-	let playground_shell = fs::read_file_to_str("src/playground.html");
+/// The one `<head>` hatch both pages ride, parameterized by what differs.
+/// Everything here is what `Document::of` deliberately does not derive:
+///
+/// - the UA theme metas. Dark is the default, light follows the OS (theme.vl's
+///   token block is redeclared behind `prefers-color-scheme: light`); the UA
+///   is told both so its own chrome — form controls, scrollbars — agrees with
+///   the page, and `theme-color` paints the browser frame with the page's
+///   ground in each scheme.
+/// - the page's description and its social card (og:/twitter:) — a page's
+///   identity beyond its `<title>`, which is the one identity line the
+///   document does carry.
+/// - the icon set, absolute so the exported pages and the local server agree.
+/// - the page's `<style>` block (`style_block` below).
+fun head_hatch(description: str, og_title: str, og_description: str, og_url: str, style: str): str {
+	joined(["<meta name=\"color-scheme\" content=\"dark light\">", "<meta name=\"theme-color\" content=\"#120004\" media=\"(prefers-color-scheme: dark)\">", "<meta name=\"theme-color\" content=\"#F9DFE7\" media=\"(prefers-color-scheme: light)\">", i"<meta name=\"description\" content=\"{description}\">", "<link rel=\"icon\" href=\"https://vilan-lang.org/favicon.ico\" sizes=\"48x48\">", "<link rel=\"icon\" href=\"https://vilan-lang.org/assets/icon-192.png\" type=\"image/png\" sizes=\"192x192\">", "<link rel=\"apple-touch-icon\" href=\"https://vilan-lang.org/assets/apple-touch-icon.png\">", i"<meta property=\"og:title\" content=\"{og_title}\">", i"<meta property=\"og:description\" content=\"{og_description}\">", "<meta property=\"og:image\" content=\"https://vilan-lang.org/assets/social_card.png\">", i"<meta property=\"og:url\" content=\"{og_url}\">", "<meta property=\"og:type\" content=\"website\">", "<meta name=\"twitter:card\" content=\"summary_large_image\">", style], "\n\t\t")
+}
+
+/// Each page's inline `<style>`: the shared frame first, then the page's own
+/// rules, then the reduced-motion kill last so it wins.
+///
+/// The self-hosted webfonts (OFL): Inter is the variable file, one face for
+/// every weight; Vilan Display is Raleway 600, subset to latin and renamed —
+/// "Raleway" is a Reserved Font Name, and the OFL reserves it for the
+/// unmodified font (see assets/fonts/VILAN-DISPLAY-LICENSE.txt). CommitMono
+/// V143 is the code face for every vilan surface (the ratified spec,
+/// design-language.md 2.3): 200–700 is the font's REAL wght axis range, so
+/// declaring it keeps the axis live and lets the browser refuse to synthesize
+/// outside it, and `font-synthesis: none` for the same reason — a faked bold
+/// on a mono face breaks the grid. The feature settings (ss01–ss05,
+/// cv04/cv06/cv08) are NOT set here: they are a token in theme.vl, applied per
+/// code surface. Both pages declare the same three faces, so navigating
+/// between them costs no new fetches.
+///
+/// The frame rules: the body takes the page's ground so there is never a
+/// white flash outside the app, and selection inverts the page — the ground
+/// on the brightest text.
+fun style_block(page_rules: List<str>): str {
+	mut lines: List<str> = [
+		"@font-face {",
+		"\tfont-family: \"Inter\";",
+		"\tfont-style: normal;",
+		"\tfont-weight: 100 900;",
+		"\tfont-display: swap;",
+		"\tsrc: url(https://vilan-lang.org/assets/fonts/inter-latin.woff2) format(\"woff2\");",
+		"}",
+		"@font-face {",
+		"\tfont-family: \"Vilan Display\";",
+		"\tfont-style: normal;",
+		"\tfont-weight: 600;",
+		"\tfont-display: swap;",
+		"\tsrc: url(https://vilan-lang.org/assets/fonts/vilan-display-600-latin.woff2) format(\"woff2\");",
+		"}",
+		"@font-face {",
+		"\tfont-family: \"CommitMonoV143\";",
+		"\tfont-style: normal;",
+		"\tfont-weight: 200 700;",
+		"\tfont-display: swap;",
+		"\tfont-synthesis: none;",
+		"\tsrc: url(https://vilan-lang.org/assets/fonts/commit-mono-v143.woff2) format(\"woff2\");",
+		"}",
+		"html, body { margin: 0; height: 100%; background: var(--down-dim, #120004); }",
+		"::selection { background: var(--up-bright, #F9DFE7); color: var(--down-dim, #120004); }",
+	];
+	for rule in page_rules {
+		lines.push(rule);
+	}
+	lines.push("@media (prefers-reduced-motion: reduce) {");
+	lines.push("\t* { animation: none !important; }");
+	lines.push("}");
+	"<style>\n\t\t\t" + joined(lines, "\n\t\t\t") + "\n\t\t</style>"
+}
+
+/// The landing page's document. Its own style rules are the three animations
+/// the page's art references by name: the hero bloom's drift (small amplitude
+/// on purpose — weather, not motion), the diagram's mirror line flowing toward
+/// its arrow, and the editor art's caret. The `body()` hatch carries the
+/// design's Texture effect (scale reduced: the exported 200 smears far beyond
+/// what the design tool renders): fine noise displacing the blurred bloom,
+/// which the page references as a CSS filter. It rides OUTSIDE the mount div
+/// so the client's render-and-replace never removes it.
+fun landing_document(build: LegBuild): Document {
+	Document::of(build)
+		.title("Vilan — The Modern Web Language")
+		.head(head_hatch("Vilan is a language for building full-stack web apps: one small toolchain, reactive UI, and a compiler that checks what you usually find out at runtime.", "Vilan — The Modern Web Language", "A language for building full-stack web apps: one small toolchain, reactive UI, and a compiler that checks what you usually find out at runtime.", "https://vilan-lang.org/", style_block([
+			"@keyframes bloom-drift-a {",
+			"\tfrom { transform: translate(0, 0) scale(1); }",
+			"\tto { transform: translate(0.8%, 1.6%) scale(1.035); }",
+			"}",
+			"@keyframes dash-flow {",
+			"\tto { background-position: 22px 0; }",
+			"}",
+			"@keyframes caret-blink {",
+			"\t0%, 49% { opacity: 1; }",
+			"\t50%, 100% { opacity: 0; }",
+			"}",
+		])))
+		.body(joined(["<svg width=\"0\" height=\"0\" style=\"position:absolute\" aria-hidden=\"true\">", "\t<filter id=\"bloom-texture\" x=\"-8%\" y=\"-8%\" width=\"116%\" height=\"116%\" color-interpolation-filters=\"sRGB\">", "\t\t<feTurbulence type=\"fractalNoise\" baseFrequency=\"0.76923\" numOctaves=\"3\" seed=\"3030\"/>", "\t\t<feDisplacementMap in=\"SourceGraphic\" scale=\"90\" xChannelSelector=\"R\" yChannelSelector=\"G\"/>", "\t</filter>", "</svg>"], "\n\t\t"))
+}
+
+/// The playground page's document. Its own style rules size the workbench:
+/// the editor host is a plain div until CodeMirror mounts, and the widget and
+/// the per-Run iframe both fill whatever box the page gives them — `#app`
+/// spans the viewport so the workbench can flex to the fold. The `body()`
+/// hatch loads the vendored editor bundle (CodeMirror 6 + the worker and
+/// iframe machinery) and the generated example table as plain scripts, so
+/// both globals exist before the document's own module script runs — the
+/// generated tag lands after the hatch, which is exactly that order.
+fun playground_document(build: LegBuild): Document {
+	Document::of(build)
+		.title("Vilan Playground — run vilan in your browser")
+		.head(head_hatch("Write and run Vilan in your browser: the compiler itself runs client-side as WebAssembly — no install, no server.", "Vilan Playground", "Write and run Vilan in your browser: the compiler itself runs client-side as WebAssembly — no install, no server.", "https://vilan-lang.org/playground/", style_block([
+			"#app { height: 100%; }",
+			"#editor .cm-editor { height: 100%; }",
+			"#runner iframe { border: 0; width: 100%; height: 100%; background: #fff; }",
+			"button:focus-visible, select:focus-visible {",
+			"\toutline: 2px solid var(--primary, #EB682E);",
+			"\toutline-offset: 2px;",
+			"}",
+		])))
+		.body(joined(["<script src=\"/playground/examples.js\"></script>", "<script src=\"/playground/editor.js\"></script>"], "\n\t\t"))
+}
+
+async fun main() {
+	// What each browser leg's build wrote, as the build knows it — the server
+	// runs from the project root (`vilan run .`). `serve_build` below installs
+	// one route per artifact (/client.js, /client.css, /playground.js,
+	// /playground.css), so nothing here names a bundle or a content type.
+	let client_build = require_build("client");
+	let playground_build = require_build("playground");
+
+	let landing = landing_document(client_build);
+	let playground = playground_document(playground_build);
+
+	// The vendored playground pieces are files, not build artifacts, so they
+	// keep their boot reads and their /playground/ routes — the worker names
+	// them by absolute path.
 	let editor_js = fs::read_file_to_str("playground/editor.js");
 	let examples_js = fs::read_file_to_str("playground/examples.js");
 	let worker_js = fs::read_file_to_str("playground/worker.js");
@@ -78,12 +217,12 @@ async fun main() {
 	mut wasm_pairs: List<WasmPair> = [];
 	if has_wasm {
 		wasm_manifest = fs::read_file_to_str("playground/wasm/manifest.json");
-		for name in read_dir("playground/wasm") {
+		for name in fs::read_dir("playground/wasm") {
 			if name.starts_with("v") {
 				wasm_pairs.push(WasmPair {
 					version = name,
 					glue = fs::read_file_to_str(i"playground/wasm/{name}/vilan_wasm.js"),
-					gz = read_file_raw(i"playground/wasm/{name}/vilan_wasm_bg.wasm.gz"),
+					gz = fs::read_bytes(i"playground/wasm/{name}/vilan_wasm_bg.wasm.gz"),
 				});
 			}
 		}
@@ -98,31 +237,28 @@ async fun main() {
 
 	// Inert stand-ins, the same split as the landing page: the signals never
 	// move and the actions do nothing — the playground entry wires the live
-	// versions on boot. (Pages serves the exported page at /playground/, the
+	// versions on boot. Create, serialize, discard: a fresh view is rendered
+	// into a copy of the document per request, and no subscription survives
+	// the response. (Pages serves the exported page at /playground/, the
 	// local server at /playground; both spellings answer.)
 	let render_playground = || {
-		let owner = Owner::new();
-		mut markup = "";
-		run_with_owner(owner, || {
-			let no_diagnostics: Signal<List<DiagRow>> = Signal::new([]);
-			let no_console: Signal<List<ConsoleRow>> = Signal::new([]);
-			markup = render(playground_page(Signal::new("Loading the compiler…"), no_diagnostics, no_console, Signal::new(false), Signal::new(false), Signal::new("Share"), Signal::new("browser"), Signal::new(""), Signal::new(""), || {}, || {}, || {}, || {}, || {}));
-		});
-		html(playground_shell, markup)
+		let no_diagnostics: Signal<List<DiagRow>> = Signal::new([]);
+		let no_console: Signal<List<ConsoleRow>> = Signal::new([]);
+		html(playground
+			.render(playground_page(Signal::new("Loading the compiler…"), no_diagnostics, no_console, Signal::new(false), Signal::new(false), Signal::new("Share"), Signal::new("browser"), Signal::new(""), Signal::new(""), || {}, || {}, || {}, || {}, || {}))
+			.html())
 	};
 
 	Server::builder()
 		.port(port)
+		.serve_build(client_build)
+		.serve_build(playground_build)
 		.on_request(|request| {
 			// The path alone: a module worker's `?v=` pin (or any query)
 			// must not defeat the literal routes - static hosting ignores
 			// queries, so the local server does too.
 			let path = request.path().split("?")[0];
 			match path {
-				"/client.js" => script(client_js),
-				"/client.css" => Response::builder().set_header("Content-Type", "text/css").body(client_css).build(),
-				"/playground/playground.js" => script(playground_js),
-				"/playground/playground.css" => Response::builder().set_header("Content-Type", "text/css").body(playground_css).build(),
 				"/playground/editor.js" => script(editor_js),
 				"/playground/examples.js" => script(examples_js),
 				"/playground/worker.js" => script(worker_js),
@@ -146,17 +282,10 @@ async fun main() {
 								.build();
 						}
 					}
-					// The page holds live state (the counter demo), so each render
-					// gets its own owner: created, serialized, and discarded —
-					// dropping the owner tears the subscriptions down with it.
-					let owner = Owner::new();
-					mut markup = "";
-					run_with_owner(owner, || {
-						// Inert stand-ins for the client's enhancements: the fade
-						// signal never moves and the clipboard hook does nothing.
-						markup = render(page(Signal::new("0"), |_text| {}));
-					});
-					html(shell, markup)
+					// The landing page for everything else, freshly rendered:
+					// inert stand-ins for the client's enhancements — the fade
+					// signal never moves and the clipboard hook does nothing.
+					html(landing.render(page(Signal::new("0"), |_text| {})).html())
 				}
 			}
 		})

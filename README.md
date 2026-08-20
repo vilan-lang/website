@@ -11,10 +11,15 @@ sorts out what may run where by what each entry reaches.
 - **`src/page.vl`** — the one `fun page(): View` the landing entries build, plus
   its `std::style` styles. It imports `std::ui`, which resolves per entry
   platform: live DOM in the client build, an HTML string tree in the server build.
-- **`src/server.vl`** — the node entry. Renders each page to markup, splices it
-  into its shell (`src/app.html`, `src/playground.html`) at the `<!--ssr-->`
-  marker, and serves the pages plus every bundle and asset. The pages arrive
-  fully painted (first paint, SEO).
+- **`src/server.vl`** — the node entry, at rung 2 of the full-stack ladder.
+  Each page's HTML document is written from its leg's build (`Document::of`) —
+  the stylesheet link, the module script and the mount div are derived, so they
+  cannot disagree with the artifacts `serve_build` serves — and everything the
+  build cannot know (theme metas, icons, social cards, fonts, each page's frame
+  rules, the playground's vendored scripts) rides the `head()`/`body()`
+  hatches. There are no HTML shells and no `<!--ssr-->` marker:
+  `Document::render(view)` splices the server render inside the mount element
+  by construction. The pages arrive fully painted (first paint, SEO).
 - **`src/client.vl`** — the landing page's browser entry. `mount_root` clears
   the server markup on boot and mounts the same page as live DOM.
 - **`src/topbar.vl`** — the sticky toolbar every surface wears (the landing

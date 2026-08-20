@@ -259,8 +259,8 @@ let body_face = "'Inter', system-ui, -apple-system, sans-serif";
 let display_face = "'Vilan Display', system-ui, -apple-system, sans-serif";
 
 // CommitMono V143, self-hosted, per the ratified spec (§2.3). The face is the
-// variable font — the @font-face in app.html/playground.html declares its real
-// axis range (wght 200-700) so the weight axis is live.
+// variable font — the @font-face in server.vl's `<style>` hatch declares its
+// real axis range (wght 200-700) so the weight axis is live.
 let code_face = "'CommitMonoV143', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace";
 
 // The owner's own editor settings, ratified as the canonical form for EVERY
