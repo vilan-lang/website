@@ -29,6 +29,7 @@ import { bracketMatching, indentUnit, StreamLanguage, syntaxHighlighting, Highli
 import { closeBrackets } from "@codemirror/autocomplete";
 import { setDiagnostics, lintGutter } from "@codemirror/lint";
 import { tags } from "@lezer/highlight";
+import { decodeBase64Url, deflate, encodeBase64Url, inflate } from "../codec.js";
 
 // --- the vilan mode: a stream tokenizer, enough for the pane to read as
 // --- vilan (the real grammar lives in the compiler; this is presentation)
@@ -289,33 +290,9 @@ let view = null;
 // `#code=<base64url(deflate-raw(source))>` — no server holds anything, and a
 // fragment never reaches one in a request. Share writes the fragment and
 // copies the full URL; a page opened with one loads it instead of the
-// default example.
-
-function encodeBase64Url(bytes) {
-	let binary = "";
-	for (const byte of bytes) {
-		binary += String.fromCharCode(byte);
-	}
-	return btoa(binary).replaceAll("+", "-").replaceAll("/", "_").replace(/=+$/, "");
-}
-
-function decodeBase64Url(text) {
-	const padded = text.replaceAll("-", "+").replaceAll("_", "/");
-	const binary = atob(padded + "=".repeat((4 - (padded.length % 4)) % 4));
-	return Uint8Array.from(binary, (ch) => ch.charCodeAt(0));
-}
-
-async function deflate(text) {
-	const stream = new Blob([new TextEncoder().encode(text)])
-		.stream()
-		.pipeThrough(new CompressionStream("deflate-raw"));
-	return new Uint8Array(await new Response(stream).arrayBuffer());
-}
-
-async function inflate(bytes) {
-	const stream = new Blob([bytes]).stream().pipeThrough(new DecompressionStream("deflate-raw"));
-	return new Response(stream).text();
-}
+// default example. The codec itself lives in ../codec.js — its ONE home
+// (K15): esbuild inlines it here, and the book's harness carries a suite-
+// pinned copy of the half it needs (see that file's header).
 
 // `#code=<payload>` with optional `&mode=node` and `&v=<tag>` - a shared
 // server-leg snippet opens straight into the check mode, and a pinned link
