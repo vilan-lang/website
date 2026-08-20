@@ -729,8 +729,17 @@ function startCompiler(onEvent) {
 		.then((response) => response.json())
 		.then((manifest) => {
 			currentVersion = manifest.compiler;
-			if (!selectedVersion) selectedVersion = currentVersion;
-			populateVersionSelect(manifest.versions ?? [manifest.compiler]);
+			const versions = manifest.versions ?? [manifest.compiler];
+			// A pin at a version the manifest no longer lists (K11 keeps
+			// only the newest directories) would 404 the worker's import
+			// and dead-end in the load-failure loop; old versions are a
+			// non-promise, so a stale pin falls back to the current
+			// release - the shared buffer still loads, under today's
+			// compiler, and the status line names what actually came up.
+			if (!selectedVersion || !versions.includes(selectedVersion)) {
+				selectedVersion = currentVersion;
+			}
+			populateVersionSelect(versions);
 		})
 		.catch(() => {})
 		.finally(spawn);
