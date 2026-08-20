@@ -2,6 +2,7 @@
 // role palette, type faces, asset roots, and the page-wide layout/texture
 // styles (shell, column, stack, reveal, dividers, grain).
 
+import std::io::panic;
 import std::style::{
 	Color,
 	Display,
@@ -37,21 +38,29 @@ import std::ui::{ View, view };
 // both of these blocks by specificity — so the exported masthead follows the
 // book's choice there, and the OS everywhere else.
 
-/// A design token with its two values: `dark` is the default, declared at
-/// `:root`; `light` is the same property redeclared behind the media query.
-/// One declaration string carries both, so wherever the token reaches a
-/// stylesheet it arrives themed — no surface can pick up the dark value
-/// without the light one.
-fun token(name: str, dark: str, light: str): Color {
-	Color {
-		css = i"var(--{name})",
-		root = i":root\{--{name}:{dark}\}@media (prefers-color-scheme: light)\{:root\{--{name}:{light}\}\}",
-	}
+/// One themed custom property: the value the dark theme declares and the
+/// value the light theme declares, keyed by the property's name. The table
+/// below is the palette's ONE home (design-language.md §2.4/§2.6): `token`
+/// looks these rows up to mint the typed `Color`s the site consumes, and the
+/// chrome leg (chrome.vl) renders the same rows into `chrome/tokens.css` and
+/// the book's committed fixture at build time — a value stated anywhere else
+/// is a bug, not a convenience.
+struct ThemedValue {
+	name: str,
+	dark: str,
+	light: str,
+}
+
+/// A role seen only by reference — `var(--name)` with no declaration of its
+/// own — for deriving one themed value from another INSIDE the table, before
+/// the typed consts below exist.
+fun role_reference(name: str): Color {
+	Color { css = i"var(--{name})", root = "" }
 }
 
 // The brand palette, mapped into the roles per §2.1 — ink family to the
 // `down` layers, blush family to the `up` hierarchy, ember to `primary`, rose
-// to the secondary `accent`. Each token names its dark value first and its
+// to the secondary `accent`. Each row names its dark value first and its
 // light value second. The light column is design-language.md §2.5, verbatim:
 // the brand INVERTED — ink on blush where dark is blush on ink, the ground the
 // brand's own blush, the ladders stepping away from it with the same shape the
@@ -84,40 +93,12 @@ fun token(name: str, dark: str, light: str): Color {
 // dividers the page already drew — the rules stay put, they just stop being a
 // literal.
 //
-// Only the semantic hues are fixed across themes, per kolt: zinc-100,
-// amber-400, rose-400, emerald-500.
-
-// The `down` ladder — surfaces, dimmest (the ground) to brightest (raised).
-let down_dim = const token("down-dim", "#120004", "#F9DFE7");
-let down_normal = const token("down-normal", "#1B060D", "#FBE7ED");
-let down_bright = const token("down-bright", "#28101A", "#FDF3F6");
-
-// The `up` ladder — text, brightest (headings) to dimmest (captions).
-let up_bright = const token("up-bright", "#F9DFE7", "#120004");
-let up_normal = const token("up-normal", "#D8BEC8", "#3B262D");
-let up_dim = const token("up-dim", "#9A7F8B", "#6A535B");
-
-// The state overlays. Six and ten percent, not kolt's ten and fifteen: this
-// ground is far darker than kolt's #282420, so the same alpha reads as a much
-// larger step — these match its PERCEIVED hover and press. Light inverts the
-// overlay too: ink at the same alpha on blush is the same perceived step.
-let down_hover = const token("down-hover", "rgba(255, 255, 255, 0.06)", "rgba(18, 0, 4, 0.06)");
-let down_active = const token("down-active", "rgba(255, 255, 255, 0.10)", "rgba(18, 0, 4, 0.10)");
-
-// The hairlines.
-let stroke_hard = const token("stroke-hard", "#402C32", "#CFAFBA");
-let stroke_soft = const token("stroke-soft", "rgba(64, 44, 50, 0.5)", "rgba(207, 175, 186, 0.5)");
-
-// The one accent, and what sits on top of it. Ember at its dark value reads
-// 2.6:1 on blush and cannot be a link, so light deepens it (same hue) until
-// it carries text — 5.0:1 — and what sits on it inverts with the ground.
-let primary = const token("primary", "#EB682E", "#AE3611");
-let primary_on = const token("primary-on", "#120004", "#F9DFE7");
-
-// The secondary accent — rose. Code literals and the quieter highlights.
-let accent = const token("accent", "#E5AFD9", "#922A7C");
-
-// The fixed semantic hues (Tailwind's, as kolt pins them). `up-*` is the word
+// The state overlays are six and ten percent, not kolt's ten and fifteen:
+// this ground is far darker than kolt's #282420, so the same alpha reads as a
+// much larger step — these match its PERCEIVED hover and press. Light inverts
+// the overlay too: ink at the same alpha on blush is the same perceived step.
+//
+// The semantic hues (Tailwind's, as kolt pins them): `up-*` is the word
 // ("error", "warning"), `down-*` is the fill behind it — kolt's own split, and
 // what the playground's diagnostics pane spends them on. `up-info`/`down-info`
 // are still unspent: nothing on a compile surface means "notice" yet, and
@@ -126,12 +107,119 @@ let accent = const token("accent", "#E5AFD9", "#922A7C");
 // in both (borders and washes, never text), while the `up-*` text tier steps
 // down the same Tailwind ladder in light until it clears 4.5:1 on blush —
 // rose-700, amber-800, zinc-700 (§2.5).
-let up_info = const token("up-info", "#F4F4F5", "#3F3F46");
-let up_caution = const token("up-caution", "#FBBF24", "#92400E");
-let up_error = const token("up-error", "#FB7185", "#BE123C");
-let down_info = const token("down-info", "#10B981", "#10B981");
-let down_caution = const token("down-caution", "#FBBF24", "#FBBF24");
-let down_danger = const token("down-danger", "#FB7185", "#FB7185");
+//
+// The last four rows are the themed values outside the role vocabulary
+// proper; each is explained where its typed const is declared below —
+// `tint-callable` and `tint-comment` with the code palette, `shadow` and
+// `art-error` with the art's own values. `tint-comment` is the one derived
+// pair: the same up-bright reference seen through each theme's alpha (0.5
+// clears 4.4:1 on the dark panel; ink at 0.5 on the light panel is 3.7:1, so
+// light takes 0.6 — 5.3:1, §2.5).
+let themed_values = const [
+	// the `down` ladder — surfaces, dimmest (the ground) to brightest (raised)
+	ThemedValue { name = "down-dim", dark = "#120004", light = "#F9DFE7" },
+	ThemedValue { name = "down-normal", dark = "#1B060D", light = "#FBE7ED" },
+	ThemedValue { name = "down-bright", dark = "#28101A", light = "#FDF3F6" },
+	// the `up` ladder — text, brightest (headings) to dimmest (captions)
+	ThemedValue { name = "up-bright", dark = "#F9DFE7", light = "#120004" },
+	ThemedValue { name = "up-normal", dark = "#D8BEC8", light = "#3B262D" },
+	ThemedValue { name = "up-dim", dark = "#9A7F8B", light = "#6A535B" },
+	// the state overlays
+	ThemedValue {
+		name = "down-hover",
+		dark = "rgba(255, 255, 255, 0.06)",
+		light = "rgba(18, 0, 4, 0.06)",
+	},
+	ThemedValue {
+		name = "down-active",
+		dark = "rgba(255, 255, 255, 0.10)",
+		light = "rgba(18, 0, 4, 0.10)",
+	},
+	// the hairlines
+	ThemedValue { name = "stroke-hard", dark = "#402C32", light = "#CFAFBA" },
+	ThemedValue {
+		name = "stroke-soft",
+		dark = "rgba(64, 44, 50, 0.5)",
+		light = "rgba(207, 175, 186, 0.5)",
+	},
+	// the one accent, what sits on top of it, and the secondary accent
+	ThemedValue { name = "primary", dark = "#EB682E", light = "#AE3611" },
+	ThemedValue { name = "primary-on", dark = "#120004", light = "#F9DFE7" },
+	ThemedValue { name = "accent", dark = "#E5AFD9", light = "#922A7C" },
+	// the fixed semantic hues
+	ThemedValue { name = "up-info", dark = "#F4F4F5", light = "#3F3F46" },
+	ThemedValue { name = "up-caution", dark = "#FBBF24", light = "#92400E" },
+	ThemedValue { name = "up-error", dark = "#FB7185", light = "#BE123C" },
+	ThemedValue { name = "down-info", dark = "#10B981", light = "#10B981" },
+	ThemedValue { name = "down-caution", dark = "#FBBF24", light = "#FBBF24" },
+	ThemedValue { name = "down-danger", dark = "#FB7185", light = "#FB7185" },
+	// outside the role vocabulary (see the consts below)
+	ThemedValue { name = "tint-callable", dark = "#F0A886", light = "#7F260D" },
+	ThemedValue {
+		name = "tint-comment",
+		dark = role_reference("up-bright").alpha(0.5).css,
+		light = role_reference("up-bright").alpha(0.6).css,
+	},
+	ThemedValue { name = "shadow", dark = "rgba(0, 0, 0, 1)", light = "rgba(18, 0, 4, 0.35)" },
+	ThemedValue { name = "art-error", dark = "#D84730", light = "#AD3520" },
+];
+
+/// The `:root` declaration a themed value compiles to: `dark` is the default,
+/// declared at `:root`; `light` is the same property redeclared behind the
+/// media query. One string carries both, so wherever the token reaches a
+/// stylesheet it arrives themed — no surface can pick up the dark value
+/// without the light one. The chrome leg emits these same strings into
+/// `chrome/tokens.css` (K10): one formatter, two consumers, zero drift.
+fun themed_declaration(value: ThemedValue): str {
+	i":root\{--{value.name}:{value.dark}\}@media (prefers-color-scheme: light)\{:root\{--{value.name}:{value.light}\}\}"
+}
+
+/// A design token: the typed `Color` for a themed value the table declares.
+/// Naming a row the table does not carry fails the build at const eval, so
+/// the consts below and the table can never disagree.
+fun token(name: str): Color {
+	for value in themed_values {
+		if value.name == name {
+			ret Color { css = i"var(--{name})", root = themed_declaration(value) };
+		}
+	}
+	panic(i"theme.vl: no themed value named {name}")
+}
+
+// The `down` ladder — surfaces, dimmest (the ground) to brightest (raised).
+let down_dim = const token("down-dim");
+let down_normal = const token("down-normal");
+let down_bright = const token("down-bright");
+
+// The `up` ladder — text, brightest (headings) to dimmest (captions).
+let up_bright = const token("up-bright");
+let up_normal = const token("up-normal");
+let up_dim = const token("up-dim");
+
+// The state overlays.
+let down_hover = const token("down-hover");
+let down_active = const token("down-active");
+
+// The hairlines.
+let stroke_hard = const token("stroke-hard");
+let stroke_soft = const token("stroke-soft");
+
+// The one accent, and what sits on top of it. Ember at its dark value reads
+// 2.6:1 on blush and cannot be a link, so light deepens it (same hue) until
+// it carries text — 5.0:1 — and what sits on it inverts with the ground.
+let primary = const token("primary");
+let primary_on = const token("primary-on");
+
+// The secondary accent — rose. Code literals and the quieter highlights.
+let accent = const token("accent");
+
+// The fixed semantic hues (see the table's note).
+let up_info = const token("up-info");
+let up_caution = const token("up-caution");
+let up_error = const token("up-error");
+let down_info = const token("down-info");
+let down_caution = const token("down-caution");
+let down_danger = const token("down-danger");
 
 // --- the hero palette (the fenced indulgence, ruling Q1) ---
 //
@@ -195,15 +283,15 @@ let code_size = const Length::px(13.0);
 // Every syntax color IS a role wherever a role says the right thing; the one
 // value with no role name is the callable tint — primary pulled toward the up
 // ladder — so it gets a token of its own rather than a literal at a call site.
-let code_callable = const token("tint-callable", "#F0A886", "#7F260D");
+let code_callable = const token("tint-callable");
 
 // The comment tint is the one alpha that moves between themes: `up-bright` at
 // 0.5 clears 4.4:1 on the dark panel, but ink at 0.5 on the light panel is
 // 3.7:1, so light takes 0.6 (5.3:1, §2.5). A per-theme alpha needs a slot of
-// its own — the values are the typed role seen through each alpha, and the
-// role's own declaration reaches every stylesheet this palette does (it is
-// `--code-fg`, two lines down).
-let code_comment = const token("tint-comment", up_bright.alpha(0.5).css, up_bright.alpha(0.6).css);
+// its own — the table's values are the up-bright reference seen through each
+// alpha, and the role's own declaration reaches every stylesheet this palette
+// does (it is `--code-fg`, two lines down).
+let code_comment = const token("tint-comment");
 
 /// The whole code palette, minted as `--code-*` custom properties on whatever
 /// element wears this style. It is how K10's hand-sync dies: the CodeMirror
@@ -266,7 +354,7 @@ let ink = const Color::hex("#120004");
 // all three by one number. A `box-shadow` is a string, so the token reaches
 // the stylesheet through a slot the canvas mints (`--art-shadow`, art.vl), the
 // way `code_palette` reaches the editor.
-let shadow = const token("shadow", "rgba(0, 0, 0, 1)", "rgba(18, 0, 4, 0.35)");
+let shadow = const token("shadow");
 
 // The art's diagnostic red: the bloom's scarlet (`--bloom-scarlet`, #D84730),
 // where the editor window says "error" — the squiggle, the hover's message,
@@ -275,7 +363,7 @@ let shadow = const token("shadow", "rgba(0, 0, 0, 1)", "rgba(18, 0, 4, 0.35)");
 // #AD3520 is 5.1:1 on the ground, 5.4:1 on the panel, 5.8:1 on the floating
 // surface — the weight `primary` got. The tool register's errors are
 // `up-error` (rose); this is the art's, and it does not replace that.
-let art_error = const token("art-error", "#D84730", "#AD3520");
+let art_error = const token("art-error");
 
 let assets = "https://vilan-lang.org/assets";
 let repo = "https://github.com/vilan-lang/vilan";

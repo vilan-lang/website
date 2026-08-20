@@ -1,9 +1,10 @@
 # Deploy the site to vilan-lang.org. Every push to main (and any manual
 # dispatch) rebuilds the package, captures the server-rendered pages, and
 # commits the static export - the landing trio (index.html, client.js,
-# client.css), the playground/ set, the chrome/ pair (the masthead rendered
+# client.css), the playground/ set, the chrome/ set (the masthead rendered
 # as a fragment plus its stylesheet, which that repo's docs.yml folds into
-# the book), a root .nojekyll and nothing else - to
+# the book, and the generated token palette), a root .nojekyll and nothing
+# else - to
 # vilan-lang/vilan-lang.github.io, whose branch-based Pages build publishes
 # main as-is. docs/ there belongs to that repo's docs.yml and assets/ to
 # hand deploys, so the commit stages only the allowlisted files.
@@ -133,7 +134,10 @@ jobs:
         run: |
           cp export/index.html export/client.js export/client.css site/
           mkdir -p site/chrome
-          cp export/chrome/header.html export/chrome/header.css site/chrome/
+          # tokens-fixture.css stays out on purpose: it is a repo artifact
+          # (committed in the toolchain repo beside the book), not a served one.
+          cp export/chrome/header.html export/chrome/header.css \
+             export/chrome/tokens.css site/chrome/
           VER="$(cat playground/wasm/VERSION)"
           mkdir -p "site/playground/$VER"
           cp export/playground/index.html export/playground/playground.js \
@@ -160,7 +164,7 @@ jobs:
           # layout lands; a no-op on every deploy after the first.
           git rm -q --ignore-unmatch playground/vilan_wasm.js playground/vilan_wasm_bg.wasm.gz
           git add index.html client.js client.css .nojekyll \
-            chrome/header.html chrome/header.css \
+            chrome/header.html chrome/header.css chrome/tokens.css \
             playground/index.html playground/playground.js playground/playground.css \
             playground/editor.js playground/examples.js playground/worker.js \
             playground/manifest.json \
