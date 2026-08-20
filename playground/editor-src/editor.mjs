@@ -199,12 +199,25 @@ const vilanTheme = EditorView.theme(
 		},
 		".cm-content": { caretColor: "var(--code-fg)" },
 		".cm-cursor, .cm-dropCursor": { borderLeftColor: "var(--code-fg)" },
+		// The editor fills whatever box the page gives it and scrolls INSIDE
+		// it (the app shell never scrolls the page): height 100% above, and
+		// the scroller owns the overflow.
+		".cm-scroller": { overflow: "auto" },
 		".cm-gutters": {
 			backgroundColor: "var(--code-bg)",
 			color: "var(--code-dim)",
 			border: "none",
 			borderRight: "1px solid var(--code-gutter-edge)",
 		},
+		// The line numbers breathe evenly: the base theme's 5px/3px insets are
+		// what read lopsided, so the digit column gets the same 10px on both
+		// sides. The lint gutter sits at the far edge (extension order below,
+		// VS Code's own glyph-margin position), a fixed narrow strip, so it
+		// reads as the window-edge inset rather than a hole between the
+		// numbers and the code.
+		".cm-lineNumbers .cm-gutterElement": { padding: "0 10px", minWidth: "34px" },
+		".cm-gutter-lint": { width: "14px" },
+		".cm-gutter-lint .cm-gutterElement": { padding: "0", paddingLeft: "3px" },
 		".cm-activeLine": { backgroundColor: "var(--code-active-line)" },
 		".cm-activeLineGutter": { backgroundColor: "var(--code-active-gutter)" },
 		"&.cm-focused .cm-selectionBackground, .cm-selectionBackground, .cm-content ::selection":
@@ -226,7 +239,7 @@ const vilanTheme = EditorView.theme(
 			content: "none",
 			width: "8px",
 			height: "8px",
-			margin: "auto",
+			margin: "5px 0 0",
 			borderRadius: "50%",
 		},
 		".cm-lint-marker-error": { backgroundColor: "var(--code-error)" },
@@ -392,13 +405,15 @@ function init(selector, doc) {
 		state: EditorState.create({
 			doc: fragment != null ? "" : fallback,
 			extensions: [
+				// Gutter order is extension order: the lint strip leftmost at
+				// the window edge (VS Code's glyph margin), then the numbers.
+				lintGutter(),
 				lineNumbers(),
 				highlightActiveLine(),
 				highlightActiveLineGutter(),
 				history(),
 				bracketMatching(),
 				closeBrackets(),
-				lintGutter(),
 				indentUnit.of("\t"),
 				vilanLanguage,
 				syntaxHighlighting(vilanHighlight),
