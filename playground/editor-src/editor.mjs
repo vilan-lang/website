@@ -521,13 +521,24 @@ function applyEditorDiagnostics(diagnostics) {
 			const line = doc.line(Math.min(diagnostic.line + 1, doc.lines));
 			const from = Math.min(line.from + diagnostic.column, doc.length);
 			const to = Math.min(from + Math.max(diagnostic.end - diagnostic.start, 1), doc.length);
+			// The lint message: the message, then the requirement chain one
+			// line each (E80 — a call hop names its site, the elision tail is
+			// its text alone), then the note — the order the diagnostics pane
+			// and the dev overlay keep.
+			const lines = [diagnostic.message];
+			for (const hop of diagnostic.trace ?? []) {
+				lines.push(
+					hop.call
+						? `via ${hop.file}:${hop.line + 1}:${hop.column + 1} — ${hop.message}`
+						: hop.message,
+				);
+			}
+			if (diagnostic.note) lines.push(`note: ${diagnostic.note}`);
 			return {
 				from,
 				to: Math.max(from, to),
 				severity: diagnostic.severity === "error" ? "error" : "warning",
-				message: diagnostic.note
-					? `${diagnostic.message}\nnote: ${diagnostic.note}`
-					: diagnostic.message,
+				message: lines.join("\n"),
 			};
 		});
 	view.dispatch(setDiagnostics(view.state, mapped));
