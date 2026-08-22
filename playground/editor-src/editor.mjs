@@ -14,19 +14,14 @@ import { EditorView, keymap, lineNumbers, highlightActiveLine, highlightActiveLi
 import { EditorState } from "@codemirror/state";
 import { defaultKeymap, history, historyKeymap, indentWithTab } from "@codemirror/commands";
 import { bracketMatching, indentUnit, StreamLanguage, syntaxHighlighting, HighlightStyle } from "@codemirror/language";
-// `closeBrackets` is the only reason this package is here — bracket closing
-// ships inside @codemirror/autocomplete even though it is not completion. The
-// completion half of K9 is deliberately NOT wired: the wasm compiler exports
-// `compile`, `compile_for`, `format` and `version` and nothing else (see
-// playground/wasm/<version>/vilan_wasm.js; `CompileResult` carries js, css and
-// diagnostics), so there is no analyzer surface for a completion source to
-// ask. A keyword list hand-typed here would be a language feature invented on
-// the website side, which is the wrong side of the fence. `autocompletion` is
-// never imported, so esbuild drops the whole completion machinery — the
-// shipped bundle pays nothing for the unused half. When vilan-wasm grows a
-// `complete(source, offset)` export, it plugs in exactly where `scheduleCheck`
-// already round-trips this worker.
-import { closeBrackets } from "@codemirror/autocomplete";
+// Completion is the compiler's own (K9, proposal/playground-completion.md):
+// the wasm's `complete` export runs the same engine the language server
+// does, answered from the analysis the last check retained, and this file
+// only carries the answer into CodeMirror — icons, snippets, the
+// auto-import edit. No name list lives on this side of the fence. A glue
+// built before the export existed (an older pinned version) reports
+// `canComplete: false` and the source simply answers nothing.
+import { autocompletion, closeBrackets, snippetCompletion } from "@codemirror/autocomplete";
 import { setDiagnostics, lintGutter } from "@codemirror/lint";
 import { tags } from "@lezer/highlight";
 import { decodeBase64Url, deflate, encodeBase64Url, inflate } from "../codec.js";
@@ -259,6 +254,28 @@ const vilanTheme = EditorView.theme(
 		".cm-diagnostic": { padding: "4px 8px", fontSize: "var(--code-size)" },
 		".cm-diagnostic-error": { borderLeft: "2px solid var(--code-error)" },
 		".cm-diagnostic-warning": { borderLeft: "2px solid var(--code-caution)" },
+		// The completion popup is the other thing that floats: the same box
+		// as the lint tooltip (above), rows in the code face, the selected row
+		// on the selection slot, icons and details on the dim tier, and the
+		// matched prefix emphasized by weight rather than by an underline.
+		".cm-tooltip.cm-tooltip-autocomplete > ul": {
+			fontFamily: "var(--code-face)",
+			fontSize: "var(--code-size)",
+		},
+		".cm-tooltip.cm-tooltip-autocomplete > ul > li": { padding: "2px 8px 2px 4px" },
+		".cm-tooltip-autocomplete ul li[aria-selected]": {
+			backgroundColor: "var(--code-selection)",
+			color: "var(--code-plain)",
+		},
+		".cm-completionIcon": { color: "var(--code-dim)", opacity: "1" },
+		".cm-completionDetail": { color: "var(--code-dim)", fontStyle: "normal", marginLeft: "1em" },
+		".cm-completionMatchedText": { textDecoration: "none", fontWeight: "600", color: "var(--code-fg)" },
+		".cm-tooltip.cm-completionInfo": {
+			padding: "6px 8px",
+			maxWidth: "28em",
+			fontSize: "var(--code-size)",
+			color: "var(--code-plain)",
+		},
 	},
 	{ dark: true },
 );
@@ -391,6 +408,7 @@ function init(selector, doc) {
 				history(),
 				bracketMatching(),
 				closeBrackets(),
+				autocompletion({ override: [vilanCompletions], icons: true }),
 				indentUnit.of("\t"),
 				vilanLanguage,
 				syntaxHighlighting(vilanHighlight),
@@ -533,6 +551,137 @@ function applyEditorDiagnostics(diagnostics) {
 	view.dispatch(setDiagnostics(view.state, mapped));
 }
 
+// --- completion: the compiler's engine, through the worker (K9) -----------
+//
+// A request posts the whole buffer and the cursor (zero-based line, UTF-16
+// character — the units the diagnostics already ride in) and resolves on the
+// matching `completed` message. It runs outside the compile single-flight:
+// the worker answers it from the analysis the last check RETAINED (no
+// analysis, no leak, nothing toward the recycle budget), so it is never
+// queued behind a compile by this side — at most it waits, in the worker's
+// own message order, for one in-flight check to finish. A recycle resolves
+// every pending request with no list rather than leaving CodeMirror waiting
+// on a worker that no longer exists.
+//
+// The popup opens on a typed identifier, on the language server's own
+// trigger characters (`.` and `:`), and on an explicit Ctrl-Space — not on
+// every keystroke, which would float the keyword list after each space.
+// `validFor` lets CodeMirror keep filtering one answer while the identifier
+// grows, so a word costs one round trip, not one per character.
+
+const TRIGGER_CHARACTERS = new Set([".", ":"]);
+
+// The engine's kinds on CodeMirror's icon vocabulary (presentation only:
+// which names are offered, and what kind each is, is the compiler's call).
+const COMPLETION_TYPES = {
+	macro: "function",
+	function: "function",
+	method: "method",
+	field: "property",
+	struct: "class",
+	enum: "enum",
+	enum_variant: "constant",
+	trait: "interface",
+	variable: "variable",
+	module: "namespace",
+	keyword: "keyword",
+	snippet: "text",
+};
+
+let canComplete = false;
+let completionSequence = 0;
+const completionRequests = new Map();
+
+function vilanCompletions(context) {
+	if (!canComplete || !ready || !worker) return null;
+	const word = context.matchBefore(/[A-Za-z0-9_]*/);
+	const before = context.state.sliceDoc(Math.max(0, context.pos - 1), context.pos);
+	if (word.from === word.to && !context.explicit && !TRIGGER_CHARACTERS.has(before)) {
+		return null;
+	}
+	const line = context.state.doc.lineAt(context.pos);
+	const id = ++completionSequence;
+	const request = new Promise((resolve) => {
+		completionRequests.set(id, resolve);
+		context.addEventListener("abort", () => {
+			completionRequests.delete(id);
+			resolve(null);
+		});
+		worker.postMessage({
+			action: "complete",
+			id,
+			source: context.state.doc.toString(),
+			line: line.number - 1,
+			character: context.pos - line.from,
+		});
+	});
+	return request.then((items) => {
+		if (items == null) return null;
+		return {
+			from: word.from,
+			options: items.map(toCompletionOption),
+			validFor: /^[A-Za-z0-9_]*$/,
+		};
+	});
+}
+
+function settleCompletion(id, items) {
+	const resolve = completionRequests.get(id);
+	if (!resolve) return;
+	completionRequests.delete(id);
+	resolve(items);
+}
+
+function abandonCompletions() {
+	for (const resolve of completionRequests.values()) resolve(null);
+	completionRequests.clear();
+}
+
+// LSP snippet syntax to CodeMirror's: the tab-stops already agree
+// (`${1:name}`); only the bare final cursor, `$0`, needs its braces.
+function snippetTemplate(insert) {
+	return insert.replace(/\$(\d+)/g, "${$1}");
+}
+
+function toCompletionOption(item) {
+	const option = {
+		label: item.label,
+		type: COMPLETION_TYPES[item.kind] ?? "text",
+		boost: item.boost,
+	};
+	if (item.detail) option.detail = item.detail;
+	if (item.documentation) option.info = item.documentation;
+	if (item.importEdit) {
+		// Accepting an auto-import candidate inserts the name AND the import
+		// it needs, in one transaction: both changes are in the coordinates
+		// of the document the answer was computed for, and the cursor lands
+		// after the inserted name wherever the import edit pushed it.
+		const edit = item.importEdit;
+		option.apply = (view, _completion, from, to) => {
+			const doc = view.state.doc;
+			const at = (line, character) => {
+				const row = doc.line(Math.min(line + 1, doc.lines));
+				return Math.min(row.from + character, row.to);
+			};
+			const changes = view.state.changes([
+				{ from, to, insert: item.insert },
+				{ from: at(edit.line, edit.character), to: at(edit.endLine, edit.endCharacter), insert: edit.text },
+			]);
+			view.dispatch({
+				changes,
+				selection: { anchor: changes.mapPos(to, 1) },
+				userEvent: "input.complete",
+			});
+		};
+		return option;
+	}
+	if (item.isSnippet) {
+		return snippetCompletion(snippetTemplate(item.insert), option);
+	}
+	option.apply = item.insert;
+	return option;
+}
+
 // --- the compile worker: spawn, crash-respawn, recycle, single-flight ---
 
 // The wasm instance leaks per compile by design and a panic poisons its
@@ -638,9 +787,12 @@ function spawn() {
 		if (message.kind === "ready") {
 			ready = true;
 			loadFailures = 0;
+			canComplete = message.canComplete === true;
 			dispatch(message);
 			flushPending();
 			scheduleCheck();
+		} else if (message.kind === "completed") {
+			settleCompletion(message.id, message.items);
 		} else if (message.kind === "result") {
 			inFlight = false;
 			compileCount += 1;
@@ -695,6 +847,7 @@ function spawn() {
 function recycle() {
 	if (worker) worker.terminate();
 	compileCount = 0;
+	abandonCompletions();
 	spawn();
 }
 
