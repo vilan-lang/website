@@ -16,12 +16,18 @@
 //
 // Messages in:  { action: "compile" | "check" | "format", source,
 //                 platform: "browser" | "node" }
+//               { action: "complete", id, source, line, character }
 // Messages out:
-//   { kind: "ready",     version, canFormat, canPlatform }  - compiler live
+//   { kind: "ready",     version, canFormat, canPlatform, canComplete }
+//                                                      - compiler live
 //   { kind: "result",    ok, js, css, version, diagnostics: [...] }
 //   { kind: "checked",   ok, version, diagnostics: [...] }  - live check;
 //                        same compile, but no emitted program rides back
 //   { kind: "formatted", text, changed }              - format's answer
+//   { kind: "completed", id, items: [...] }           - completion's answer,
+//                        from the analysis the last compile/check retained
+//                        (no analysis runs; it leaks nothing and does not
+//                        count toward the recycle budget)
 //   { kind: "crash",     error }                      - recycle me
 
 const pinned = new URL(self.location.href).searchParams.get("v");
@@ -44,7 +50,10 @@ const canFormat = typeof glue.format === "function";
 // compile_for arrived after v0.19.0; without it every request is a browser
 // compile and the page hides its mode toggle.
 const canPlatform = typeof glue.compile_for === "function";
-postMessage({ kind: "ready", version: glue.version(), canFormat, canPlatform });
+// complete arrived after v0.35.0 (K9); without it the editor registers no
+// completion source at all.
+const canComplete = typeof glue.complete === "function";
+postMessage({ kind: "ready", version: glue.version(), canFormat, canPlatform, canComplete });
 
 function compileWith(source, platform) {
 	if (platform === "node" && canPlatform) {
@@ -53,12 +62,46 @@ function compileWith(source, platform) {
 	return glue.compile(String(source));
 }
 
+// One completion candidate as a plain object: the glue hands back class
+// instances over wasm memory, which cannot cross postMessage and would
+// otherwise wait for the finalizer to release their Rust side.
+function completionItem(item) {
+	const plain = {
+		label: item.label,
+		kind: item.kind,
+		detail: item.detail,
+		documentation: item.documentation,
+		insert: item.insert,
+		isSnippet: item.is_snippet,
+		boost: item.boost,
+		importEdit: item.import_text == null
+			? null
+			: {
+				line: item.import_line,
+				character: item.import_character,
+				endLine: item.import_end_line,
+				endCharacter: item.import_end_character,
+				text: item.import_text,
+			},
+	};
+	item.free();
+	return plain;
+}
+
 onmessage = (event) => {
 	const { action, source, platform } = event.data;
 	try {
 		if (action === "format") {
 			const text = canFormat ? glue.format(String(source)) : String(source);
 			postMessage({ kind: "formatted", text, changed: text !== String(source) });
+			return;
+		}
+		if (action === "complete") {
+			const { id, line, character } = event.data;
+			const items = canComplete
+				? glue.complete(String(source), line, character).map(completionItem)
+				: [];
+			postMessage({ kind: "completed", id, items });
 			return;
 		}
 		const result = compileWith(source, platform);

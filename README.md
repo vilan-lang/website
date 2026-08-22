@@ -50,7 +50,9 @@ sorts out what may run where by what each entry reaches.
   the rest of the site; the pieces vilan cannot express live in
   `playground/` — the compile worker (`worker.js`), and a vendored CodeMirror 6
   bundle (`editor.js`, built once from `editor-src/` and committed) that also
-  carries the worker lifecycle and the sandboxed per-Run iframe. Seeded
+  carries the worker lifecycle, the completion source (the compiler's own
+  engine, through the wasm's `complete` export), and the sandboxed per-Run
+  iframe. Seeded
   examples are the `playground/examples/*.vl` files, shipped as the generated
   `examples.js` (`node scripts/gen-examples.mjs` after editing one).
 
