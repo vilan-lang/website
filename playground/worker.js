@@ -69,6 +69,15 @@ onmessage = (event) => {
 			column: diagnostic.column,
 			message: diagnostic.message,
 			note: diagnostic.note ?? "",
+			// The E78 requirement chain (E80), entry → read; absent on a
+			// release older than the field, hence the default.
+			trace: (diagnostic.trace ?? []).map((hop) => ({
+				file: hop.file,
+				line: hop.line,
+				column: hop.column,
+				message: hop.message,
+				call: hop.call,
+			})),
 			start: diagnostic.start,
 			end: diagnostic.end,
 		}));

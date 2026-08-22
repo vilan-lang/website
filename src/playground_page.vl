@@ -9,6 +9,7 @@
 // the actions (Run, example picks) as closures — the server passes inert
 // stand-ins, the same split as `page()`.
 
+import std::compare::PartialEq;
 import std::reactive::Signal;
 import std::style::{
 	AlignItems,
@@ -53,9 +54,10 @@ import pkg::theme::{
 import pkg::topbar::{ nav_brand, nav_link, nav_mark };
 
 /// One row of the diagnostics pane — the wire diagnostic flattened to plain
-/// data (line and column already one-based for display). Both rows derive
-/// `PartialEq` so `bind_each`'s reconciler can tell changed from same.
-[derive(PartialEq)]
+/// data (line and column already one-based for display). Both rows are
+/// `PartialEq` so `bind_each`'s reconciler can tell changed from same; this
+/// one by hand, since `List` carries no `PartialEq` for its `trace` to
+/// derive through.
 struct DiagRow {
 	id: i32,
 	severity: str,
@@ -64,6 +66,40 @@ struct DiagRow {
 	column: i32,
 	message: str,
 	note: str,
+	trace: List<TraceRow>,
+}
+
+impl DiagRow with PartialEq {
+	fun eq(self, other: DiagRow): bool {
+		self.id == other.id && self.severity == other.severity && self.file == other.file && self.line == other.line && self.column == other.column && self.message == other.message && self.note == other.note && same_trace(self.trace, other.trace)
+	}
+}
+
+/// Hop-by-hop equality of two chains.
+fun same_trace(left: List<TraceRow>, right: List<TraceRow>): bool {
+	if left.len() != right.len() {
+		ret false;
+	}
+	mut index = 0;
+	for hop in left {
+		if !hop.eq(right[index]) {
+			ret false;
+		}
+		index += 1;
+	}
+	true
+}
+
+/// One hop of a row's requirement chain (E78, shown here by E80): where the
+/// context requirement flowed through, one-based like the row. `call` is
+/// false only for the chain's elision tail, which reads as text alone.
+[derive(PartialEq)]
+struct TraceRow {
+	file: str,
+	line: i32,
+	column: i32,
+	message: str,
+	call: bool,
 }
 
 /// One line of program output: `kind` is "log" or "error".
@@ -368,6 +404,7 @@ let diag_error = const style().color(up_error).font_weight(600);
 let diag_warning = const style().color(up_caution).font_weight(600);
 let diag_site = const style().color(up_dim);
 let diag_note = const style().color(up_dim);
+let diag_trace = const style().color(up_dim);
 
 let console_line = const style().padding_y(Length::px(1.0)).padding_x(space(2));
 let console_error = const (console_line + style().color(up_error));
@@ -382,15 +419,33 @@ fun severity_tag(row: DiagRow): View {
 	}
 }
 
+/// One line of a row's chain: a call hop names its site behind `via`; the
+/// elision tail is its own text.
+fun trace_row(hop: TraceRow): View {
+	let text = if hop.call {
+		i"  via {hop.file}:{hop.line}:{hop.column} — {hop.message}"
+	} else {
+		i"  {hop.message}"
+	};
+	view("div").styled(diag_trace).text(text)
+}
+
+/// A diagnostic's row: the head line, then its requirement chain one dim
+/// line per hop (entry → read), then its note — the order the dev overlay
+/// and the editor's lint message keep.
 fun diagnostic_row(row: DiagRow): View {
 	let head = view("div")
 		.child(severity_tag(row))
 		.child(view("span").styled(diag_site).text(i" {row.file}:{row.line}:{row.column} "))
 		.child(view("span").text(row.message));
-	let body = match row.note {
-		"" => head,
-		_ => view("div").child(head).child(view("div").styled(diag_note).text(i"  note: {row.note}")),
-	};
+	mut lines: List<View> = [head];
+	for hop in row.trace {
+		lines.push(trace_row(hop));
+	}
+	if row.note != "" {
+		lines.push(view("div").styled(diag_note).text(i"  note: {row.note}"));
+	}
+	let body = view("div").children(lines);
 	match row.severity {
 		"error" => view("div").styled(diag_row_error).child(body),
 		_ => view("div").styled(diag_row_warning).child(body),

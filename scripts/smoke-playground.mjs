@@ -58,6 +58,11 @@ for (const name of readdirSync(`${root}playground/examples`).filter((f) => f.end
 		console.error(`${name}: FAILED`);
 		for (const diagnostic of errors) {
 			console.error(`  ${diagnostic.file}:${diagnostic.line + 1}:${diagnostic.column + 1} ${diagnostic.message}`);
+			// A context-coverage refusal's chain (E80): the log names every
+			// uncovered call, so the failing path reads from CI output alone.
+			for (const hop of diagnostic.trace ?? []) {
+				console.error(hop.call ? `      via ${hop.file}:${hop.line + 1}:${hop.column + 1} — ${hop.message}` : `      ${hop.message}`);
+			}
 		}
 	} else {
 		const css = result.css ? `, ${result.css.length} B css` : "";

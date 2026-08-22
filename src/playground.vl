@@ -14,7 +14,7 @@ import std::reactive::Signal;
 import std::shared::Shared;
 import std::time::Timer;
 import std::ui::mount_root;
-import pkg::playground_page::{ ConsoleRow, DiagRow, playground_page };
+import pkg::playground_page::{ ConsoleRow, DiagRow, TraceRow, playground_page };
 
 // --- the vendored bundle (playground/editor.js) ---
 
@@ -153,6 +153,33 @@ impl WireDiagnostic {
 
 	[extern(get, "note")]
 	external fun note(self): str;
+
+	/// The requirement chain (E78, on the wire by E80), entry → read: one
+	/// entry per uncovered call on the path to a context read. Empty for
+	/// every other diagnostic.
+	[extern(get, "trace")]
+	external fun trace(self): List<WireTraceEntry>;
+}
+
+external struct WireTraceEntry;
+
+impl WireTraceEntry {
+	[extern(get, "file")]
+	external fun file(self): str;
+
+	[extern(get, "line")]
+	external fun line(self): i32;
+
+	[extern(get, "column")]
+	external fun column(self): i32;
+
+	[extern(get, "message")]
+	external fun message(self): str;
+
+	/// Whether the entry marks an uncovered call site; false only for the
+	/// chain's elision tail, whose text stands alone.
+	[extern(get, "call")]
+	external fun call(self): bool;
 }
 
 external struct HostEvent;
@@ -294,6 +321,16 @@ fun main() {
 		mut rows: List<DiagRow> = [];
 		mut id = next_row_id.read();
 		for diagnostic in event.diagnostics() {
+			mut trace: List<TraceRow> = [];
+			for hop in diagnostic.trace() {
+				trace.push(TraceRow {
+					file = hop.file(),
+					line = hop.line() + 1,
+					column = hop.column() + 1,
+					message = hop.message(),
+					call = hop.call(),
+				});
+			}
 			rows.push(DiagRow {
 				id = id,
 				severity = diagnostic.severity(),
@@ -302,6 +339,7 @@ fun main() {
 				column = diagnostic.column() + 1,
 				message = diagnostic.message(),
 				note = diagnostic.note(),
+				trace = trace,
 			});
 			id = id + 1;
 		}
