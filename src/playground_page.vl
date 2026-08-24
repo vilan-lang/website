@@ -9,7 +9,6 @@
 // the actions (Run, example picks) as closures — the server passes inert
 // stand-ins, the same split as `page()`.
 
-import std::compare::PartialEq;
 import std::reactive::Signal;
 import std::style::{
 	AlignItems,
@@ -55,9 +54,11 @@ import pkg::topbar::{ nav_brand, nav_link, nav_mark };
 
 /// One row of the diagnostics pane — the wire diagnostic flattened to plain
 /// data (line and column already one-based for display). Both rows are
-/// `PartialEq` so `bind_each`'s reconciler can tell changed from same; this
-/// one by hand, since `List` carries no `PartialEq` for its `trace` to
-/// derive through.
+/// `PartialEq` so `bind_each`'s reconciler can tell changed from same; the
+/// `trace` field derives through `List`'s own element-wise `PartialEq`
+/// (I4, v0.36.0 — this row's hand-written `eq` was the impl's first
+/// customer).
+[derive(PartialEq)]
 struct DiagRow {
 	id: i32,
 	severity: str,
@@ -67,27 +68,6 @@ struct DiagRow {
 	message: str,
 	note: str,
 	trace: List<TraceRow>,
-}
-
-impl DiagRow with PartialEq {
-	fun eq(self, other: DiagRow): bool {
-		self.id == other.id && self.severity == other.severity && self.file == other.file && self.line == other.line && self.column == other.column && self.message == other.message && self.note == other.note && same_trace(self.trace, other.trace)
-	}
-}
-
-/// Hop-by-hop equality of two chains.
-fun same_trace(left: List<TraceRow>, right: List<TraceRow>): bool {
-	if left.len() != right.len() {
-		ret false;
-	}
-	mut index = 0;
-	for hop in left {
-		if !hop.eq(right[index]) {
-			ret false;
-		}
-		index += 1;
-	}
-	true
 }
 
 /// One hop of a row's requirement chain (E78, shown here by E80): where the

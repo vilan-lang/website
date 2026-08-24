@@ -18,6 +18,9 @@
 
 import std::build::{ LegBuild, require_build };
 import std::bytes::Bytes;
+// `Display` is `List::join`'s bound — the import is what puts the method in
+// scope (std-surface.md: discoverability follows the declaring file).
+import std::display::Display;
 import std::document::Document;
 import std::fs;
 import std::http::{ Response, Server };
@@ -52,24 +55,9 @@ fun missing_wasm(): Response {
 		.build()
 }
 
-/// `lines` joined onto one indent level of the generated document —
-/// `Document::html()` inserts hatch markup at two tabs, so every line after
-/// the first needs its own two.
-fun joined(lines: List<str>, separator: str): str {
-	mut markup = "";
-	mut first = true;
-	for line in lines {
-		if first {
-			markup = line;
-			first = false;
-		} else {
-			markup = markup + separator + line;
-		}
-	}
-	markup
-}
-
-/// The one `<head>` hatch both pages ride, parameterized by what differs.
+/// The one `<head>` stack both pages ride, parameterized by what differs —
+/// one `head()` call per item, which std lands one per line (E86; the
+/// hand-rolled `joined()` this file carried existed only to fake that).
 /// Everything here is what `Document::of` deliberately does not derive:
 ///
 /// - the UA theme metas — `theme_metas("down-dim")`, written from theme.vl's
@@ -84,8 +72,20 @@ fun joined(lines: List<str>, separator: str): str {
 ///   document does carry.
 /// - the icon set, absolute so the exported pages and the local server agree.
 /// - the page's `<style>` block (`style_block` below).
-fun head_hatch(description: str, og_title: str, og_description: str, og_url: str, style: str): str {
-	joined([theme_metas("down-dim"), i"<meta name=\"description\" content=\"{description}\">", "<link rel=\"icon\" href=\"https://vilan-lang.org/favicon.ico\" sizes=\"48x48\">", "<link rel=\"icon\" href=\"https://vilan-lang.org/assets/icon-192.png\" type=\"image/png\" sizes=\"192x192\">", "<link rel=\"apple-touch-icon\" href=\"https://vilan-lang.org/assets/apple-touch-icon.png\">", i"<meta property=\"og:title\" content=\"{og_title}\">", i"<meta property=\"og:description\" content=\"{og_description}\">", "<meta property=\"og:image\" content=\"https://vilan-lang.org/assets/social_card.png\">", i"<meta property=\"og:url\" content=\"{og_url}\">", "<meta property=\"og:type\" content=\"website\">", "<meta name=\"twitter:card\" content=\"summary_large_image\">", style], "\n\t\t")
+fun with_head(document: Document, description: str, og_title: str, og_description: str, og_url: str, style: str): Document {
+	document
+		.head(theme_metas("down-dim"))
+		.head(i"<meta name=\"description\" content=\"{description}\">")
+		.head("<link rel=\"icon\" href=\"https://vilan-lang.org/favicon.ico\" sizes=\"48x48\">")
+		.head("<link rel=\"icon\" href=\"https://vilan-lang.org/assets/icon-192.png\" type=\"image/png\" sizes=\"192x192\">")
+		.head("<link rel=\"apple-touch-icon\" href=\"https://vilan-lang.org/assets/apple-touch-icon.png\">")
+		.head(i"<meta property=\"og:title\" content=\"{og_title}\">")
+		.head(i"<meta property=\"og:description\" content=\"{og_description}\">")
+		.head("<meta property=\"og:image\" content=\"https://vilan-lang.org/assets/social_card.png\">")
+		.head(i"<meta property=\"og:url\" content=\"{og_url}\">")
+		.head("<meta property=\"og:type\" content=\"website\">")
+		.head("<meta name=\"twitter:card\" content=\"summary_large_image\">")
+		.head(style)
 }
 
 /// Each page's inline `<style>`: the shared frame first, then the page's own
@@ -143,7 +143,10 @@ fun style_block(page_rules: List<str>): str {
 	lines.push("@media (prefers-reduced-motion: reduce) {");
 	lines.push("\t* { animation: none !important; }");
 	lines.push("}");
-	"<style>\n\t\t\t" + joined(lines, "\n\t\t\t") + "\n\t\t</style>"
+	// One more indent level than the hatch: these lines live INSIDE the
+	// `<style>` element (std's own `join`, since E86 retired the hand-rolled
+	// helper).
+	"<style>\n\t\t\t" + lines.join("\n\t\t\t") + "\n\t\t</style>"
 }
 
 /// The landing page's document. Its own style rules are the three animations
@@ -155,9 +158,16 @@ fun style_block(page_rules: List<str>): str {
 /// which the page references as a CSS filter. It rides OUTSIDE the mount div
 /// so the client's render-and-replace never removes it.
 fun landing_document(build: LegBuild): Document {
-	Document::of(build)
-		.title("Vilan — The Modern Web Language")
-		.head(head_hatch("Vilan is a language for building full-stack web apps: one small toolchain, reactive UI, and a compiler that checks what you usually find out at runtime.", "Vilan — The Modern Web Language", "A language for building full-stack web apps: one small toolchain, reactive UI, and a compiler that checks what you usually find out at runtime.", "https://vilan-lang.org/", style_block([
+	// The texture filter is ONE element — its lines join inside the one
+	// `body()` call, at the hatch's indent.
+	let texture: List<str> = ["<svg width=\"0\" height=\"0\" style=\"position:absolute\" aria-hidden=\"true\">", "\t<filter id=\"bloom-texture\" x=\"-8%\" y=\"-8%\" width=\"116%\" height=\"116%\" color-interpolation-filters=\"sRGB\">", "\t\t<feTurbulence type=\"fractalNoise\" baseFrequency=\"0.76923\" numOctaves=\"3\" seed=\"3030\"/>", "\t\t<feDisplacementMap in=\"SourceGraphic\" scale=\"90\" xChannelSelector=\"R\" yChannelSelector=\"G\"/>", "\t</filter>", "</svg>"];
+	with_head(
+		Document::of(build).title("Vilan — The Modern Web Language"),
+		"Vilan is a language for building full-stack web apps: one small toolchain, reactive UI, and a compiler that checks what you usually find out at runtime.",
+		"Vilan — The Modern Web Language",
+		"A language for building full-stack web apps: one small toolchain, reactive UI, and a compiler that checks what you usually find out at runtime.",
+		"https://vilan-lang.org/",
+		style_block([
 			"@keyframes bloom-drift-a {",
 			"\tfrom { transform: translate(0, 0) scale(1); }",
 			"\tto { transform: translate(0.8%, 1.6%) scale(1.035); }",
@@ -169,8 +179,9 @@ fun landing_document(build: LegBuild): Document {
 			"\t0%, 49% { opacity: 1; }",
 			"\t50%, 100% { opacity: 0; }",
 			"}",
-		])))
-		.body(joined(["<svg width=\"0\" height=\"0\" style=\"position:absolute\" aria-hidden=\"true\">", "\t<filter id=\"bloom-texture\" x=\"-8%\" y=\"-8%\" width=\"116%\" height=\"116%\" color-interpolation-filters=\"sRGB\">", "\t\t<feTurbulence type=\"fractalNoise\" baseFrequency=\"0.76923\" numOctaves=\"3\" seed=\"3030\"/>", "\t\t<feDisplacementMap in=\"SourceGraphic\" scale=\"90\" xChannelSelector=\"R\" yChannelSelector=\"G\"/>", "\t</filter>", "</svg>"], "\n\t\t"))
+		]),
+	)
+		.body(texture.join("\n\t\t"))
 }
 
 /// The playground page's document. Its own style rules size the workbench:
@@ -182,9 +193,13 @@ fun landing_document(build: LegBuild): Document {
 /// both globals exist before the document's own module script runs — the
 /// generated tag lands after the hatch, which is exactly that order.
 fun playground_document(build: LegBuild): Document {
-	Document::of(build)
-		.title("Vilan Playground — run vilan in your browser")
-		.head(head_hatch("Write and run Vilan in your browser: the compiler itself runs client-side as WebAssembly — no install, no server.", "Vilan Playground", "Write and run Vilan in your browser: the compiler itself runs client-side as WebAssembly — no install, no server.", "https://vilan-lang.org/playground/", style_block([
+	with_head(
+		Document::of(build).title("Vilan Playground — run vilan in your browser"),
+		"Write and run Vilan in your browser: the compiler itself runs client-side as WebAssembly — no install, no server.",
+		"Vilan Playground",
+		"Write and run Vilan in your browser: the compiler itself runs client-side as WebAssembly — no install, no server.",
+		"https://vilan-lang.org/playground/",
+		style_block([
 			"#app { height: 100%; }",
 			"#editor .cm-editor { height: 100%; }",
 			"#runner iframe { border: 0; width: 100%; height: 100%; background: #fff; }",
@@ -192,8 +207,10 @@ fun playground_document(build: LegBuild): Document {
 			i"\toutline: 2px solid {fallback("primary")};",
 			"\toutline-offset: 2px;",
 			"}",
-		])))
-		.body(joined(["<script src=\"/playground/examples.js\"></script>", "<script src=\"/playground/editor.js\"></script>"], "\n\t\t"))
+		]),
+	)
+		.body("<script src=\"/playground/examples.js\"></script>")
+		.body("<script src=\"/playground/editor.js\"></script>")
 }
 
 async fun main() {
