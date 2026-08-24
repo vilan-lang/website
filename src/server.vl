@@ -27,6 +27,7 @@ import std::process::env;
 import std::reactive::Signal;
 import pkg::page::page;
 import pkg::playground_page::{ ConsoleRow, DiagRow, playground_page };
+import pkg::theme::{ fallback, theme_metas };
 
 /// One fetched compiler version's pair, served at its versioned paths.
 struct WasmPair {
@@ -71,18 +72,20 @@ fun joined(lines: List<str>, separator: str): str {
 /// The one `<head>` hatch both pages ride, parameterized by what differs.
 /// Everything here is what `Document::of` deliberately does not derive:
 ///
-/// - the UA theme metas. Dark is the default, light follows the OS (theme.vl's
-///   token block is redeclared behind `prefers-color-scheme: light`); the UA
-///   is told both so its own chrome — form controls, scrollbars — agrees with
-///   the page, and `theme-color` paints the browser frame with the page's
-///   ground in each scheme.
+/// - the UA theme metas — `theme_metas("down-dim")`, written from theme.vl's
+///   own table (K17), so the UA's copy of the ground can never drift from
+///   the palette it restates. Dark is the default, light follows the OS
+///   (theme.vl's token block is redeclared behind `prefers-color-scheme:
+///   light`); the UA is told both so its own chrome — form controls,
+///   scrollbars — agrees with the page, and `theme-color` paints the browser
+///   frame with the page's ground in each scheme.
 /// - the page's description and its social card (og:/twitter:) — a page's
 ///   identity beyond its `<title>`, which is the one identity line the
 ///   document does carry.
 /// - the icon set, absolute so the exported pages and the local server agree.
 /// - the page's `<style>` block (`style_block` below).
 fun head_hatch(description: str, og_title: str, og_description: str, og_url: str, style: str): str {
-	joined(["<meta name=\"color-scheme\" content=\"dark light\">", "<meta name=\"theme-color\" content=\"#120004\" media=\"(prefers-color-scheme: dark)\">", "<meta name=\"theme-color\" content=\"#F9DFE7\" media=\"(prefers-color-scheme: light)\">", i"<meta name=\"description\" content=\"{description}\">", "<link rel=\"icon\" href=\"https://vilan-lang.org/favicon.ico\" sizes=\"48x48\">", "<link rel=\"icon\" href=\"https://vilan-lang.org/assets/icon-192.png\" type=\"image/png\" sizes=\"192x192\">", "<link rel=\"apple-touch-icon\" href=\"https://vilan-lang.org/assets/apple-touch-icon.png\">", i"<meta property=\"og:title\" content=\"{og_title}\">", i"<meta property=\"og:description\" content=\"{og_description}\">", "<meta property=\"og:image\" content=\"https://vilan-lang.org/assets/social_card.png\">", i"<meta property=\"og:url\" content=\"{og_url}\">", "<meta property=\"og:type\" content=\"website\">", "<meta name=\"twitter:card\" content=\"summary_large_image\">", style], "\n\t\t")
+	joined([theme_metas("down-dim"), i"<meta name=\"description\" content=\"{description}\">", "<link rel=\"icon\" href=\"https://vilan-lang.org/favicon.ico\" sizes=\"48x48\">", "<link rel=\"icon\" href=\"https://vilan-lang.org/assets/icon-192.png\" type=\"image/png\" sizes=\"192x192\">", "<link rel=\"apple-touch-icon\" href=\"https://vilan-lang.org/assets/apple-touch-icon.png\">", i"<meta property=\"og:title\" content=\"{og_title}\">", i"<meta property=\"og:description\" content=\"{og_description}\">", "<meta property=\"og:image\" content=\"https://vilan-lang.org/assets/social_card.png\">", i"<meta property=\"og:url\" content=\"{og_url}\">", "<meta property=\"og:type\" content=\"website\">", "<meta name=\"twitter:card\" content=\"summary_large_image\">", style], "\n\t\t")
 }
 
 /// Each page's inline `<style>`: the shared frame first, then the page's own
@@ -128,8 +131,11 @@ fun style_block(page_rules: List<str>): str {
 		"\tfont-synthesis: none;",
 		"\tsrc: url(https://vilan-lang.org/assets/fonts/commit-mono-v143.woff2) format(\"woff2\");",
 		"}",
-		"html, body { margin: 0; height: 100%; background: var(--down-dim, #120004); }",
-		"::selection { background: var(--up-bright, #F9DFE7); color: var(--down-dim, #120004); }",
+		// The frame paints before the compiled stylesheet arrives, so each
+		// role rides with its fallback — the table's own dark value, via
+		// `fallback` (K17), never a hex stated here.
+		i"html, body \{ margin: 0; height: 100%; background: {fallback("down-dim")}; \}",
+		i"::selection \{ background: {fallback("up-bright")}; color: {fallback("down-dim")}; \}",
 	];
 	for rule in page_rules {
 		lines.push(rule);
@@ -183,7 +189,7 @@ fun playground_document(build: LegBuild): Document {
 			"#editor .cm-editor { height: 100%; }",
 			"#runner iframe { border: 0; width: 100%; height: 100%; background: #fff; }",
 			"button:focus-visible, select:focus-visible {",
-			"\toutline: 2px solid var(--primary, #EB682E);",
+			i"\toutline: 2px solid {fallback("primary")};",
 			"\toutline-offset: 2px;",
 			"}",
 		])))

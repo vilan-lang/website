@@ -174,16 +174,48 @@ fun themed_declaration(value: ThemedValue): str {
 	i":root\{--{value.name}:{value.dark}\}@media (prefers-color-scheme: light)\{:root\{--{value.name}:{value.light}\}\}"
 }
 
+/// The table row for `name` — the lookup `token` always did, factored out so
+/// every reader of the palette shares its discipline: a name the table lacks
+/// fails loudly (at const eval when the caller is const, at boot otherwise),
+/// never silently.
+fun themed_value(name: str): ThemedValue {
+	for value in themed_values {
+		if value.name == name {
+			ret value;
+		}
+	}
+	panic(i"theme.vl: no themed value named {name}")
+}
+
 /// A design token: the typed `Color` for a themed value the table declares.
 /// Naming a row the table does not carry fails the build at const eval, so
 /// the consts below and the table can never disagree.
 fun token(name: str): Color {
-	for value in themed_values {
-		if value.name == name {
-			ret Color { css = i"var(--{name})", root = themed_declaration(value) };
-		}
-	}
-	panic(i"theme.vl: no themed value named {name}")
+	let value = themed_value(name);
+	Color { css = i"var(--{name})", root = themed_declaration(value) }
+}
+
+/// The UA's copy of the ground, written from the table (K17, E79 Q5): one
+/// row, both schemes — `color-scheme` plus a `theme-color` per scheme. These
+/// metas used to restate `down-dim`'s pair by hand in the server's head
+/// hatch; deriving them here keeps `theme.vl:31`'s "nothing past this block
+/// names a hex" true of the SERVED PAGE, not only the stylesheet. The lines
+/// join at the hatch's own indent, so the string drops into a head hatch as
+/// one item. Site-side by ruling: the document is built in std and the theme
+/// lives here, so the helper lives where the value does — no std helper
+/// until a second site asks.
+fun theme_metas(ground: str): str {
+	let value = themed_value(ground);
+	i"<meta name=\"color-scheme\" content=\"dark light\">\n\t\t<meta name=\"theme-color\" content=\"{value.dark}\" media=\"(prefers-color-scheme: dark)\">\n\t\t<meta name=\"theme-color\" content=\"{value.light}\" media=\"(prefers-color-scheme: light)\">"
+}
+
+/// A `var()` reference with the table's own dark value as its fallback (K17)
+/// — for the inline `<style>` frame, which paints before the compiled
+/// stylesheet arrives. The fallback is the dark column because dark is the
+/// default scheme (`:root` declares it; light is the media-query
+/// redeclaration), so the pre-stylesheet flash matches the default ground.
+fun fallback(name: str): str {
+	i"var(--{name}, {themed_value(name).dark})"
 }
 
 // The `down` ladder — surfaces, dimmest (the ground) to brightest (raised).
