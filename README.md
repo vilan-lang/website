@@ -94,8 +94,12 @@ playground set (page, bundles, wasm compiler) under `playground/`, and the
 chrome pair (`header.html` + `header.css`, the masthead for the book) under
 `chrome/`. Every push to `main` does this automatically.
 [deploy.yml](.github/workflows/deploy.yml)
-installs the toolchain from the latest release, downloads the playground's
-wasm from the same release, smoke-compiles every seeded example against it,
+installs the toolchain from the latest release (via
+`scripts/install-toolchain.sh`, which downloads the official installer and
+verifies it against the release's own `sha256sums.txt` before running it —
+never `curl | sh`, in the one job that holds the deploy credentials),
+downloads the playground's wasm from the same release, smoke-compiles every
+seeded example against it,
 renders the pages and the chrome export, and commits them to the pages
 repository, touching only the allowlisted files (`docs/` and `assets/` there
 belong to other flows; that repo's `docs.yml` copies `chrome/header.html` into

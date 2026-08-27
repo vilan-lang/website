@@ -15,7 +15,9 @@
 # The toolchain installs from the latest tagged release (v0.17.0 was the
 # first with B35, which the feature grid needs), via the official install
 # script - the same on-ramp the README teaches, so a broken script fails
-# here before a user meets it. No Rust toolchain, no cargo, no cache.
+# here before a user meets it. No Rust toolchain, no cargo, no cache. The
+# installer is downloaded and checksum-verified before it is run, never piped
+# into a shell (K20); scripts/install-toolchain.sh carries the reasoning.
 #
 # The playground's compiler (vilan-core as wasm) downloads from the SAME
 # release the toolchain installs from - one version lever - and is gated by
@@ -61,8 +63,12 @@ jobs:
         with:
           node-version: 24
       - name: Install the vilan toolchain
+        # Downloaded, checksum-verified, and only then run - never `curl | sh`,
+        # which puts nothing between the network and a shell in the one job
+        # that holds the site-deploy credentials (K20). The script carries the
+        # reasoning and what the check does and does not buy.
         run: |
-          curl -fsSL https://github.com/vilan-lang/vilan/releases/latest/download/install.sh | sh
+          sh scripts/install-toolchain.sh
           echo "$HOME/.vilan/bin" >> "$GITHUB_PATH"
           "$HOME/.vilan/bin/vilan" --version
       - name: Fetch the playground compiler
