@@ -115,7 +115,11 @@ jobs:
           # Every build artifact at the root, where the generated documents
           # and `serve_build` both address them.
           cp dist/client.js dist/client.css dist/playground.js dist/playground.css export/
-          cp playground/editor.js playground/examples.js playground/worker.js export/playground/
+          # The vendored playground JavaScript is no longer hand-copied out of
+          # the source tree: the playground leg carries it with
+          # `const asset::bundle`, so it is already in dist/playground/ and
+          # whatever that leg bundles ships without this step being edited.
+          cp -r dist/playground/. export/playground/
           # The compiler ships under its versioned, immutable directory; only
           # the tiny manifest moves between releases, so browsers can never
           # hold a mixed glue/wasm pair across a rollover.

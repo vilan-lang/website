@@ -1,7 +1,7 @@
 // The playground entry: build the shared page, mount it, then wire the two
-// empty containers to the vendored bundle (`playground/editor.js`, committed
-// as `window.VilanPlayground`) — CodeMirror into `#editor`, the compile
-// worker, and the per-Run sandboxed iframe into `#runner`.
+// empty containers to the vendored bundle (`src/playground/editor.js`,
+// committed as `window.VilanPlayground`) — CodeMirror into `#editor`, the
+// compile worker, and the per-Run sandboxed iframe into `#runner`.
 //
 // The split: the bundle owns the DELIVERY machinery (the editor widget, the
 // worker lifecycle with its crash-respawn and recycle policy, the iframe
@@ -9,6 +9,7 @@
 // an srcdoc needs escaping. This entry owns the APPLICATION: every signal the
 // page renders, and what each compiler or program event means to it.
 
+import std::asset::bundle;
 import std::option::Option::{ None, Some, self };
 import std::reactive::Signal;
 import std::shared::Shared;
@@ -16,7 +17,26 @@ import std::time::Timer;
 import std::ui::mount_root;
 import pkg::playground_page::{ ConsoleRow, DiagRow, TraceRow, playground_page };
 
-// --- the vendored bundle (playground/editor.js) ---
+// --- the vendored files this leg carries into the build ---
+//
+// The three committed JavaScript files the playground page loads are not code
+// this compiler emits, so nothing carried them into `dist/` and the deploy
+// workflow copied them out of the source tree by hand (`cp playground/... `).
+// `const asset::bundle` is the fix: each one becomes a build artifact of THIS
+// leg, keeping its package-relative path, so the urls below are the same urls
+// the page has always used — and `serve_build(playground_build)` answers them
+// with no route of the server's own.
+//
+// The values are urls, minted by the build rather than typed from memory: a
+// resource that stopped existing fails the compile here instead of 404ing in
+// production. `worker.js` is named by the vendored bundle rather than by this
+// entry, so its url is bound and deliberately unread — bundling it is the
+// whole point.
+let editor_url = const bundle("playground/editor.js");
+let examples_url = const bundle("playground/examples.js");
+let worker_url = const bundle("playground/worker.js");
+
+// --- the vendored bundle (src/playground/editor.js) ---
 
 [extern("VilanPlayground.init")]
 external fun editor_init(selector: str, doc: str): void;
@@ -27,7 +47,8 @@ external fun editor_value(): str;
 [extern("VilanPlayground.setDoc")]
 external fun editor_set_doc(text: str): void;
 
-/// A seeded example's source (playground/examples/, shipped as examples.js).
+/// A seeded example's source (playground/examples/, shipped as
+/// src/playground/examples.js).
 [extern("VilanPlayground.example")]
 external fun example_source(name: str): str;
 
