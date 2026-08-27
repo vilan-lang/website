@@ -1,0 +1,22 @@
+# Keeps deploy.yml's SHA-pinned actions moving (K19, L14's class).
+#
+# Pinning every `uses:` to a commit SHA closes the hijacked-tag hole, but a pin
+# with nothing tending it is just a frozen dependency, and a frozen action
+# stops receiving its own security fixes: the pin and this file are one
+# measure, not two.
+#
+# Dependabot reads the `# v4.4.0` comment beside each pin as the human-facing
+# version and rewrites BOTH the SHA and the comment when it opens a bump PR,
+# so the pins stay readable as they move.
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    commit-message:
+      prefix: ci
+    groups:
+      actions:
+        patterns:
+          - "*"
