@@ -84,6 +84,33 @@ pieces the way the deploy does:
 node scripts/smoke-playground.mjs
 ```
 
+## Test
+
+```sh
+node scripts/test.mjs              # build, then run every tests/*.test.mjs
+node scripts/test.mjs --no-build   # against the dist/ already on disk
+```
+
+The harness builds the package and drives the site's **own built bundles** —
+the same `dist/*.js` and `playground/editor.js` the deploy copies to
+vilan-lang.org — under a minimal node DOM stub. The stub stands in for the
+browser and for the vendored editor bundle, which are the host from
+`src/*.vl`'s point of view; nothing mocks the code under test. Its shape is
+the toolchain repo's `crates/vilan-cli/tests/hmr.rs`, and its surface is
+deliberately small (`tests/support/dom.mjs` names exactly what `std::ui` and
+`std::dom` emit), so a change to std that reaches for a new host call fails
+here rather than in a visitor's browser.
+
+- `tests/playground-console.test.mjs` — the console's admission rule: a
+  `message` listener on `window` hears from every document holding a handle on
+  that window (an embedder, an opener, a sibling frame), so the page admits
+  only lines quoting the current Run's token.
+- `tests/playground-runner.test.mjs` — the other half, in the vendored bundle:
+  the frame is sandboxed to scripts only, and it is started with that token.
+
+[ci.yml](.github/workflows/ci.yml) runs the harness on every push and pull
+request; the deploy runs it again before anything ships.
+
 ## Deploy
 
 vilan-lang.org serves a static export of this site from the
@@ -99,7 +126,7 @@ installs the toolchain from the latest release (via
 verifies it against the release's own `sha256sums.txt` before running it —
 never `curl | sh`, in the one job that holds the deploy credentials),
 downloads the playground's wasm from the same release, smoke-compiles every
-seeded example against it,
+seeded example against it, runs the behaviour harness,
 renders the pages and the chrome export, and commits them to the pages
 repository, touching only the allowlisted files (`docs/` and `assets/` there
 belong to other flows; that repo's `docs.yml` copies `chrome/header.html` into

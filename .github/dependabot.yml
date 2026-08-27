@@ -1,4 +1,4 @@
-# Keeps deploy.yml's SHA-pinned actions moving (K19, L14's class).
+# Keeps the workflows' SHA-pinned actions moving (K19, L14's class).
 #
 # Pinning every `uses:` to a commit SHA closes the hijacked-tag hole, but a pin
 # with nothing tending it is just a frozen dependency, and a frozen action

@@ -17,7 +17,7 @@
 # script - the same on-ramp the README teaches, so a broken script fails
 # here before a user meets it. No Rust toolchain, no cargo, no cache. The
 # installer is downloaded and checksum-verified before it is run, never piped
-# into a shell (K20); scripts/install-toolchain.sh carries the reasoning.
+# into a shell (K20): scripts/install-toolchain.sh, which ci.yml shares.
 #
 # The playground's compiler (vilan-core as wasm) downloads from the SAME
 # release the toolchain installs from - one version lever - and is gated by
@@ -79,6 +79,11 @@ jobs:
         run: vilan build .
       - name: Smoke-compile the seeded examples
         run: node scripts/smoke-playground.mjs
+      - name: Behaviour harness
+        # The site's own bundles, driven under a node DOM stub (scripts/test.mjs).
+        # The deploy is not the harness's only gate - ci.yml runs it on every
+        # push - but a red harness must not reach vilan-lang.org either.
+        run: node scripts/test.mjs --no-build
       - name: Render the pages
         run: |
           mkdir -p export/playground export/chrome

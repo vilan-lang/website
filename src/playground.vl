@@ -62,16 +62,40 @@ external fun set_mode(platform: str): void;
 [extern("VilanPlayground.share")]
 external fun request_share(): void;
 
+/// Mount a compiled program in a fresh sandboxed iframe. `token` is this
+/// Run's name for that frame: the bundle splices it into the frame's
+/// bootstrap, and every console line the frame forwards quotes it back.
 [extern("VilanPlayground.runProgram")]
-external fun run_program(js: str, css: str): void;
+external fun run_program(js: str, css: str, token: str): void;
 
 [extern("VilanPlayground.clearProgram")]
 external fun clear_program(): void;
 
 /// The sandboxed iframe forwards program output with `postMessage`; the page
-/// listens on its own window.
+/// listens on its own window. A window listener hears from ANY document that
+/// holds a handle on this window — an opener, a page embedding the playground
+/// in an iframe, a sibling frame — so what arrives here is untrusted until
+/// `ProgramMessage::token` says otherwise.
 [extern("window.addEventListener")]
 external fun window_listen(event: str, handler: |HostEvent| void): void;
+
+/// `crypto.randomUUID()` — 122 cryptographically random bits, per Run.
+///
+/// Why a secret rather than an origin check: the runner iframe is
+/// `sandbox="allow-scripts"` with no `allow-same-origin`, so it has an OPAQUE
+/// origin and its messages arrive with `origin` exactly `"null"`. `"null"` is
+/// not an identity — it is what EVERY opaque-origin document presents — so a
+/// page that wants to forge program output need only post from inside a
+/// sandboxed frame of its own to satisfy an origin check. `event.source` is
+/// the identity that would settle it, and it is the bundle, not this entry,
+/// that holds the frame to compare against. A per-Run secret settles it here,
+/// where the decision belongs: the sender must quote a value it can only have
+/// learnt by being the document this page just started.
+///
+/// (`crypto.randomUUID` needs a secure context; the site is https, and
+/// `localhost` counts for the dev loop.)
+[extern("crypto.randomUUID")]
+external fun random_uuid(): str;
 
 external struct CompilerEvent;
 
@@ -197,6 +221,12 @@ impl ProgramMessage {
 
 	[extern(get, "text")]
 	external fun text(self): str;
+
+	/// The Run token the sending frame was started with. A message from any
+	/// other document carries no such field, and reads back as a value that
+	/// matches no live token.
+	[extern(get, "token")]
+	external fun token(self): str;
 }
 
 // A runaway program can print forever; past this many rows the pane notes the
@@ -222,6 +252,12 @@ fun main() {
 	// it is still somebody's program.
 	let modified_from = Signal::new("");
 	let buffer_dirty = Shared::new(false);
+
+	// The name of the frame currently allowed to write the console: a fresh
+	// secret per Run, empty whenever no program is mounted. Empty is a real
+	// state and it must never match — a message arriving before the first Run
+	// carries no token, and `"" == ""` would let it through.
+	let run_token = Shared::new("");
 
 	// The example a pending replacement would load, empty when none is
 	// pending. It is the confirm bar's whole state: what it asks about, and
@@ -430,9 +466,16 @@ fun main() {
 				console_lines.set([]);
 				if event.ok() {
 					status.set(i"Compiled (vilan {event.version()})");
-					run_program(event.js(), event.css());
+					// The token is rotated BEFORE the frame exists, so the
+					// previous Run's frame — which is torn down by this call,
+					// but whose in-flight messages may still be queued — can no
+					// longer write into the console this Run just cleared.
+					let token = random_uuid();
+					run_token.write() = token;
+					run_program(event.js(), event.css(), token);
 				} else {
 					status.set("Build failed; see the diagnostics.");
+					run_token.write() = "";
 					clear_program();
 				}
 			}
@@ -443,8 +486,15 @@ fun main() {
 
 	window_listen("message", |host_event| {
 		let message = host_event.data();
+		let expected = run_token.read();
 		let kind = message.kind();
-		if kind == "log" || kind == "error" {
+		// Only the frame this page started, and only while it is the mounted
+		// one. Everything else — an embedder, an opener, a stale frame from a
+		// previous Run — is silently dropped: a console that can be written by
+		// any page holding a handle on this window is not this program's
+		// output, and saying so on screen would only lend the injection a
+		// voice.
+		if expected != "" && message.token() == expected && (kind == "log" || kind == "error") {
 			console_lines.set_with(|lines| {
 				mut next = lines;
 				if next.len() < console_cap {
