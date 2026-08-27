@@ -15,7 +15,9 @@
 # The toolchain installs from the latest tagged release (v0.17.0 was the
 # first with B35, which the feature grid needs), via the official install
 # script - the same on-ramp the README teaches, so a broken script fails
-# here before a user meets it. No Rust toolchain, no cargo, no cache.
+# here before a user meets it. No Rust toolchain, no cargo, no cache. The
+# installer is downloaded and checksum-verified before it is run, never piped
+# into a shell (K20): scripts/install-toolchain.sh, which ci.yml shares.
 #
 # The playground's compiler (vilan-core as wasm) downloads from the SAME
 # release the toolchain installs from - one version lever - and is gated by
@@ -31,6 +33,13 @@
 # the workflow still builds and renders (a deploy dry run on every push) and
 # skips the push with a notice, per the disabled-until-secret-exists
 # convention.
+#
+# Every `uses:` below is pinned to a full commit SHA with its tag in the
+# comment (K19, L14's class): a mutable tag is a standing grant of code
+# execution to whoever can move it, and this workflow holds a token that can
+# write the published site. The playground compiler this job downloads is now
+# checksum-verified against the release's own sha256sums.txt before it is
+# unpacked - see scripts/fetch-wasm.sh.
 name: deploy
 
 on:
@@ -49,13 +58,17 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: 24
       - name: Install the vilan toolchain
+        # Downloaded, checksum-verified, and only then run - never `curl | sh`,
+        # which puts nothing between the network and a shell in the one job
+        # that holds the site-deploy credentials (K20). The script carries the
+        # reasoning and what the check does and does not buy.
         run: |
-          curl -fsSL https://github.com/vilan-lang/vilan/releases/latest/download/install.sh | sh
+          sh scripts/install-toolchain.sh
           echo "$HOME/.vilan/bin" >> "$GITHUB_PATH"
           "$HOME/.vilan/bin/vilan" --version
       - name: Fetch the playground compiler
@@ -66,6 +79,11 @@ jobs:
         run: vilan build .
       - name: Smoke-compile the seeded examples
         run: node scripts/smoke-playground.mjs
+      - name: Behaviour harness
+        # The site's own bundles, driven under a node DOM stub (scripts/test.mjs).
+        # The deploy is not the harness's only gate - ci.yml runs it on every
+        # push - but a red harness must not reach vilan-lang.org either.
+        run: node scripts/test.mjs --no-build
       - name: Render the pages
         run: |
           mkdir -p export/playground export/chrome
@@ -97,7 +115,11 @@ jobs:
           # Every build artifact at the root, where the generated documents
           # and `serve_build` both address them.
           cp dist/client.js dist/client.css dist/playground.js dist/playground.css export/
-          cp playground/editor.js playground/examples.js playground/worker.js export/playground/
+          # The vendored playground JavaScript is no longer hand-copied out of
+          # the source tree: the playground leg carries it with
+          # `const asset::bundle`, so it is already in dist/playground/ and
+          # whatever that leg bundles ships without this step being edited.
+          cp -r dist/playground/. export/playground/
           # The compiler ships under its versioned, immutable directory; only
           # the tiny manifest moves between releases, so browsers can never
           # hold a mixed glue/wasm pair across a rollover.
@@ -125,13 +147,13 @@ jobs:
       - name: Mint the pages-repo token
         id: app
         if: steps.pages.outputs.deploy == 'true'
-        uses: actions/create-github-app-token@v2
+        uses: actions/create-github-app-token@fee1f7d63c2ff003460e3d139729b119787bc349 # v2.2.2
         with:
           app-id: ${{ secrets.DEPLOY_APP_ID }}
           private-key: ${{ secrets.DEPLOY_APP_PRIVATE_KEY }}
           owner: vilan-lang
           repositories: vilan-lang.github.io
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         if: steps.pages.outputs.deploy == 'true'
         with:
           repository: vilan-lang/vilan-lang.github.io

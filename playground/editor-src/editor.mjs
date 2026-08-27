@@ -946,8 +946,18 @@ function applyFormatted(text) {
 
 // `allow-scripts` only: an opaque origin, no same-origin access. The
 // bootstrap forwards console output and uncaught errors to the parent.
-const BOOTSTRAP = `(function () {
-	var send = function (kind, text) { parent.postMessage({ kind: kind, text: text }, "*"); };
+//
+// Every forwarded line carries `token` - the per-Run secret the page minted
+// and handed to `runProgram`. The parent listens on its own window, which any
+// document holding a handle on that window can post to (an opener, a page
+// embedding the playground, a sibling frame), and an origin check cannot tell
+// those apart from this frame: with no `allow-same-origin` this frame's origin
+// is opaque, so it presents `"null"` - and so does every other sandboxed
+// document. Quoting the token is the thing only this frame can do, because the
+// srcdoc it lives in is unreadable from outside its own opaque origin.
+const bootstrap = (token) => `(function () {
+	var token = ${JSON.stringify(token)};
+	var send = function (kind, text) { parent.postMessage({ token: token, kind: kind, text: text }, "*"); };
 	var show = function (value) {
 		if (typeof value === "string") return value;
 		try { return JSON.stringify(value); } catch (error) { return String(value); }
@@ -975,27 +985,35 @@ function escapeStyle(text) {
 	return text.replace(/<\/style/gi, "<\\/style");
 }
 
-function buildSrcdoc(js, css) {
+function buildSrcdoc(js, css, token) {
 	return [
 		"<!doctype html>",
 		"<html><head><meta charset=\"utf-8\">",
 		`<style>${escapeStyle(css)}</style>`,
 		"</head><body>",
 		"<div id=\"app\"></div>",
-		`<script>${BOOTSTRAP}</scr` + "ipt>",
+		`<script>${bootstrap(token)}</scr` + "ipt>",
 		`<script type="module">${escapeScript(js)}</scr` + "ipt>",
 		"</body></html>",
 	].join("\n");
 }
 
-function runProgram(js, css) {
+// The token is spliced into a `<script>` body, so it must not be able to carry
+// markup out of it. The page mints it with `crypto.randomUUID`, whose alphabet
+// is hex and hyphens; this refuses anything else rather than trusting the
+// caller, because a token that could close the tag would hand the attacker the
+// frame instead of keeping them out of it.
+const TOKEN_SHAPE = /^[0-9a-f-]{16,64}$/;
+
+function runProgram(js, css, token) {
 	const host = document.getElementById("runner");
 	if (!host) return;
+	if (!TOKEN_SHAPE.test(token ?? "")) throw new Error("runProgram: malformed run token");
 	host.textContent = "";
 	const frame = document.createElement("iframe");
 	frame.setAttribute("sandbox", "allow-scripts");
 	frame.setAttribute("title", "program result");
-	frame.srcdoc = buildSrcdoc(js, css);
+	frame.srcdoc = buildSrcdoc(js, css, token);
 	host.append(frame);
 }
 

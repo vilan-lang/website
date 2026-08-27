@@ -1,4 +1,8 @@
-// Regenerate playground/examples.js from playground/examples/*.vl.
+// Regenerate src/playground/examples.js from playground/examples/*.vl.
+//
+// The output lives under src/ because the playground leg BUNDLES it —
+// `const asset::bundle` resolves against the package root, which is src/, and
+// carrying it into `dist/` is what stopped the deploy hand-copying it.
 //
 // The output is deterministic (sorted names, JSON-escaped bodies), so the
 // smoke gate can regenerate it in memory and byte-compare: an edited example
@@ -25,6 +29,6 @@ export function generate() {
 }
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
-	writeFileSync(`${root}playground/examples.js`, generate());
-	console.log("wrote playground/examples.js");
+	writeFileSync(`${root}src/playground/examples.js`, generate());
+	console.log("wrote src/playground/examples.js");
 }

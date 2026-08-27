@@ -32,9 +32,9 @@ await glue.default({ module_or_path: wasm });
 console.log(`playground compiler: vilan ${glue.version()} (release ${release})`);
 
 // 2: examples.js is current.
-const committed = readFileSync(`${root}playground/examples.js`, "utf8");
+const committed = readFileSync(`${root}src/playground/examples.js`, "utf8");
 if (committed !== generate()) {
-	console.error("playground/examples.js is stale; run: node scripts/gen-examples.mjs");
+	console.error("src/playground/examples.js is stale; run: node scripts/gen-examples.mjs");
 	process.exit(1);
 }
 

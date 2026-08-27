@@ -1,0 +1,41 @@
+# The site's behaviour gate, on every push and pull request.
+#
+# Until this existed the repo had no test CI at all - only deploy.yml, which
+# runs on `main` alone and whose failure mode is a site already half-shipped.
+# A defect in the site's own vilan code therefore had nowhere to be caught, and
+# nowhere to be PINNED: tracker K18 is the item that named that gap, and
+# scripts/test.mjs plus tests/ is the answer. This workflow is what makes the
+# answer load-bearing on a branch, before a merge, rather than at deploy time.
+#
+# The wasm compiler is deliberately not fetched here. The harness drives the
+# site's own bundles (dist/*.js) under a node DOM stub and needs no compiler in
+# the browser; the seeded-example smoke test, which does, stays on the deploy
+# where the exact shipped wasm is present.
+#
+# Every `uses:` is pinned to a full commit SHA with its tag in the comment,
+# the same rule deploy.yml states (K19, L14's class).
+name: ci
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  harness:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: 24
+      - name: Install the vilan toolchain
+        # The verified installer, shared with deploy.yml (K20).
+        run: |
+          sh scripts/install-toolchain.sh
+          echo "$HOME/.vilan/bin" >> "$GITHUB_PATH"
+          "$HOME/.vilan/bin/vilan" --version
+      - name: Build and run the harness
+        run: node scripts/test.mjs

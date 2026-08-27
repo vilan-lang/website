@@ -224,12 +224,14 @@ async fun main() {
 	let landing = landing_document(client_build);
 	let playground = playground_document(playground_build);
 
-	// The vendored playground pieces are files, not build artifacts, so they
-	// keep their boot reads and their /playground/ routes — the worker names
-	// them by absolute path.
-	let editor_js = fs::read_file_to_str("playground/editor.js");
-	let examples_js = fs::read_file_to_str("playground/examples.js");
-	let worker_js = fs::read_file_to_str("playground/worker.js");
+	// The vendored playground pieces used to be files rather than build
+	// artifacts, so they had three boot reads and three literal routes here.
+	// They ARE build artifacts now: `src/playground.vl` carries them with
+	// `const asset::bundle`, the playground leg's manifest names them, and
+	// `serve_build(playground_build)` below answers `/playground/editor.js`,
+	// `/playground/examples.js` and `/playground/worker.js` with no route of
+	// this server's own — at the same urls, since a bundled resource keeps its
+	// package-relative path.
 
 	// The wasm pairs are fetched, not built here; absent is a normal state.
 	// scripts/fetch-wasm.sh lays each version out under its own directory,
@@ -282,9 +284,6 @@ async fun main() {
 			// queries, so the local server does too.
 			let path = request.path().split("?")[0];
 			match path {
-				"/playground/editor.js" => script(editor_js),
-				"/playground/examples.js" => script(examples_js),
-				"/playground/worker.js" => script(worker_js),
 				"/playground/manifest.json" => match has_wasm {
 					true => Response::builder().set_header("Content-Type", "application/json").body(wasm_manifest).build(),
 					false => missing_wasm(),
