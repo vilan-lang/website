@@ -9,7 +9,7 @@
 // smallest thing that closes it rather than a framework nobody asked for.
 //
 // The shape is the toolchain repo's `crates/vilan-cli/tests/hmr.rs`: stub the
-// HOST — `document`, `window`, the vendored `playground/editor.js` — and run
+// HOST — `document`, `window`, the vendored `src/playground/editor.js` — and run
 // the REAL built bundle against it, unmodified, the same bytes the deploy
 // copies to vilan-lang.org. Nothing here mocks the code under test.
 //

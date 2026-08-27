@@ -1,9 +1,9 @@
 // The other half of the console's admission rule, in the vendored bundle:
-// `playground/editor.js` must actually splice the page's Run token into the
+// `src/playground/editor.js` must actually splice the page's Run token into the
 // frame it starts, or the page would hold a secret nobody quotes and every
 // line of real program output would be dropped.
 //
-// This drives the COMMITTED, minified `playground/editor.js` — the file the
+// This drives the COMMITTED, minified `src/playground/editor.js` — the file the
 // deploy copies to the site, not `editor-src/editor.mjs` — because that file is
 // generated, and the failure worth catching is the one where it was not
 // regenerated. CodeMirror reads a few document members at import time, which is
@@ -13,7 +13,7 @@ import { installDom } from "./support/dom.mjs";
 import { check, verdict } from "./support/check.mjs";
 
 const dom = installDom(["runner"], { vendored: true });
-await import(new URL("../playground/editor.js", import.meta.url).href);
+await import(new URL("../src/playground/editor.js", import.meta.url).href);
 
 const bundle = globalThis.VilanPlayground;
 check(typeof bundle?.runProgram === "function", "the bundle exports runProgram");

@@ -2,7 +2,7 @@
 // vilan-lang.org — under the DOM stub, with the vendored editor bundle stood
 // in for.
 //
-// What is stubbed and why: `playground/editor.js` is CodeMirror plus a Worker
+// What is stubbed and why: `src/playground/editor.js` is CodeMirror plus a Worker
 // lifecycle plus a live iframe, none of which node has. It is the HOST from
 // `src/playground.vl`'s point of view — the entry declares it as `external`,
 // exactly as it declares `document` — so standing it in leaves the code under
