@@ -105,10 +105,10 @@ fun page(scroll_fade: Signal<str>, copy: |str| void): View {
 // --- install ---
 
 let install_label = const style()
-	.color(primary)
 	.font_size(Length::px(12.0))
 	.font_weight(600)
 	.letter_spacing(Length::em(0.12))
+	.color(primary)
 	.raw("text-transform", "uppercase")
 	.margin_y(space(1));
 
@@ -117,9 +117,9 @@ let install_label = const style()
 // command is a code surface, so it wears `code_type` like every other one.
 let install_command = const (style()
 	.position(Position::Relative)
+	.font_size(Length::px(13.0))
 	.background(down_normal)
 	.radius(radius_panel)
-	.font_size(Length::px(13.0))
 	.border(hairline_width, stroke_hard)
 	+ code_type);
 
@@ -127,10 +127,10 @@ let install_command_text = const style()
 	.display(Display::Block)
 	.overflow(Overflow::Auto)
 	.raw("scrollbar-width", "none")
-	.white_space(WhiteSpace::Pre)
 	.padding_y(space(3))
 	.padding_left(Length::px(16.0))
 	.padding_right(Length::px(48.0))
+	.white_space(WhiteSpace::Pre)
 	.user_select(UserSelect::All);
 
 // min-width 0: as a grid item, the default min-width:auto would let the
@@ -140,19 +140,19 @@ let install_command_text = const style()
 // The one genuinely floating surface in the section, so it takes the float
 // radius and the raised layer; everything else here separates by hairline.
 let copy_button = const (style()
+	.display(Display::Flex)
 	.position(Position::Absolute)
 	.top(Length::px(6.0))
 	.right(Length::px(8.0))
-	.display(Display::Flex)
-	.align_items(AlignItems::Center)
 	.justify_content(JustifyContent::Center)
+	.align_items(AlignItems::Center)
 	.width(Length::px(28.0))
 	.height(Length::px(28.0))
-	.radius(radius_float)
 	.background(down_bright)
+	.radius(radius_float)
 	.border(hairline_width, stroke_hard)
-	.cursor(Cursor::Pointer)
 	.transition(i"border-color {motion_ambient}, transform {motion_ambient}")
+	.cursor(Cursor::Pointer)
 	.hover(style().border_color(primary))
 	.active(style().transform("scale(0.92)"))
 	+ no_select);
@@ -264,28 +264,28 @@ fun showcase_flipped(code: View, prose: View): View {
 
 let demo_box = const style()
 	.display(Display::Flex)
-	.align_items(AlignItems::Center)
 	.gap(space(4))
-	.margin_y(space(4))
+	.align_items(AlignItems::Center)
 	.padding(space(4))
+	.margin_y(space(4))
 	.radius(radius_panel)
 	.border(hairline_width, stroke_hard);
 
 // The page's one live control, so it is the page's one filled button: the
 // accent as the surface, `primary-on` as what sits on it.
 let demo_button = const style()
-	.background(primary)
-	.color(primary_on)
-	.font_weight(600)
 	.padding_y(space(2))
 	.padding_x(space(4))
+	.font_family(body_face)
+	.font_size(Length::px(13.0))
+	.font_weight(600)
+	.color(primary_on)
+	.background(primary)
 	.radius(radius_panel)
 	.border_none()
-	.font_size(Length::px(13.0))
-	.font_family(body_face)
-	.user_select(UserSelect::Off)
-	.cursor(Cursor::Pointer)
 	.transition(i"opacity {motion_ambient}, transform {motion_ambient}")
+	.cursor(Cursor::Pointer)
+	.user_select(UserSelect::Off)
 	.hover(style().opacity(0.88))
 	.active(style().transform("scale(0.95)"));
 
@@ -402,18 +402,18 @@ fun showcase_fullstack(): View {
 // The terminal, quoted: a code panel whose hairline is the accent at a third
 // strength, because what it is showing is a diagnostic.
 let diag_pre = const (style()
-	.background(down_normal)
-	.radius(radius_panel)
+	.overflow(Overflow::Auto)
 	.padding(space(5))
 	.margin(space(0))
-	.overflow(Overflow::Auto)
 	.font_size(Length::px(13.0))
 	.line_height(1.65)
-	.border(hairline_width, primary.alpha(0.35))
 	.white_space(WhiteSpace::Pre)
+	.background(down_normal)
+	.radius(radius_panel)
+	.border(hairline_width, primary.alpha(0.35))
 	+ code_type);
 
-let diag_error = const style().color(primary).font_weight(700);
+let diag_error = const style().font_weight(700).color(primary);
 // The frame the diagnostic draws around itself is scaffolding, not the
 // message: the dim tier says so without an opacity.
 let diag_frame = const style().color(up_dim);
@@ -487,19 +487,19 @@ let card = const style()
 	.flex_direction(FlexDirection::Column)
 	.gap(space(2))
 	.padding(space(5))
-	.radius(radius_panel)
 	.background(down_normal)
+	.radius(radius_panel)
 	.border(hairline_width, stroke_hard)
 	.transition(i"background-color {motion_deliberate}, border-color {motion_deliberate}")
 	.hover(style().background(down_bright).border_color(primary.alpha(0.45)));
 
 let card_title = const style()
+	.margin(space(0))
 	.font_family(display_face)
 	.font_size(Length::px(20.0))
-	.line_height_length(Length::px(28.0))
 	.font_weight(600)
-	.color(up_bright)
-	.margin(space(0));
+	.line_height_length(Length::px(28.0))
+	.color(up_bright);
 
 let card_body = const style().margin(space(0)).color(up_normal);
 
@@ -508,10 +508,10 @@ let card_body = const style().margin(space(0)).color(up_normal);
 let card_link = const style()
 	.raw("align-self", "flex-start")
 	.display(Display::InlineFlex)
-	.align_items(AlignItems::Center)
 	.gap(space(1))
-	.color(primary)
+	.align_items(AlignItems::Center)
 	.font_size(Length::px(13.0))
+	.color(primary)
 	.text_decoration("none")
 	.user_select(UserSelect::Off)
 	.hover(style().text_decoration("underline"));
@@ -526,18 +526,18 @@ let link_arrow = const (style().width(Length::px(14.0)).height(Length::px(14.0))
 let button_link_style = const style()
 	.raw("align-self", "flex-start")
 	.display(Display::Flex)
+	.gap(space(1))
 	.align_items(AlignItems::Center)
-	.color(primary)
-	.font_size(Length::px(13.0))
-	.font_weight(600)
 	.padding_y(space(2))
 	.padding_x(space(4))
-	.gap(space(1))
+	.font_size(Length::px(13.0))
+	.font_weight(600)
+	.color(primary)
+	.text_decoration("none")
 	.radius(radius_panel)
 	.border(hairline_width, primary.alpha(0.45))
-	.text_decoration("none")
-	.user_select(UserSelect::Off)
 	.transition(i"background-color {motion_deliberate}, border-color {motion_deliberate}")
+	.user_select(UserSelect::Off)
 	.hover(style().background(primary.alpha(0.12)).border_color(primary));
 
 fun button_link(href: str, label: str): View {
@@ -643,15 +643,15 @@ fun dogfood(): View {
 }
 
 let footer_block = const style()
-	.border_top(hairline_width, stroke_soft)
-	.padding_y(Length::px(128.0));
+	.padding_y(Length::px(128.0))
+	.border_top(hairline_width, stroke_soft);
 
 let footer_grid = const style()
 	.display(Display::Grid)
 	.gap(space(8))
 	.lg(style().grid_template_columns("2fr 1fr 1fr 1fr"));
 
-let footer_head = const style().font_weight(600).color(up_bright).margin_y(space(2));
+let footer_head = const style().margin_y(space(2)).font_weight(600).color(up_bright);
 
 let footer_list = const style()
 	.display(Display::Flex)
@@ -661,8 +661,8 @@ let footer_list = const style()
 let footer_link = const style()
 	.color(up_dim)
 	.text_decoration("none")
-	.user_select(UserSelect::Off)
 	.transition(i"color {motion_ambient}")
+	.user_select(UserSelect::Off)
 	.hover(style().color(up_bright).text_decoration("underline"));
 
 let footer_mark = const (style()
@@ -675,11 +675,11 @@ let footer_micro = const style()
 	.justify_content(JustifyContent::Between)
 	.raw("flex-wrap", "wrap")
 	.gap(space(2))
-	.border_top(hairline_width, stroke_soft)
-	.margin_top(Length::px(96.0))
 	.padding_y(space(6))
+	.margin_top(Length::px(96.0))
 	.font_size(Length::px(12.0))
-	.color(up_dim);
+	.color(up_dim)
+	.border_top(hairline_width, stroke_soft);
 
 fun footer_column(title: str, links: List<View>): View {
 	view("div")

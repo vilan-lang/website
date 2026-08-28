@@ -72,7 +72,14 @@ fun missing_wasm(): Response {
 ///   document does carry.
 /// - the icon set, absolute so the exported pages and the local server agree.
 /// - the page's `<style>` block (`style_block` below).
-fun with_head(document: Document, description: str, og_title: str, og_description: str, og_url: str, style: str): Document {
+fun with_head(
+	document: Document,
+	description: str,
+	og_title: str,
+	og_description: str,
+	og_url: str,
+	style: str,
+): Document {
 	document
 		.head(theme_metas("down-dim"))
 		.head(i"<meta name=\"description\" content=\"{description}\">")
@@ -160,28 +167,15 @@ fun style_block(page_rules: List<str>): str {
 fun landing_document(build: LegBuild): Document {
 	// The texture filter is ONE element — its lines join inside the one
 	// `body()` call, at the hatch's indent.
-	let texture: List<str> = ["<svg width=\"0\" height=\"0\" style=\"position:absolute\" aria-hidden=\"true\">", "\t<filter id=\"bloom-texture\" x=\"-8%\" y=\"-8%\" width=\"116%\" height=\"116%\" color-interpolation-filters=\"sRGB\">", "\t\t<feTurbulence type=\"fractalNoise\" baseFrequency=\"0.76923\" numOctaves=\"3\" seed=\"3030\"/>", "\t\t<feDisplacementMap in=\"SourceGraphic\" scale=\"90\" xChannelSelector=\"R\" yChannelSelector=\"G\"/>", "\t</filter>", "</svg>"];
-	with_head(
-		Document::of(build).title("Vilan — The Modern Web Language"),
-		"Vilan is a language for building full-stack web apps: one small toolchain, reactive UI, and a compiler that checks what you usually find out at runtime.",
-		"Vilan — The Modern Web Language",
-		"A language for building full-stack web apps: one small toolchain, reactive UI, and a compiler that checks what you usually find out at runtime.",
-		"https://vilan-lang.org/",
-		style_block([
-			"@keyframes bloom-drift-a {",
-			"\tfrom { transform: translate(0, 0) scale(1); }",
-			"\tto { transform: translate(0.8%, 1.6%) scale(1.035); }",
-			"}",
-			"@keyframes dash-flow {",
-			"\tto { background-position: 22px 0; }",
-			"}",
-			"@keyframes caret-blink {",
-			"\t0%, 49% { opacity: 1; }",
-			"\t50%, 100% { opacity: 0; }",
-			"}",
-		]),
-	)
-		.body(texture.join("\n\t\t"))
+	let texture: List<str> = [
+		"<svg width=\"0\" height=\"0\" style=\"position:absolute\" aria-hidden=\"true\">",
+		"\t<filter id=\"bloom-texture\" x=\"-8%\" y=\"-8%\" width=\"116%\" height=\"116%\" color-interpolation-filters=\"sRGB\">",
+		"\t\t<feTurbulence type=\"fractalNoise\" baseFrequency=\"0.76923\" numOctaves=\"3\" seed=\"3030\"/>",
+		"\t\t<feDisplacementMap in=\"SourceGraphic\" scale=\"90\" xChannelSelector=\"R\" yChannelSelector=\"G\"/>",
+		"\t</filter>",
+		"</svg>",
+	];
+	with_head(Document::of(build).title("Vilan — The Modern Web Language"), "Vilan is a language for building full-stack web apps: one small toolchain, reactive UI, and a compiler that checks what you usually find out at runtime.", "Vilan — The Modern Web Language", "A language for building full-stack web apps: one small toolchain, reactive UI, and a compiler that checks what you usually find out at runtime.", "https://vilan-lang.org/", style_block(["@keyframes bloom-drift-a {", "\tfrom { transform: translate(0, 0) scale(1); }", "\tto { transform: translate(0.8%, 1.6%) scale(1.035); }", "}", "@keyframes dash-flow {", "\tto { background-position: 22px 0; }", "}", "@keyframes caret-blink {", "\t0%, 49% { opacity: 1; }", "\t50%, 100% { opacity: 0; }", "}"])).body(texture.join("\n\t\t"))
 }
 
 /// The playground page's document. Its own style rules size the workbench:
@@ -193,22 +187,7 @@ fun landing_document(build: LegBuild): Document {
 /// both globals exist before the document's own module script runs — the
 /// generated tag lands after the hatch, which is exactly that order.
 fun playground_document(build: LegBuild): Document {
-	with_head(
-		Document::of(build).title("Vilan Playground — run vilan in your browser"),
-		"Write and run Vilan in your browser: the compiler itself runs client-side as WebAssembly — no install, no server.",
-		"Vilan Playground",
-		"Write and run Vilan in your browser: the compiler itself runs client-side as WebAssembly — no install, no server.",
-		"https://vilan-lang.org/playground/",
-		style_block([
-			"#app { height: 100%; }",
-			"#editor .cm-editor { height: 100%; }",
-			"#runner iframe { border: 0; width: 100%; height: 100%; background: #fff; }",
-			"button:focus-visible, select:focus-visible {",
-			i"\toutline: 2px solid {fallback("primary")};",
-			"\toutline-offset: 2px;",
-			"}",
-		]),
-	)
+	with_head(Document::of(build).title("Vilan Playground — run vilan in your browser"), "Write and run Vilan in your browser: the compiler itself runs client-side as WebAssembly — no install, no server.", "Vilan Playground", "Write and run Vilan in your browser: the compiler itself runs client-side as WebAssembly — no install, no server.", "https://vilan-lang.org/playground/", style_block(["#app { height: 100%; }", "#editor .cm-editor { height: 100%; }", "#runner iframe { border: 0; width: 100%; height: 100%; background: #fff; }", "button:focus-visible, select:focus-visible {", i"\toutline: 2px solid {fallback("primary")};", "\toutline-offset: 2px;", "}"]))
 		.body("<script src=\"/playground/examples.js\"></script>")
 		.body("<script src=\"/playground/editor.js\"></script>")
 }
@@ -237,7 +216,7 @@ async fun main() {
 	// scripts/fetch-wasm.sh lays each version out under its own directory,
 	// mirroring how the pages repo serves them; every fetched version is
 	// served so the selector can switch locally too.
-	let has_wasm = fs::exists("playground/wasm/VERSION");
+	let has_wasm = fs::stat("playground/wasm/VERSION").is_some();
 	mut wasm_manifest = "";
 	mut wasm_pairs: List<WasmPair> = [];
 	if has_wasm {

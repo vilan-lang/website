@@ -55,7 +55,7 @@ struct ThemedValue {
 /// own — for deriving one themed value from another INSIDE the table, before
 /// the typed consts below exist.
 fun role_reference(name: str): Color {
-	Color { css = i"var(--{name})", root = "" }
+	Color { text = i"var(--{name})", root = "" }
 }
 
 // The brand palette, mapped into the roles per §2.1 — ink family to the
@@ -157,8 +157,8 @@ let themed_values = const [
 	ThemedValue { name = "tint-callable", dark = "#F0A886", light = "#7F260D" },
 	ThemedValue {
 		name = "tint-comment",
-		dark = role_reference("up-bright").alpha(0.5).css,
-		light = role_reference("up-bright").alpha(0.6).css,
+		dark = role_reference("up-bright").alpha(0.5).text,
+		light = role_reference("up-bright").alpha(0.6).text,
 	},
 	ThemedValue { name = "shadow", dark = "rgba(0, 0, 0, 1)", light = "rgba(18, 0, 4, 0.35)" },
 	ThemedValue { name = "art-error", dark = "#D84730", light = "#AD3520" },
@@ -192,7 +192,7 @@ fun themed_value(name: str): ThemedValue {
 /// the consts below and the table can never disagree.
 fun token(name: str): Color {
 	let value = themed_value(name);
-	Color { css = i"var(--{name})", root = themed_declaration(value) }
+	Color { text = i"var(--{name})", root = themed_declaration(value) }
 }
 
 /// The UA's copy of the ground, written from the table (K17, E79 Q5): one
@@ -407,18 +407,18 @@ let grain_tile = "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/
 // --- shared styles ---
 
 let shell = const style()
-	.background(down_dim)
-	.color(up_normal)
 	.min_height(Length::pct(100.0))
 	.font_family(body_face)
 	.font_size(Length::px(14.0))
-	.line_height_length(Length::px(18.0));
+	.line_height_length(Length::px(18.0))
+	.color(up_normal)
+	.background(down_dim);
 
 // The content column: 1200px of content plus the 32px side padding.
 let column = const style()
-	.max_width(Length::px(1264.0))
+	.padding_x(Length::px(32.0))
 	.margin_x(Length::auto())
-	.padding_x(Length::px(32.0));
+	.max_width(Length::px(1264.0));
 
 // Chrome (logos, art, buttons, nav/footer links) is not selectable text;
 // body copy and code stay selectable, and the install commands stay
@@ -448,17 +448,17 @@ let stack = const style()
 let reveal = const style().raw("--reveal", "1");
 
 let heading = const (style()
+	.margin(space(0))
 	.font_family(display_face)
 	.font_size(Length::px(32.0))
-	.line_height_length(Length::px(48.0))
 	.font_weight(600)
+	.line_height_length(Length::px(48.0))
 	.color(up_bright)
-	.margin(space(0))
 	+ reveal);
 
 // The section lead. Tone is a role now, not an opacity — `up-normal` is the
 // body tier the shell already sets, named here so the lead re-themes with it.
-let lead = const (style().color(up_normal).max_width(Length::rem(36.0)).margin(space(0)) + reveal);
+let lead = const (style().margin(space(0)).max_width(Length::rem(36.0)).color(up_normal) + reveal);
 
 let rule_line = const style().height(Length::px(1.0)).background(stroke_soft);
 
@@ -480,10 +480,10 @@ fun grain(): View {
 }
 
 let visually_hidden = const style()
+	.overflow(Overflow::Hidden)
 	.position(Position::Absolute)
 	.width(Length::px(1.0))
 	.height(Length::px(1.0))
-	.overflow(Overflow::Hidden)
 	.raw("clip-path", "inset(50%)");
 
 let desktop_only = const style().display(Display::Hidden).lg(style().display(Display::Block));

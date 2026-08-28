@@ -5,12 +5,12 @@ import std::style::{ Color, Length, space, style };
 import std::ui::{ mount_root, view };
 
 let card = const style()
-	.background(Color::hex("#1B060D"))
-	.color(Color::hex("#F9DFE7"))
 	.padding(space(6))
+	.color(Color::hex("#F9DFE7"))
+	.background(Color::hex("#1B060D"))
 	.radius(Length::px(12.0));
 
-let title = const style().color(Color::hex("#EB682E")).margin(space(0));
+let title = const style().margin(space(0)).color(Color::hex("#EB682E"));
 
 fun main() {
 	let _root = mount_root("app", || {

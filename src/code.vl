@@ -26,15 +26,15 @@ import pkg::theme::{
 // it, and the panel radius. `code_type` carries the face AND its feature
 // settings, so no code surface can wear one without the other.
 let code_pre = const (style()
-	.background(down_normal)
-	.radius(radius_panel)
+	.overflow(Overflow::Auto)
 	.padding(space(5))
 	.margin(space(0))
-	.overflow(Overflow::Auto)
 	.font_size(code_size)
 	.line_height(1.65)
-	.border(hairline_width, stroke_hard)
 	.white_space(WhiteSpace::Pre)
+	.background(down_normal)
+	.radius(radius_panel)
+	.border(hairline_width, stroke_hard)
 	+ code_type);
 
 // The palette the playground's editor also speaks — and now speaks FROM: K10
@@ -50,7 +50,7 @@ let tk_string = const style().color(accent);
 // panel gets its hierarchy from the `up` ladder rather than from opacity.
 let tk_plain = const style().color(up_normal);
 let tk_callable = const style().color(code_callable);
-let tk_type = const style().color(up_bright).font_weight(600);
+let tk_type = const style().font_weight(600).color(up_bright);
 let tk_hole = const style().color(primary);
 
 fun kw(text: str): View {
@@ -97,13 +97,13 @@ fun code_panel(lines: List<View>): View {
 // A leaf is a chip raised out of the prose it sits in: `down-bright`, the
 // flat radius, and the tightest padding on the page.
 let leaf_style = const (style()
-	.font_size(Length::px(12.0))
-	.background(down_bright)
-	.border(hairline_width, stroke_hard)
-	.radius(radius_flat)
 	.padding_y(Length::px(1.0))
 	.padding_x(Length::px(6.0))
+	.font_size(Length::px(12.0))
 	.white_space(WhiteSpace::Nowrap)
+	.background(down_bright)
+	.radius(radius_flat)
+	.border(hairline_width, stroke_hard)
 	+ code_type);
 
 let leaf_link_style = const (leaf_style + style()

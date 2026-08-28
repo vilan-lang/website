@@ -102,9 +102,9 @@ struct ConsoleRow {
 // chrome away.
 let app_fill = const style()
 	.display(Display::Flex)
+	.overflow(Overflow::Hidden)
 	.flex_direction(FlexDirection::Column)
-	.height(Length::pct(100.0))
-	.overflow(Overflow::Hidden);
+	.height(Length::pct(100.0));
 
 // The four quadrants: Program | Result over Diagnostics | Console. Every seam
 // is the grid's own 1px gap with the container's stroke showing through — one
@@ -116,8 +116,8 @@ let app_fill = const style()
 let quad_grid = const style()
 	.display(Display::Grid)
 	.flex("1 1 auto")
-	.min_height(Length::zero())
 	.gap(hairline_width)
+	.min_height(Length::zero())
 	.background(stroke_hard)
 	.raw("grid-template-columns", "minmax(0, 1fr)")
 	.raw("grid-template-rows", "minmax(0, 8fr) minmax(0, 6fr) minmax(0, 4fr) minmax(0, 4fr)")
@@ -137,11 +137,11 @@ let quad_grid = const style()
 // regions, `stroke-soft` inside one.
 let panel = const style()
 	.display(Display::Flex)
+	.overflow(Overflow::Hidden)
 	.flex_direction(FlexDirection::Column)
-	.background(down_normal)
 	.min_width(Length::zero())
 	.min_height(Length::zero())
-	.overflow(Overflow::Hidden);
+	.background(down_normal);
 
 // 32px tall, 8px inset, 4px gaps: kolt's chrome rail, to the pixel. The page
 // toolbar is one; so is every panel header; so is the confirm bar.
@@ -149,12 +149,12 @@ let rail = const style()
 	.display(Display::Flex)
 	.align_items(AlignItems::Center)
 	.raw("flex-wrap", "wrap")
+	.flex_shrink(0.0)
 	.gap(space(1))
-	.background(down_bright)
 	.padding_x(space(2))
 	.padding_y(Length::px(4.0))
 	.min_height(Length::px(32.0))
-	.flex_shrink(0.0)
+	.background(down_bright)
 	.raw("box-sizing", "border-box");
 
 // A rail inside a panel closes with a soft hairline. The app bar is the
@@ -173,8 +173,8 @@ let app_bar = const (rail + style().border_bottom(hairline_width, stroke_hard));
 let rail_divider = const style()
 	.width(hairline_width)
 	.raw("align-self", "stretch")
-	.background(stroke_hard)
-	.margin_x(Length::px(2.0));
+	.margin_x(Length::px(2.0))
+	.background(stroke_hard);
 
 // 13px on 16px with the tracking pulled a hair tight: kolt's `script-label`,
 // and the one size every piece of chrome on this page speaks. The uppercase,
@@ -182,15 +182,15 @@ let rail_divider = const style()
 // voice — a tool just says the word, in the tier it belongs to.
 let script_label = const style()
 	.font_size(Length::px(13.0))
-	.line_height_length(Length::px(16.0))
-	.letter_spacing(Length::em(-0.01));
+	.letter_spacing(Length::em(-0.01))
+	.line_height_length(Length::px(16.0));
 
 // The page's own name is the app bar's left label, right after the brand
 // link: a tool says what it is on the rail it is worked from, rather than
 // titling itself above.
-let page_title = const (script_label + style().margin(space(0)).color(up_bright).font_weight(600) + no_select);
+let page_title = const (script_label + style().margin(space(0)).font_weight(600).color(up_bright) + no_select);
 
-let panel_title = const (script_label + style().margin(space(0)).color(up_normal).font_weight(500) + no_select);
+let panel_title = const (script_label + style().margin(space(0)).font_weight(500).color(up_normal) + no_select);
 
 // The two live hosts fill their panels and clip; what grows past them scrolls
 // INSIDE — CodeMirror's own scroller in the editor, the iframe's document in
@@ -199,14 +199,14 @@ let panel_title = const (script_label + style().margin(space(0)).color(up_normal
 // which reads `--code-dim` off the palette below like every other code
 // surface).
 let editor_host = const style()
+	.overflow(Overflow::Hidden)
 	.flex("1 1 auto")
-	.min_height(Length::zero())
-	.overflow(Overflow::Hidden);
+	.min_height(Length::zero());
 
 let runner_host = const style()
+	.display(Display::Flex)
 	.flex("1 1 auto")
 	.min_height(Length::zero())
-	.display(Display::Flex)
 	.background(down_normal);
 
 // --- controls ---
@@ -217,32 +217,32 @@ let runner_host = const style()
 // by lighting up, never by growing a border or a shadow.
 
 let control_box = const (script_label + style()
-	.font_family("inherit")
 	.padding_y(Length::px(4.0))
 	.padding_x(space(2))
+	.font_family("inherit")
 	.radius(radius_flat)
-	.cursor(Cursor::Pointer)
 	.transition(i"background-color {motion_ambient}, border-color {motion_ambient}, color {motion_ambient}")
+	.cursor(Cursor::Pointer)
 	+ no_select);
 
 // The quiet verbs — Format, Share, Keep editing. Share puts the buffer in the
 // URL itself (deflated, base64url), so no server holds anything; Format is the
 // compiler's own formatter and appears only when the loaded wasm exports it.
 let ghost_button = const (control_box + style()
-	.background(Color::transparent())
 	.color(up_normal)
+	.background(Color::transparent())
 	.border_none()
-	.hover(style().background(down_hover).color(up_bright))
+	.hover(style().color(up_bright).background(down_hover))
 	.active(style().background(down_active)));
 
 // The one filled verb. A fill has no white-alpha ladder to climb, so it
 // answers with light instead — on the same sub-200ms beat.
 let primary_button = const (control_box + style()
-	.background(primary)
-	.color(primary_on)
-	.font_weight(600)
-	.border_none()
 	.padding_x(space(3))
+	.font_weight(600)
+	.color(primary_on)
+	.background(primary)
+	.border_none()
 	.transition(i"filter {motion_ambient}")
 	.hover(style().raw("filter", "brightness(1.08)"))
 	.active(style().raw("filter", "brightness(0.94)")));
@@ -268,18 +268,18 @@ let primary_button = const (control_box + style()
 // whatever box it is given.
 let select_box = const (control_box + style()
 	.raw("appearance", "none")
-	.background(down_normal)
-	.color(up_normal)
-	.border(hairline_width, stroke_soft)
-	.height(Length::px(24.0))
 	.padding_y(Length::zero())
 	.padding_right(Length::px(22.0))
+	.height(Length::px(24.0))
+	.color(up_normal)
+	.background(down_normal)
+	.border(hairline_width, stroke_soft)
 	.raw("background-image", "linear-gradient(45deg, transparent 50%, currentcolor 50%), linear-gradient(135deg, currentcolor 50%, transparent 50%)")
 	.raw("background-position", "calc(100% - 13px) calc(50% - 1px), calc(100% - 9px) calc(50% - 1px)")
 	.raw("background-size", "4px 4px, 4px 4px")
 	.raw("background-repeat", "no-repeat")
 	.raw("box-sizing", "border-box")
-	.hover(style().border_color(stroke_hard).color(up_bright)));
+	.hover(style().color(up_bright).border_color(stroke_hard)));
 
 // The compiler pin reads as what it is — a version string — so it wears the
 // code face and the badge tier. It doubles as the version badge, and a pinned
@@ -290,10 +290,10 @@ let version_select = const (select_box + code_type + style().font_size(Length::p
 // audible to a screen reader without stealing focus; the auto margin is what
 // splits the rail into kolt's left and right clusters.
 let status_line = const (script_label + style()
+	.padding_x(space(1))
 	.margin(space(0))
-	.color(up_dim)
 	.margin_left(Length::auto())
-	.padding_x(space(1)));
+	.color(up_dim));
 
 // The template picker lives in the Program panel's header rather than the
 // toolbar, because it changes the program and the toolbar keeps the verbs. The
@@ -347,15 +347,15 @@ let confirm_question = const (script_label + style()
 // and the ratified spec says every code surface is CommitMono with the same
 // feature settings.
 let report_well = const (code_type + style()
-	.margin(space(0))
-	.padding_y(Length::px(4.0))
-	.flex("1 1 auto")
-	.min_height(Length::zero())
 	.overflow(Overflow::Auto)
+	.flex("1 1 auto")
+	.padding_y(Length::px(4.0))
+	.margin(space(0))
+	.min_height(Length::zero())
 	.font_size(code_size)
 	.line_height_length(Length::px(18.0))
-	.white_space(WhiteSpace::PreWrap)
-	.color(up_normal));
+	.color(up_normal)
+	.white_space(WhiteSpace::PreWrap));
 
 // A diagnostic is a ROW, not a line of a transcript: an inset, a severity edge,
 // and the faintest wash of that severity behind it. The two semantic families
@@ -369,19 +369,19 @@ let diag_row = const style()
 	.padding_y(Length::px(3.0))
 	.padding_x(space(2))
 	.border_top(hairline_width, stroke_soft)
-	.first(style().border_top(hairline_width, Color::transparent()))
-	.border_left(Length::px(2.0), stroke_hard);
+	.border_left(Length::px(2.0), stroke_hard)
+	.first(style().border_top(hairline_width, Color::transparent()));
 
 let diag_row_error = const (diag_row + style()
-	.border_left(Length::px(2.0), down_danger)
-	.background(down_danger.alpha(0.07)));
+	.background(down_danger.alpha(0.07))
+	.border_left(Length::px(2.0), down_danger));
 
 let diag_row_warning = const (diag_row + style()
-	.border_left(Length::px(2.0), down_caution)
-	.background(down_caution.alpha(0.06)));
+	.background(down_caution.alpha(0.06))
+	.border_left(Length::px(2.0), down_caution));
 
-let diag_error = const style().color(up_error).font_weight(600);
-let diag_warning = const style().color(up_caution).font_weight(600);
+let diag_error = const style().font_weight(600).color(up_error);
+let diag_warning = const style().font_weight(600).color(up_caution);
 let diag_site = const style().color(up_dim);
 let diag_note = const style().color(up_dim);
 let diag_trace = const style().color(up_dim);

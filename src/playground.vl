@@ -87,7 +87,7 @@ external fun request_share(): void;
 /// Run's name for that frame: the bundle splices it into the frame's
 /// bootstrap, and every console line the frame forwards quotes it back.
 [extern("VilanPlayground.runProgram")]
-external fun run_program(js: str, css: str, token: str): void;
+external fun run_program(js: str, stylesheet: str, token: str): void;
 
 [extern("VilanPlayground.clearProgram")]
 external fun clear_program(): void;
@@ -134,7 +134,7 @@ impl CompilerEvent {
 	external fun js(self): str;
 
 	[extern(get, "css")]
-	external fun css(self): str;
+	external fun stylesheet(self): str;
 
 	[extern(get, "error")]
 	external fun error(self): str;
@@ -493,7 +493,7 @@ fun main() {
 					// longer write into the console this Run just cleared.
 					let token = random_uuid();
 					run_token.write() = token;
-					run_program(event.js(), event.css(), token);
+					run_program(event.js(), event.stylesheet(), token);
 				} else {
 					status.set("Build failed; see the diagnostics.");
 					run_token.write() = "";

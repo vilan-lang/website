@@ -48,12 +48,12 @@ let duo_tile_uri = "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/200
 // It also carries `bloom_palette`, which scopes the art's spine tokens to
 // everything the bloom draws inside it.
 let bloom_field = const (style()
+	.overflow(Overflow::Hidden)
 	.position(Position::Absolute)
 	.top(Length::zero())
 	.left(Length::zero())
 	.width(Length::pct(100.0))
 	.height(Length::calc(i"64px + {hero_scale} * 0.570864"))
-	.overflow(Overflow::Hidden)
 	.raw("pointer-events", "none")
 	+ no_select
 	+ bloom_palette);
@@ -75,10 +75,10 @@ let bloom_blurwrap = const style()
 let bloom_band_geometry = const style()
 	.position(Position::Absolute)
 	.left(Length::pct(50.0))
-	.transform("translateX(-50%)")
 	.top(Length::calc(i"64px - {hero_scale} * 0.049226"))
-	.width(Length::css(hero_scale))
+	.width(Length::raw(hero_scale))
 	.height(Length::calc(i"{hero_scale} * 0.62009"))
+	.transform("translateX(-50%)")
 	.raw("-webkit-mask-size", "100% 100%")
 	.raw("mask-size", "100% 100%");
 
@@ -118,13 +118,13 @@ let masthead_wrap = const style().position(Position::Relative);
 // vw-proportional with floors so phones stay legible. The headline artwork
 // gets a visually-hidden text twin for readers and robots.
 let hero_block = const style()
-	.position(Position::Relative)
 	.display(Display::Flex)
+	.position(Position::Relative)
 	.flex_direction(FlexDirection::Column)
-	.align_items(AlignItems::Center)
-	.height(Length::calc(i"{hero_scale} * 0.52917"))
-	.padding_top(Length::calc(i"{hero_scale} * 0.15208"))
 	.gap(Length::calc(i"{hero_scale} * 0.03333"))
+	.align_items(AlignItems::Center)
+	.padding_top(Length::calc(i"{hero_scale} * 0.15208"))
+	.height(Length::calc(i"{hero_scale} * 0.52917"))
 	.raw("box-sizing", "border-box");
 
 let hero_mark = const (style()
@@ -143,11 +143,11 @@ let hero_wordmark = const (style()
 let hero_tagline = const style()
 	.font_family(display_face)
 	.raw("font-size", i"max(18px, {hero_scale} * 0.01667)")
-	.line_height(1.5)
-	.font_weight(600)
-	.color(ink)
 	.margin(space(0))
-	.text_align(TextAlign::Center);
+	.font_weight(600)
+	.line_height(1.5)
+	.text_align(TextAlign::Center)
+	.color(ink);
 
 fun hero(): View {
 	view("header")

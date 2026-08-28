@@ -39,7 +39,7 @@ import pkg::theme::{
 /// it, so a stylesheet that reaches only this bar still declares what it names.
 fun faded(role: Color, strength: str): Color {
 	Color {
-		css = i"rgb(from {role.css} r g b / calc(var(--nav-fade, 0) * {strength}))",
+		text = i"rgb(from {role.text} r g b / calc(var(--nav-fade, 0) * {strength}))",
 		root = role.root,
 	}
 }
@@ -54,17 +54,17 @@ let topbar = const style()
 
 let nav_row = const style()
 	.display(Display::Flex)
-	.align_items(AlignItems::Center)
 	.justify_content(JustifyContent::Between)
+	.align_items(AlignItems::Center)
 	.height(Length::px(64.0));
 
 let nav_brand = const style()
 	.display(Display::Flex)
-	.align_items(AlignItems::Center)
 	.gap(space(3))
+	.align_items(AlignItems::Center)
+	.font_size(Length::px(13.0))
 	.font_weight(600)
-	.letter_spacing(Length::em(0.35))
-	.font_size(Length::px(13.0));
+	.letter_spacing(Length::em(0.35));
 
 // The mark follows `up-bright` like the wordmark text beside it: the brand
 // asset is one colour, so it is drawn as a mask over the role rather than as
@@ -84,11 +84,11 @@ let nav_links = const style().display(Display::Flex).gap(space(6));
 // Tone carries the state, not opacity: the links rest at the body tier and
 // come up to the bright one under the pointer.
 let nav_link = const style()
-	.color(up_normal)
 	.font_size(Length::px(13.0))
+	.color(up_normal)
 	.text_decoration("none")
-	.user_select(UserSelect::Off)
 	.transition(i"color {motion_ambient}")
+	.user_select(UserSelect::Off)
 	.hover(style().color(up_bright));
 
 // Every href is absolute from the site root: the same bar is served from /,
