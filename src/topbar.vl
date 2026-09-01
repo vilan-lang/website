@@ -3,7 +3,7 @@
 // chrome.vl) the book. Its own module so a leg that wants only the bar reaches
 // only the bar's rules: the masthead's bloom and hero are the landing page's.
 
-import std::reactive::Signal;
+import std::reactive::{ Signal, SignalCell };
 import std::style::{
 	AlignItems,
 	Color,
@@ -94,7 +94,7 @@ let nav_link = const style()
 // Every href is absolute from the site root: the same bar is served from /,
 // /playground/, and every /docs/ page, so a relative target would resolve
 // against whichever page happens to carry it.
-fun top_bar(scroll_fade: Signal<str>): View {
+fun top_bar(scroll_fade: SignalCell<str>): View {
 	view("nav")
 		.styled(topbar)
 		.style_var("--nav-fade", scroll_fade)

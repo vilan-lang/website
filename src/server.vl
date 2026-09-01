@@ -25,7 +25,6 @@ import std::document::Document;
 import std::fs;
 import std::http::{ Response, Server };
 import std::option::Option::{ None, Some, self };
-import std::print;
 import std::process::env;
 import std::reactive::Signal;
 import pkg::page::page;

@@ -40,7 +40,6 @@
 //   node dist/chrome.mjs <out-dir>      (deploy.yml: export/chrome)
 
 import std::fs;
-import std::print;
 import std::process::args;
 import std::reactive::{ Owner, Signal, run_with_owner };
 import std::ui::render;

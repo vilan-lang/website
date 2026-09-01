@@ -20,7 +20,7 @@
 // assets left are the brand marks and fonts, served from
 // vilan-lang.org/assets so dev and deployed builds see the same bytes.
 import std::option::Option::{ None, Some, self };
-import std::reactive::Signal;
+import std::reactive::{ Signal, SignalCell };
 import std::shared::Shared;
 import std::style::{
 	AlignItems,
@@ -79,7 +79,7 @@ import pkg::topbar::top_bar;
 
 // --- the page ---
 
-fun page(scroll_fade: Signal<str>, copy: |str| void): View {
+fun page(scroll_fade: SignalCell<str>, copy: |str| void): View {
 	view("div")
 		.styled(shell)
 		.child(bloom())

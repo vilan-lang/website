@@ -302,7 +302,7 @@ fun diagram(): View {
 			<div .styled(art_code)>
 				{ln([t("["), kw("service"), t("(NotesClient)]")])}
 				{ln([kw("struct"), t(" Notes {")])}
-				{ln([t("    ["), kw("expose"), t("] entries: Signal<List<Note>>,")])}
+				{ln([t("    ["), kw("expose"), t("] entries: SignalCell<List<Note>>,")])}
 				{ln([t("}")])}
 				{blank()}
 				{ln([kw("impl"), t(" Notes {")])}
@@ -809,7 +809,7 @@ fun dataflow_art(): View {
 			.styled(df_row)
 			.child(df_node_view(false, "the write", [t("count.set("), st("2"), t(")")]))
 			.child(df_arrow_to("notify"))
-			.child(df_node_view(false, "the signal", [t("Signal<i32> "), kw("= 2")]))
+			.child(df_node_view(false, "the signal", [t("SignalCell<i32> "), kw("= 2")]))
 			.child(df_arrow_to("re-set"))
 			.child(df_node_view(true, "the one text node", [
 				t("<p>clicked "),

@@ -9,7 +9,7 @@
 // the actions (Run, example picks) as closures — the server passes inert
 // stand-ins, the same split as `page()`.
 
-import std::reactive::Signal;
+import std::reactive::{ Signal, SignalCell };
 import std::style::{
 	AlignItems,
 	Color,
@@ -442,15 +442,15 @@ fun console_row(row: ConsoleRow): View {
 // --- the page ---
 
 fun playground_page(
-	status: Signal<str>,
-	diagnostics: Signal<List<DiagRow>>,
-	console_lines: Signal<List<ConsoleRow>>,
-	can_format: Signal<bool>,
-	can_platform: Signal<bool>,
-	share_label: Signal<str>,
-	mode: Signal<str>,
-	modified_from: Signal<str>,
-	confirm_target: Signal<str>,
+	status: SignalCell<str>,
+	diagnostics: SignalCell<List<DiagRow>>,
+	console_lines: SignalCell<List<ConsoleRow>>,
+	can_format: SignalCell<bool>,
+	can_platform: SignalCell<bool>,
+	share_label: SignalCell<str>,
+	mode: SignalCell<str>,
+	modified_from: SignalCell<str>,
+	confirm_target: SignalCell<str>,
 	run: || void,
 	format: || void,
 	share: || void,
