@@ -507,7 +507,7 @@ fun editor_art(): View {
 				.child(view("div").styled(ed_gutter).text("1\n2\n3\n4\n5\n6\n7\n8\n9\n10\n11"))
 				.child(view("div")
 					.styled(ed_code)
-					.child(ln([kw("import"), t(" std::print;")]))
+					.child(ln([kw("import"), t(" std::io::print;")]))
 					.child(ln([kw("import"), t(" std::option::Option::{ self, Some, None };")]))
 					.child(ln([kw("fun"), t(" find_user(id: i32): Option<str> {")]))
 					.child(ln([
