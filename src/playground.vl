@@ -77,6 +77,16 @@ external fun request_format(): bool;
 [extern("VilanPlayground.setMode")]
 external fun set_mode(platform: str): void;
 
+/// Turn the ambient scope on or off ("on" / "off"). ON is the MODE's
+/// recommended prelude — the web set in the browser, the base set on the node
+/// leg — so a pasted single-file program means what it would inside a fresh
+/// `vilan init` package; OFF is the explicit spelling, for teaching where a
+/// name really lives. Like `set_mode`, the bundle keeps the #prelude select in
+/// step, re-checks the buffer under the new scope, and echoes the change back
+/// as a "prelude" command event.
+[extern("VilanPlayground.setPrelude")]
+external fun set_prelude(state: str): void;
+
 /// Put the buffer in the URL (deflated, base64url in the fragment — no
 /// server holds anything) and copy the link. Answers as a "shared" event:
 /// `copied` says whether the clipboard took it.
@@ -148,6 +158,11 @@ impl CompilerEvent {
 	[extern(get, "canPlatform")]
 	external fun can_platform(self): bool;
 
+	/// On the "ready" event: whether the loaded wasm exports `compile_with`
+	/// (the ambient-scope option, K14; older releases do not).
+	[extern(get, "canPrelude")]
+	external fun can_prelude(self): bool;
+
 	/// On "result" and "checked" events: which leg the compile targeted.
 	[extern(get, "platform")]
 	external fun platform(self): str;
@@ -163,8 +178,10 @@ impl CompilerEvent {
 	[extern(get, "copied")]
 	external fun copied(self): bool;
 
-	/// On the "command" event: what the editor, the template picker or the
-	/// mode select asked for ("run", "format", "pick", "mode").
+	/// On the "command" event: what the editor, the template picker or one of
+	/// the two selects asked for ("run", "format", "pick", "mode",
+	/// "prelude"). The prelude select carries no page state — the bundle owns
+	/// the control and the compile requests — so its echo is informational.
 	[extern(get, "command")]
 	external fun command(self): str;
 
@@ -260,6 +277,7 @@ fun main() {
 	let console_lines: Signal<List<ConsoleRow>> = Signal::new([]);
 	let can_format = Signal::new(false);
 	let can_platform = Signal::new(false);
+	let can_prelude = Signal::new(false);
 	let mode = Signal::new("browser");
 	let share_label = Signal::new("Share");
 	let next_row_id = Shared::new(0);
@@ -303,13 +321,18 @@ fun main() {
 
 	// An example carries its leg: picking the server example flips the mode
 	// to node (and any other example flips it back), BEFORE the doc loads so
-	// the auto-run compiles under the right platform.
+	// the auto-run compiles under the right platform. It carries its ambient
+	// scope the same way, and for a sharper reason: every example is written
+	// in the prelude's idiom, so loading one into a buffer whose scope is
+	// switched off would greet the visitor with errors in code the site itself
+	// wrote. Picking an example turns it back on.
 	let load_example = |name: str| {
 		let platform = match name {
 			"server" => "node",
 			_ => "browser",
 		};
 		set_mode(platform);
+		set_prelude("on");
 		editor_set_doc(example_source(name));
 		diagnostics.set([]);
 		console_lines.set([]);
@@ -405,7 +428,7 @@ fun main() {
 		rows.len()
 	};
 
-	let _root = mount_root("app", || playground_page(status, diagnostics, console_lines, can_format, can_platform, share_label, mode, modified_from, confirm_target, run, format, share, confirm_replace, cancel_replace));
+	let _root = mount_root("app", || playground_page(status, diagnostics, console_lines, can_format, can_platform, can_prelude, share_label, mode, modified_from, confirm_target, run, format, share, confirm_replace, cancel_replace));
 
 	editor_init("#editor", example_source("counter"));
 
@@ -418,6 +441,14 @@ fun main() {
 				// An older pinned compiler has no server leg; fall back
 				// rather than pretend to check.
 				set_mode("browser");
+			}
+			can_prelude.set(event.can_prelude());
+			if !event.can_prelude() {
+				// An older pinned compiler takes no scope option — a shared
+				// `&prelude=off` link cannot be honored under it, so the
+				// state goes back to what that compiler will actually do
+				// rather than claiming a setting it ignores.
+				set_prelude("on");
 			}
 			status.set(i"Ready (vilan {event.version()})");
 			compiler_ready.write() = true;

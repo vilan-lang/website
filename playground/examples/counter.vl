@@ -1,8 +1,7 @@
 // A reactive counter: the signal is the state, the bindings follow it.
 // Change the label, add a second button — then press Run.
 
-import std::reactive::Signal;
-import std::ui::{ mount_root, view };
+import std::ui::mount_root;
 
 fun main() {
 	mount_root("app", || {

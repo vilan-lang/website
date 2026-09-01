@@ -257,8 +257,10 @@ let primary_button = const (control_box + style()
 // rail rather than on it: a well one layer down, hairlined soft. Three wear it:
 // the compile-mode select (server is check-only — the diagnostics, platform
 // colouring above all, are the product; running a process needs a real host, so
-// it is hidden entirely on a wasm without `compile_for`), the template picker,
-// and the version pin below.
+// it is hidden entirely on a wasm without `compile_for`), the prelude select
+// beside it (the ambient scope a manifest-less buffer resolves under — on is
+// the mode's recommended set, off is the explicit spelling; hidden on a wasm
+// without `compile_with`), the template picker, and the version pin below.
 // The CLOSED control is drawn here — `appearance: none` — because the native
 // menulist paints its own answers to the pointer: Chrome and Firefox both
 // flood the whole control from mousedown to mouse-up, and Firefox repaints
@@ -453,6 +455,7 @@ fun playground_page(
 	console_lines: SignalCell<List<ConsoleRow>>,
 	can_format: SignalCell<bool>,
 	can_platform: SignalCell<bool>,
+	can_prelude: SignalCell<bool>,
 	share_label: SignalCell<str>,
 	mode: SignalCell<str>,
 	modified_from: SignalCell<str>,
@@ -488,6 +491,13 @@ fun playground_page(
 				.show(can_platform)
 				.child(template_option("browser", "Browser: compile and run"))
 				.child(template_option("node", "Server: check the process leg")))
+			.child(view("select")
+				.styled(select_box)
+				.attr("id", "prelude")
+				.attr("aria-label", "Ambient scope")
+				.show(can_prelude)
+				.child(template_option("on", "Prelude: on"))
+				.child(template_option("off", "Prelude: off")))
 			.child(view("button")
 				.styled(ghost_button)
 				.text("Format")

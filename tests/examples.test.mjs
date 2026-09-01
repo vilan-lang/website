@@ -43,10 +43,24 @@ function vilan(cwd, ...args) {
 	return { status: run.status, output: `${run.stdout}${run.stderr}`.trim() };
 }
 
+/// A scratch directory that means what a playground buffer means (K14): the
+/// playground compiles a pasted buffer under its MODE's recommended prelude
+/// (vilan-wasm's `PlaygroundPrelude::recommended_for` - the web set in the
+/// browser mode, the base set in the server check mode), and a native
+/// `vilan check` of a manifest-less file gets the base set whatever the
+/// platform. A one-line package manifest naming the mode's set makes the two
+/// compilers read the buffer under the same ambient scope.
+function playgroundDir(prefix, platform) {
+	const dir = mkdtempSync(join(scratch, prefix));
+	const prelude = platform === "browser" ? "std::web" : "std::prelude";
+	writeFileSync(join(dir, "vilan.toml"), `[package]\nname = "playground"\nprelude = "${prelude}"\n`);
+	return dir;
+}
+
 /// Check `source` as `<name>.vl` on `platform`. Clean means exactly the
 /// compiler's all-clear line and nothing else — a warning block fails it.
 function checkClean(name, source, platform) {
-	const dir = mkdtempSync(join(scratch, `${name}-`));
+	const dir = playgroundDir(`${name}-`, platform);
 	writeFileSync(join(dir, `${name}.vl`), source);
 	const result = vilan(dir, "check", `${name}.vl`, "--platform", platform);
 	const clean = result.status === 0 && result.output === `${name}.vl: no errors`;
@@ -57,7 +71,7 @@ function checkClean(name, source, platform) {
 /// Build `source` for the browser and run it under the DOM stub; returns the
 /// mount, the printed lines, and the emitted stylesheet.
 async function run(name, source) {
-	const dir = mkdtempSync(join(scratch, `${name}-run-`));
+	const dir = playgroundDir(`${name}-run-`, "browser");
 	writeFileSync(join(dir, `${name}.vl`), source);
 	const built = vilan(dir, "build", `${name}.vl`, "--platform", "browser");
 	if (built.status !== 0) {
@@ -190,7 +204,7 @@ const shown = pres.find((lines) => lines[0]?.startsWith("Error:"));
 check(demo != null && shown != null, "the landing page shows the diagnostic demo and its diagnostic");
 if (demo && shown) {
 	const file = shown.find((line) => line.includes("╭─["))?.match(/\[ ([^:]+\.vl):/)?.[1] ?? "demo.vl";
-	const dir = mkdtempSync(join(scratch, "demo-"));
+	const dir = playgroundDir("demo-", "browser");
 	writeFileSync(join(dir, file), programOf(demo));
 	const said = vilan(dir, "check", file, "--platform", "browser");
 	const lines = said.output.split("\n").map((line) => line.trimEnd());

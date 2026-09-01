@@ -15,7 +15,7 @@ import { installDom } from "./dom.mjs";
 export async function bootPlayground({ bundle }) {
 	const dom = installDom(["app"]);
 
-	const calls = { runProgram: [], clearProgram: 0, setMode: [], compile: [], setDoc: [] };
+	const calls = { runProgram: [], clearProgram: 0, setMode: [], setPrelude: [], compile: [], setDoc: [] };
 	let onCompilerEvent = null;
 	let document_ = "let count = Signal::new(0)\n";
 
@@ -39,6 +39,7 @@ export async function bootPlayground({ bundle }) {
 		format: () => true,
 		share: () => {},
 		setMode: (platform) => calls.setMode.push(platform),
+		setPrelude: (state) => calls.setPrelude.push(state),
 		runProgram: (...args) => calls.runProgram.push(args),
 		clearProgram: () => {
 			calls.clearProgram += 1;
@@ -70,8 +71,8 @@ export async function bootPlayground({ bundle }) {
 /// The boot sequence the vendored bundle really performs: the worker comes up
 /// ("ready"), the initial document settles ("doc"), and the page auto-runs.
 /// Returns nothing; the page is left waiting for a compile result.
-export function bootCompiler(page, { version = "0.0.0-test", canFormat = true, canPlatform = true } = {}) {
-	page.compilerEvent({ kind: "ready", version, canFormat, canPlatform });
+export function bootCompiler(page, { version = "0.0.0-test", canFormat = true, canPlatform = true, canPrelude = true } = {}) {
+	page.compilerEvent({ kind: "ready", version, canFormat, canPlatform, canPrelude });
 	page.compilerEvent({ kind: "doc" });
 }
 

@@ -402,12 +402,22 @@ let view = null;
 // (K15): esbuild inlines it here, and the book's harness carries a suite-
 // pinned copy of the half it needs (see that file's header).
 
-// `#code=<payload>` with optional `&mode=node` and `&v=<tag>` - a shared
-// server-leg snippet opens straight into the check mode, and a pinned link
-// (a bug repro above all) opens under the exact compiler that showed it.
+// `#code=<payload>` with optional `&mode=node`, `&prelude=off` and `&v=<tag>`
+// - a shared server-leg snippet opens straight into the check mode, a snippet
+// written against the explicit spellings opens with the ambient scope off, and
+// a pinned link (a bug repro above all) opens under the exact compiler that
+// showed it. Only the non-default value is ever spelled, so the ordinary link
+// is the shortest one and every link already shared keeps its meaning.
 function fragmentPayload() {
-	const match = location.hash.match(/^#code=([A-Za-z0-9_-]+)(?:&mode=(node))?(?:&v=(v[0-9][0-9.]*))?$/);
-	return match ? { payload: match[1], mode: match[2] ?? null, version: match[3] ?? null } : null;
+	const match = location.hash.match(/^#code=([A-Za-z0-9_-]+)(?:&mode=(node))?(?:&prelude=(off))?(?:&v=(v[0-9][0-9.]*))?$/);
+	return match
+		? {
+			payload: match[1],
+			mode: match[2] ?? null,
+			prelude: match[3] ?? null,
+			version: match[4] ?? null,
+		}
+		: null;
 }
 
 function share() {
@@ -415,10 +425,11 @@ function share() {
 		const source = view ? view.state.doc.toString() : "";
 		const encoded = encodeBase64Url(await deflate(source));
 		const mode = currentPlatform === "node" ? "&mode=node" : "";
+		const prelude = preludeOn ? "" : "&prelude=off";
 		const pin = selectedVersion && currentVersion && selectedVersion !== currentVersion
 			? `&v=${selectedVersion}`
 			: "";
-		const url = `${location.origin}${location.pathname}#code=${encoded}${mode}${pin}`;
+		const url = `${location.origin}${location.pathname}#code=${encoded}${mode}${prelude}${pin}`;
 		// window-qualified: bare `history` is CodeMirror's undo extension here.
 		window.history.replaceState(null, "", url);
 		let copied = false;
@@ -489,10 +500,12 @@ function init(selector, doc) {
 		inflate(decodeBase64Url(fragment.payload)).then(
 			(text) => {
 				setDoc(text);
-				// Mode before the doc event, so the arrival auto-run
-				// compiles under the linked leg. (The version pin was read
-				// before startCompiler spawned anything.)
+				// Mode and scope before the doc event, so the arrival
+				// auto-run compiles under the linked leg and the linked
+				// ambient set. (The version pin was read before
+				// startCompiler spawned anything.)
 				if (fragment.mode) setMode(fragment.mode);
+				if (fragment.prelude) setPrelude(fragment.prelude);
 				dispatch({ kind: "doc" });
 			},
 			() => {
@@ -617,6 +630,10 @@ function wirePicker() {
 	const mode = document.getElementById("mode");
 	if (mode) {
 		mode.addEventListener("change", () => setMode(mode.value));
+	}
+	const prelude = document.getElementById("prelude");
+	if (prelude) {
+		prelude.addEventListener("change", () => setPrelude(prelude.value));
 	}
 }
 
@@ -866,6 +883,27 @@ function setMode(platform) {
 	dispatch({ kind: "command", command: "mode", name: platform });
 }
 
+// The ambient scope (K14). ON is the MODE's recommended set — the web set in
+// the browser, the base set on the node leg — so a pasted single-file program
+// means what it would inside a fresh `vilan init` package; OFF turns it off
+// entirely, for teaching the explicit spellings. It rides the same rails the
+// mode does: one setter both the page and the #prelude select route through,
+// a re-check under the new scope, an echo back as a command event, and a place
+// in the share link.
+let preludeOn = true;
+
+function setPrelude(state) {
+	if (state !== "on" && state !== "off") return;
+	const wanted = state === "on";
+	if (wanted === preludeOn) return;
+	preludeOn = wanted;
+	const select = document.getElementById("prelude");
+	if (select) select.value = state;
+	sentSource = null; // the same text means something new under another scope
+	scheduleCheck();
+	dispatch({ kind: "command", command: "prelude", name: state });
+}
+
 function scheduleCheck() {
 	clearTimeout(checkTimer);
 	checkTimer = setTimeout(() => {
@@ -878,7 +916,7 @@ function scheduleCheck() {
 		}
 		sentSource = source;
 		inFlight = true;
-		worker.postMessage({ action: "check", source, platform: currentPlatform });
+		worker.postMessage({ action: "check", source, platform: currentPlatform, prelude: preludeOn });
 	}, 400);
 }
 
@@ -925,7 +963,7 @@ function spawn() {
 			inFlight = false;
 			compileCount += 1; // a check leaks like a compile; it pays the same budget
 			const current = view ? view.state.doc.toString() : "";
-			if (current === sentSource && message.platform === currentPlatform) {
+			if (current === sentSource && message.platform === currentPlatform && message.prelude === preludeOn) {
 				applyEditorDiagnostics(message.diagnostics);
 				dispatch(message);
 			}
@@ -1023,7 +1061,7 @@ function compile(source) {
 	}
 	sentSource = source;
 	inFlight = true;
-	worker.postMessage({ action: "compile", source, platform: currentPlatform });
+	worker.postMessage({ action: "compile", source, platform: currentPlatform, prelude: preludeOn });
 	return true;
 }
 
@@ -1146,6 +1184,7 @@ window.VilanPlayground = {
 	format,
 	share,
 	setMode,
+	setPrelude,
 	runProgram,
 	clearProgram: placeholder,
 	// What a fresh visit with no shared link opens on. `init` is its one

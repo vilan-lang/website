@@ -34,12 +34,17 @@ stored = null;
 check(bundle.restoredDoc(fallback) === fallback, "nothing saved: the default doc");
 
 // The counter as v0.41 shipped it — the one buffer K25 was about. It is the
-// current counter with the one line v0.42.0 renamed.
+// counter v0.42.0 and v0.43.0 shipped (spelled out here, since the current
+// example has moved on since: the prelude's idiom, element syntax) with the
+// one line v0.42.0 renamed. Both are in the retired record.
+const shipped = "// A reactive counter: the signal is the state, the bindings follow it.\n// Change the label, add a second button \u2014 then press Run.\n\nimport std::reactive::Signal;\nimport std::ui::{ mount_root, view };\n\nfun main() {\n\tmount_root(\"app\", || {\n\t\tlet count = Signal::new(0);\n\t\tview(\"div\")\n\t\t\t.child(view(\"h2\").text(\"Counter\"))\n\t\t\t.child(view(\"button\").text(\"+1\").on(\"click\", || count.set(count.get() + 1)))\n\t\t\t.child(view(\"p\").bind_text(count.derive(|n| i\"clicked {n} times\")))\n\t});\n}\n";
 const counter = examples.counter;
-const old = counter.replace("count.derive(|n| i\"clicked {n} times\")", "count.map(|n| i\"clicked {n} times\")");
-check(old !== counter, "the v0.41 counter differs from the current one by the renamed call");
+const old = shipped.replace("count.derive(|n| i\"clicked {n} times\")", "count.map(|n| i\"clicked {n} times\")");
+check(old !== shipped, "the v0.41 counter differs from the v0.42 one by the renamed call");
 stored = old;
 check(bundle.restoredDoc(fallback) === counter, "a saved, untouched v0.41 counter opens as the current counter");
+stored = shipped;
+check(bundle.restoredDoc(fallback) === counter, "a saved, untouched v0.42 counter opens as the current counter");
 
 stored = `${old}// mine\n`;
 check(bundle.restoredDoc(fallback) === stored, "an edited buffer is the visitor's program, restored as it was");

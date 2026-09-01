@@ -1,7 +1,6 @@
 // Hello: build a view, mount it, print to the console pane.
 
-import std::io::print;
-import std::ui::{ mount, view };
+import std::ui::mount;
 
 fun main() {
 	print("Hello from the vilan playground!");

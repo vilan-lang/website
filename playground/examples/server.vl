@@ -3,7 +3,6 @@
 // to watch it refuse); running it for real takes a process host:
 // `vilan init my-app && vilan run my-app`.
 
-import std::io::print;
 import std::http::{ Response, Server };
 
 async fun main() {

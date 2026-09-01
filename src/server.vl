@@ -248,7 +248,7 @@ async fun main() {
 		let no_diagnostics: Signal<List<DiagRow>> = Signal::new([]);
 		let no_console: Signal<List<ConsoleRow>> = Signal::new([]);
 		html(playground
-			.render(playground_page(Signal::new("Loading the compiler…"), no_diagnostics, no_console, Signal::new(false), Signal::new(false), Signal::new("Share"), Signal::new("browser"), Signal::new(""), Signal::new(""), || {}, || {}, || {}, || {}, || {}))
+			.render(playground_page(Signal::new("Loading the compiler…"), no_diagnostics, no_console, Signal::new(false), Signal::new(false), Signal::new(false), Signal::new("Share"), Signal::new("browser"), Signal::new(""), Signal::new(""), || {}, || {}, || {}, || {}, || {}))
 			.html())
 	};
 

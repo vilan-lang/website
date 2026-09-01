@@ -2,7 +2,7 @@
 // stylesheet at build time, and the classes below are its hashed names.
 
 import std::style::{ Color, Length, space, style };
-import std::ui::{ mount_root, view };
+import std::ui::mount_root;
 
 let card = const style()
 	.padding(space(6))

@@ -15,13 +15,15 @@
 // not have would fail the whole module. Capability rides the ready message.
 //
 // Messages in:  { action: "compile" | "check" | "format", source,
-//                 platform: "browser" | "node" }
+//                 platform: "browser" | "node", prelude: true | false }
 //               { action: "complete", id, source, line, character }
 // Messages out:
-//   { kind: "ready",     version, canFormat, canPlatform, canComplete }
-//                                                      - compiler live
-//   { kind: "result",    ok, js, css, version, diagnostics: [...] }
-//   { kind: "checked",   ok, version, diagnostics: [...] }  - live check;
+//   { kind: "ready",     version, canFormat, canPlatform, canComplete,
+//                        canPrelude }                  - compiler live
+//   { kind: "result",    ok, js, css, version, platform, prelude,
+//                        diagnostics: [...] }
+//   { kind: "checked",   ok, version, platform, prelude,
+//                        diagnostics: [...] }             - live check;
 //                        same compile, but no emitted program rides back
 //   { kind: "formatted", text, changed }              - format's answer
 //   { kind: "completed", id, items: [...] }           - completion's answer,
@@ -53,10 +55,29 @@ const canPlatform = typeof glue.compile_for === "function";
 // complete arrived after v0.35.0 (K9); without it the editor registers no
 // completion source at all.
 const canComplete = typeof glue.complete === "function";
-postMessage({ kind: "ready", version: glue.version(), canFormat, canPlatform, canComplete });
+// compile_with arrived after v0.40.0 (K14): it is compile_for plus the ambient
+// scope. Without it the prelude is whatever the loaded release makes of a
+// manifest-less buffer and the page hides its prelude toggle.
+const canPrelude = typeof glue.compile_with === "function";
+postMessage({
+	kind: "ready",
+	version: glue.version(),
+	canFormat,
+	canPlatform,
+	canComplete,
+	canPrelude,
+});
 
-function compileWith(source, platform) {
-	if (platform === "node" && canPlatform) {
+// `prelude` is the toggle's ON position, which is the MODE's recommended set —
+// the web set in the browser, the base set on the node leg — so the request
+// leaves the choice to the compiler and sends `undefined`. OFF sends the "off"
+// word, the one value that is not a module path.
+function compileWith(source, platform, prelude) {
+	const leg = platform === "node" && canPlatform ? "node" : "browser";
+	if (canPrelude) {
+		return glue.compile_with(String(source), leg, prelude === false ? "off" : undefined);
+	}
+	if (leg === "node") {
 		return glue.compile_for(String(source), "node");
 	}
 	return glue.compile(String(source));
@@ -89,7 +110,7 @@ function completionItem(item) {
 }
 
 onmessage = (event) => {
-	const { action, source, platform } = event.data;
+	const { action, source, platform, prelude } = event.data;
 	try {
 		if (action === "format") {
 			const text = canFormat ? glue.format(String(source)) : String(source);
@@ -104,7 +125,7 @@ onmessage = (event) => {
 			postMessage({ kind: "completed", id, items });
 			return;
 		}
-		const result = compileWith(source, platform);
+		const result = compileWith(source, platform, prelude);
 		const diagnostics = result.diagnostics.map((diagnostic) => ({
 			severity: diagnostic.severity,
 			file: diagnostic.file,
@@ -130,6 +151,10 @@ onmessage = (event) => {
 				ok: result.js != null,
 				version: glue.version(),
 				platform: platform ?? "browser",
+				// Echoed for the same reason `platform` is: a reply that
+				// crossed a toggle is about a scope the buffer no longer
+				// resolves under, and the page drops it on this field.
+				prelude: prelude !== false,
 				diagnostics,
 			});
 			return;
@@ -141,6 +166,7 @@ onmessage = (event) => {
 			css: result.css ?? "",
 			version: glue.version(),
 			platform: platform ?? "browser",
+			prelude: prelude !== false,
 			diagnostics,
 		});
 	} catch (error) {

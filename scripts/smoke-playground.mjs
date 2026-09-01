@@ -1,5 +1,5 @@
 // The playground gate: prove the shipped pieces agree before a deploy ships
-// them. Five claims, each of which has silently broken a playground before
+// them. Six claims, each of which has silently broken a playground before
 // it ever reached a visitor somewhere:
 //
 //   1. every seeded example compiles clean against the shipped wasm compiler
@@ -15,7 +15,7 @@
 //   4. when the compiler exports `complete` (K9), a `.` after the counter
 //      example's signal offers its members — the one place this repo can
 //      hold the completion contract the editor is wired to. Skipped, and
-//      said so, on a release that predates the export.
+//      said so, on a release that predates the export;
 //   5. the landing page's whole-program code panels compile in the same
 //      wasm (K25): the reactive snippet clean - its caption says it is the
 //      whole program and it runs, and v0.42.0's `.map` rename rotted it while
@@ -23,7 +23,14 @@
 //      the error the page prints beside it. Read off the built landing page
 //      (dist/client.js, so `vilan build .` runs first, as the deploy does).
 //      tests/examples.test.mjs holds the same panels on the native compiler
-//      on every push, and runs them.
+//      on every push, and runs them;
+//   6. when the compiler exports `compile_with` (K14), the prelude toggle's
+//      OFF position really removes the ambient scope. The `"off"` word is
+//      spelled in exactly one place — src/playground/worker.js — and nothing
+//      else in either repo would notice if it stopped meaning anything: the
+//      toggle would just quietly become a no-op. Claim 1 already proves the
+//      ON position, since the examples no longer import what the prelude
+//      supplies.
 import { readFileSync, readdirSync } from "node:fs";
 import { gunzipSync } from "node:zlib";
 import { fileURLToPath } from "node:url";
@@ -149,5 +156,23 @@ if (!demo || !shown) {
 		console.error(`landing page: FAILED - the page shows ${at?.[1]}:${at?.[2]} ${message}; the compiler says:`);
 		for (const d of said) console.error(`  ${d.severity} ${d.line + 1}:${d.column + 1} ${d.message}`);
 	}
+}
+// 6: the toggle's OFF position. hello.vl imports neither `print` nor `view`
+// any more, so with no ambient scope it MUST fail — and fail on those names.
+if (typeof glue.compile_with === "function") {
+	const hello = readFileSync(`${root}playground/examples/hello.vl`, "utf8");
+	const off = glue.compile_with(hello, "browser", "off");
+	const missing = off.diagnostics
+		.filter((d) => d.severity === "error")
+		.map((d) => d.message)
+		.join(" | ");
+	if (off.js != null || !missing.includes("print")) {
+		failed = true;
+		console.error(`prelude toggle: FAILED - "off" did not remove the ambient scope: ${missing || "(clean compile)"}`);
+	} else {
+		console.log("prelude toggle: ok (off requires the explicit imports)");
+	}
+} else {
+	console.log("prelude toggle: skipped (this release predates the compile_with export)");
 }
 process.exit(failed ? 1 : 0);
