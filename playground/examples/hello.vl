@@ -1,6 +1,6 @@
 // Hello: build a view, mount it, print to the console pane.
 
-import std::print;
+import std::io::print;
 import std::ui::{ mount, view };
 
 fun main() {
