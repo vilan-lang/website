@@ -27,6 +27,9 @@ export class StubElement {
 		this.attributes = {};
 		this.listeners = {};
 		this.hidden = false;
+		// `View::show` reads and writes the inline `display` (vilan A60), so an
+		// element carries a style block like `documentElement`'s below.
+		this.style = { setProperty() {}, getPropertyValue: () => "", removeProperty() {} };
 		this.parentNode = null;
 		this._text = "";
 	}
@@ -42,9 +45,22 @@ export class StubElement {
 	}
 
 	appendChild(child) {
+		return this.insertBefore(child, null);
+	}
+
+	/// Insert before `anchor`, or at the end when `anchor` is null or not a
+	/// child. A fragment empties into the position (`std::ui` stages a row's
+	/// content in one, A71/A112); a node already placed moves.
+	insertBefore(child, anchor) {
+		if (child.tagName === "#fragment") {
+			for (const node of [...child.children]) this.insertBefore(node, anchor);
+			return child;
+		}
 		child.remove();
 		child.parentNode = this;
-		this.children.push(child);
+		const at = anchor ? this.children.indexOf(anchor) : -1;
+		if (at < 0) this.children.push(child);
+		else this.children.splice(at, 0, child);
 		return child;
 	}
 
@@ -90,8 +106,7 @@ export class StubElement {
 /// `std::ui`'s "mount: no element with id" refusal is built on.
 ///
 /// `vendored: true` adds the handful of members CodeMirror reads at import
-/// time (`documentElement.style`, `body`, `head`, `createTextNode`, the
-/// selector pair). They are off by default so that the site's own bundles are
+/// time (`documentElement.style`, `body`, `head`, the selector pair). They are off by default so that the site's own bundles are
 /// held to the small surface they actually use: a test that boots only
 /// `dist/*.js` should fail if std starts reaching for something new.
 export function installDom(mounts = ["app"], { vendored = false } = {}) {
@@ -104,6 +119,33 @@ export function installDom(mounts = ["app"], { vendored = false } = {}) {
 		getElementById: (id) => elements.get(id) ?? null,
 		createElement: (tag) => new StubElement(tag),
 		createElementNS: (namespace, tag) => new StubElement(tag, namespace),
+		// A keyed list (`each_by`) plants a text node as each row's anchor,
+		// stages the row's content in a fragment, and cuts a moved row out
+		// with a range (vilan A71/A112) — the three below are that surface,
+		// and nothing more.
+		createTextNode: (content) => {
+			const node = new StubElement("#text");
+			node.textContent = content;
+			return node;
+		},
+		createDocumentFragment: () => new StubElement("#fragment"),
+		createRange: () => {
+			let after = null;
+			let before = null;
+			return {
+				setStartAfter: (node) => (after = node),
+				setEndBefore: (node) => (before = node),
+				// Moves the nodes strictly between the two marks into a fragment.
+				extractContents() {
+					const fragment = new StubElement("#fragment");
+					const parent = after.parentNode;
+					const from = parent.children.indexOf(after) + 1;
+					const to = parent.children.indexOf(before);
+					for (const node of parent.children.slice(from, to)) fragment.appendChild(node);
+					return fragment;
+				},
+			};
+		},
 	};
 	globalThis.window.addEventListener = (event, handler) => {
 		(windowListeners[event] ??= []).push(handler);
@@ -115,11 +157,6 @@ export function installDom(mounts = ["app"], { vendored = false } = {}) {
 		globalThis.document.documentElement = html;
 		globalThis.document.body = new StubElement("body");
 		globalThis.document.head = new StubElement("head");
-		globalThis.document.createTextNode = (content) => {
-			const node = new StubElement("#text");
-			node.textContent = content;
-			return node;
-		};
 		globalThis.document.querySelector = () => null;
 		globalThis.document.querySelectorAll = () => [];
 	}

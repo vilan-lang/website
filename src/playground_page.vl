@@ -23,7 +23,7 @@ import std::style::{
 	space,
 	style,
 };
-import std::ui::{ View, view };
+import std::ui::{ View, each_by, view };
 import pkg::theme::{
 	code_palette,
 	code_size,
@@ -51,6 +51,8 @@ import pkg::theme::{
 	up_normal,
 };
 import pkg::topbar::{ nav_brand, nav_link, nav_mark };
+
+export *;
 
 /// One row of the diagnostics pane — the wire diagnostic flattened to plain
 /// data (line and column already one-based for display). Both rows are
@@ -188,9 +190,13 @@ let script_label = const style()
 // The page's own name is the app bar's left label, right after the brand
 // link: a tool says what it is on the rail it is worked from, rather than
 // titling itself above.
-let page_title = const (script_label + style().margin(space(0)).font_weight(600).color(up_bright) + no_select);
+let page_title = const (script_label
+	+ style().margin(space(0)).font_weight(600).color(up_bright)
+	+ no_select);
 
-let panel_title = const (script_label + style().margin(space(0)).font_weight(500).color(up_normal) + no_select);
+let panel_title = const (script_label
+	+ style().margin(space(0)).font_weight(500).color(up_normal)
+	+ no_select);
 
 // The two live hosts fill their panels and clip; what grows past them scrolls
 // INSIDE — CodeMirror's own scroller in the editor, the iframe's document in
@@ -528,7 +534,8 @@ fun playground_page(
 						.styled(confirm_bar)
 						.child(view("p")
 							.styled(confirm_question)
-							.bind_text(confirm_target.map(|name| i"Replace the current program with {template_title(name)}? The edits are not kept.")))
+							.bind_text(confirm_target
+								.map(|name| i"Replace the current program with {template_title(name)}? The edits are not kept.")))
 						.child(view("button")
 							.styled(ghost_button)
 							.text("Keep editing")
@@ -561,7 +568,7 @@ fun playground_page(
 						.styled(quiet_row)
 						.text("Nothing to report.")
 						.show(diagnostics.map(|rows| rows.len() == 0)))
-					.child(view("div").bind_each(diagnostics, |row| row.id, |row| diagnostic_row(row)))))
+					.child(each_by(diagnostics, |row| row.id, |row| diagnostic_row(row.get())))))
 			.child(view("div")
 				.styled(panel)
 				.child(view("div")
@@ -573,5 +580,5 @@ fun playground_page(
 						.styled(quiet_row)
 						.text("Program output lands here.")
 						.show(console_lines.map(|rows| rows.len() == 0)))
-					.child(view("div").bind_each(console_lines, |row| row.id, |row| console_row(row))))))
+					.child(each_by(console_lines, |row| row.id, |row| console_row(row.get()))))))
 }
