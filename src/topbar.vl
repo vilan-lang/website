@@ -27,6 +27,8 @@ import pkg::theme::{
 	up_normal,
 };
 
+export *;
+
 // Sticky across the whole page, its chrome linked 1:1 to scroll position:
 // the client publishes --nav-fade as scroll/64 clamped to [0,1] (0 = page
 // top, 1 = a full toolbar-height down), and background, divider, and blur

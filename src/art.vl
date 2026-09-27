@@ -59,6 +59,8 @@ import pkg::theme::{
 	up_normal,
 };
 
+export *;
+
 // --- shared art vocabulary ---
 
 // Every piece is composed on the page's ground, its text the body tier — the

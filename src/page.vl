@@ -77,6 +77,8 @@ import pkg::theme::{
 };
 import pkg::topbar::top_bar;
 
+export *;
+
 // --- the page ---
 
 fun page(scroll_fade: SignalCell<str>, copy: |str| void): View {

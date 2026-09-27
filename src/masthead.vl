@@ -23,6 +23,8 @@ import pkg::theme::{
 	visually_hidden,
 };
 
+export *;
+
 // --- masthead: the CSS bloom and the 1016px hero ---
 
 // One scale rules the whole masthead: s = clamp(1100px, 100vw, 1920px).

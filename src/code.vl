@@ -20,6 +20,8 @@ import pkg::theme::{
 	up_normal,
 };
 
+export *;
+
 // --- code panels ---
 
 // A panel sits ON the ground: `down-normal` behind it, a hard hairline around
