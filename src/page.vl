@@ -301,7 +301,7 @@ fun counter_demo(): View {
 			.styled(demo_button)
 			.text("+1")
 			.on("click", || count.set_with(|n: i32| n + 1)))
-		.child(view("p").styled(demo_label).bind_text(count.map(|n: i32| i"clicked {n} times")))
+		.child(view("p").styled(demo_label).bind_text(count.derive(|n: i32| i"clicked {n} times")))
 }
 
 fun showcase_reactive(): View {

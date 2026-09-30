@@ -476,7 +476,7 @@ fun playground_page(
 			.child(view("div").styled(rail_divider))
 			.child(view("button")
 				.styled(primary_button)
-				.bind_text(mode.map(|current| match current {
+				.bind_text(mode.derive(|current| match current {
 					"node" => "Check",
 					_ => "Run",
 				}))
@@ -519,7 +519,7 @@ fun playground_page(
 							.attr("value", "")
 							.attr("disabled", "true")
 							.attr("hidden", "true")
-							.bind_text(modified_from.map(|name| match name {
+							.bind_text(modified_from.derive(|name| match name {
 								"" => "Examples",
 								_ => i"Modified — {template_title(name)}",
 							})))
@@ -529,13 +529,13 @@ fun playground_page(
 						.child(template_option("server", "Server: typed HTTP, checked").show(can_platform))))
 				.child(view("div")
 					.attr("role", "alert")
-					.show(confirm_target.map(|name| name != ""))
+					.show(confirm_target.derive(|name| name != ""))
 					.child(view("div")
 						.styled(confirm_bar)
 						.child(view("p")
 							.styled(confirm_question)
 							.bind_text(confirm_target
-								.map(|name| i"Replace the current program with {template_title(name)}? The edits are not kept.")))
+								.derive(|name| i"Replace the current program with {template_title(name)}? The edits are not kept.")))
 						.child(view("button")
 							.styled(ghost_button)
 							.text("Keep editing")
@@ -567,7 +567,7 @@ fun playground_page(
 					.child(view("div")
 						.styled(quiet_row)
 						.text("Nothing to report.")
-						.show(diagnostics.map(|rows| rows.len() == 0)))
+						.show(diagnostics.derive(|rows| rows.len() == 0)))
 					.child(each_by(diagnostics, |row| row.id, |row| diagnostic_row(row.get())))))
 			.child(view("div")
 				.styled(panel)
@@ -579,6 +579,6 @@ fun playground_page(
 					.child(view("div")
 						.styled(quiet_row)
 						.text("Program output lands here.")
-						.show(console_lines.map(|rows| rows.len() == 0)))
+						.show(console_lines.derive(|rows| rows.len() == 0)))
 					.child(each_by(console_lines, |row| row.id, |row| console_row(row.get()))))))
 }

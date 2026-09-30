@@ -10,6 +10,6 @@ fun main() {
 		view("div")
 			.child(view("h2").text("Counter"))
 			.child(view("button").text("+1").on("click", || count.set(count.get() + 1)))
-			.child(view("p").bind_text(count.map(|n| i"clicked {n} times")))
+			.child(view("p").bind_text(count.derive(|n| i"clicked {n} times")))
 	});
 }
