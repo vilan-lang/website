@@ -1,10 +1,11 @@
 // The playground gate: prove the shipped pieces agree before a deploy ships
-// them. Three claims, each of which has silently broken a playground before
+// them. Five claims, each of which has silently broken a playground before
 // it ever reached a visitor somewhere:
 //
 //   1. every seeded example compiles clean against the shipped wasm compiler
 //      (a language change can rot an example; the deploy must notice, exactly
-//      like the toolchain repo's examples gate);
+//      like the toolchain repo's examples gate) - clean meaning NO diagnostic,
+//      a warning included: it is the first thing a visitor's editor shows;
 //   2. examples.js matches the example files byte for byte (it is generated —
 //      a stale copy ships the OLD example while the smoke test checks the new
 //      one, so the mismatch itself is the failure);
@@ -15,10 +16,19 @@
 //      example's signal offers its members — the one place this repo can
 //      hold the completion contract the editor is wired to. Skipped, and
 //      said so, on a release that predates the export.
+//   5. the landing page's whole-program code panels compile in the same
+//      wasm (K25): the reactive snippet clean - its caption says it is the
+//      whole program and it runs, and v0.42.0's `.map` rename rotted it while
+//      every seeded example stayed green - and the diagnostic demo to exactly
+//      the error the page prints beside it. Read off the built landing page
+//      (dist/client.js, so `vilan build .` runs first, as the deploy does).
+//      tests/examples.test.mjs holds the same panels on the native compiler
+//      on every push, and runs them.
 import { readFileSync, readdirSync } from "node:fs";
 import { gunzipSync } from "node:zlib";
 import { fileURLToPath } from "node:url";
 import { generate } from "./gen-examples.mjs";
+import { bootHome, programOf } from "../tests/support/home.mjs";
 
 const root = fileURLToPath(new URL("..", import.meta.url));
 
@@ -56,12 +66,12 @@ for (const name of readdirSync(`${root}playground/examples`).filter((f) => f.end
 		continue;
 	}
 	const result = node ? glue.compile_for(source, "node") : glue.compile(source);
-	const errors = result.diagnostics.filter((d) => d.severity === "error");
+	const errors = result.diagnostics;
 	if (!result.js || errors.length > 0) {
 		failed = true;
 		console.error(`${name}: FAILED`);
 		for (const diagnostic of errors) {
-			console.error(`  ${diagnostic.file}:${diagnostic.line + 1}:${diagnostic.column + 1} ${diagnostic.message}`);
+			console.error(`  ${diagnostic.severity} ${diagnostic.file}:${diagnostic.line + 1}:${diagnostic.column + 1} ${diagnostic.message}`);
 			// A context-coverage refusal's chain (E80): the log names every
 			// uncovered call, so the failing path reads from CI output alone.
 			for (const hop of diagnostic.trace ?? []) {
@@ -96,5 +106,48 @@ if (typeof glue.complete === "function") {
 	if (!failed) console.log(`completion: ok (${items.length} candidates after \`count.\`)`);
 } else {
 	console.log("completion: skipped (this release predates the complete export)");
+}
+// 5: the landing page's code panels, compiled by the visitor's compiler.
+const home = await bootHome(`${root}dist/client.js`);
+const pres = home.pres();
+const reactive = pres.find((lines) => lines.some((line) => line.includes("bind_text(")));
+if (!reactive) {
+	failed = true;
+	console.error("landing page: FAILED - the reactive snippet is missing");
+} else {
+	const result = glue.compile(programOf(reactive));
+	if (!result.js || result.diagnostics.length > 0) {
+		failed = true;
+		console.error("landing page: FAILED - the reactive snippet does not compile clean");
+		for (const d of result.diagnostics) console.error(`  ${d.severity} ${d.line + 1}:${d.column + 1} ${d.message}`);
+	} else {
+		console.log(`landing page: reactive snippet ok (${result.js.length} B js)`);
+	}
+}
+const demo = pres.find((lines) => lines.some((line) => line.startsWith("fun find_user(")));
+const shown = pres.find((lines) => lines[0]?.startsWith("Error:"));
+if (!demo || !shown) {
+	failed = true;
+	console.error("landing page: FAILED - the diagnostic demo is missing");
+} else {
+	// "Error: <message>" and "╭─[ demo.vl:<line>:<column> ]" are what the page
+	// claims; the wasm reports the same diagnostic as data.
+	const message = shown[0].replace(/^Error: /, "");
+	const at = shown.find((line) => line.includes("╭─["))?.match(/:(\d+):(\d+) \]/);
+	const said = glue.compile(programOf(demo)).diagnostics;
+	const agrees =
+		said.length === 1 &&
+		said[0].severity === "error" &&
+		said[0].message === message &&
+		at != null &&
+		said[0].line + 1 === Number(at[1]) &&
+		said[0].column + 1 === Number(at[2]);
+	if (agrees) {
+		console.log(`landing page: diagnostic demo ok (${at[1]}:${at[2]} ${message})`);
+	} else {
+		failed = true;
+		console.error(`landing page: FAILED - the page shows ${at?.[1]}:${at?.[2]} ${message}; the compiler says:`);
+		for (const d of said) console.error(`  ${d.severity} ${d.line + 1}:${d.column + 1} ${d.message}`);
+	}
 }
 process.exit(failed ? 1 : 0);

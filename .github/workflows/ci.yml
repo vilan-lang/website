@@ -7,10 +7,14 @@
 # scripts/test.mjs plus tests/ is the answer. This workflow is what makes the
 # answer load-bearing on a branch, before a merge, rather than at deploy time.
 #
-# The wasm compiler is deliberately not fetched here. The harness drives the
-# site's own bundles (dist/*.js) under a node DOM stub and needs no compiler in
-# the browser; the seeded-example smoke test, which does, stays on the deploy
-# where the exact shipped wasm is present.
+# The harness drives the site's own bundles (dist/*.js) under a node DOM stub,
+# and tests/examples.test.mjs compiles and runs every program the site ships -
+# the playground's seeded examples and the landing page's code panels - on the
+# native toolchain. The playground's wasm compiler is fetched too (K25), from
+# the same latest release the toolchain installs from, so the smoke test the
+# deploy runs (scripts/smoke-playground.mjs: the same programs, compiled by the
+# exact compiler a visitor gets, which carries no prelude) is red on the branch
+# that rots an example rather than on the push to main that would deploy it.
 #
 # Every `uses:` is pinned to a full commit SHA with its tag in the comment,
 # the same rule deploy.yml states (K19, L14's class).
@@ -39,3 +43,9 @@ jobs:
           "$HOME/.vilan/bin/vilan" --version
       - name: Build and run the harness
         run: node scripts/test.mjs
+      - name: Fetch the playground compiler
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: sh scripts/fetch-wasm.sh
+      - name: Smoke-compile the shipped programs in the playground's compiler
+        run: node scripts/smoke-playground.mjs

@@ -54,7 +54,9 @@ sorts out what may run where by what each entry reaches.
   engine, through the wasm's `complete` export), and the sandboxed per-Run
   iframe. Seeded
   examples are the `playground/examples/*.vl` files, shipped as the generated
-  `examples.js` (`node scripts/gen-examples.mjs` after editing one).
+  `examples.js` (`node scripts/gen-examples.mjs` after editing one; it also
+  records the replaced text's fingerprint in `playground/retired-examples.json`,
+  so a visitor's restored copy of the old example gives way to the new one).
 
 ## Develop
 
@@ -107,6 +109,19 @@ here rather than in a visitor's browser.
   only lines quoting the current Run's token.
 - `tests/playground-runner.test.mjs` — the other half, in the vendored bundle:
   the frame is sandboxed to scripts only, and it is started with that token.
+- `tests/examples.test.mjs` — every program the site ships compiles clean (no
+  diagnostic at all, warnings included) on the installed toolchain and does
+  what its text says: each seeded playground example on its leg, built and run
+  (the counter counts, hello prints, the styles card's classes are rules), and
+  the landing page's code panels read off the built page — the reactive
+  snippet compiles and runs, and the diagnostic demo's terminal is exactly what
+  the compiler says about the panel beside it. `scripts/smoke-playground.mjs`
+  compiles the same programs with the playground's own wasm compiler; CI and
+  the deploy run both.
+- `tests/playground-restore.test.mjs` — a buffer the editor restores from
+  localStorage that is verbatim a RETIRED example (our old text, seeded on an
+  earlier visit and never edited) opens as the current example instead of a
+  program the language has since moved past.
 
 [ci.yml](.github/workflows/ci.yml) runs the harness on every push and pull
 request; the deploy runs it again before anything ships.

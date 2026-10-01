@@ -22,7 +22,8 @@
 # The playground's compiler (vilan-core as wasm) downloads from the SAME
 # release the toolchain installs from - one version lever - and is gated by
 # scripts/smoke-playground.mjs before anything ships: every seeded example
-# must compile clean against the exact wasm the visitor will get. The pair
+# and every whole program the landing page shows must compile clean (no
+# diagnostic at all) against the exact wasm the visitor will get. The pair
 # is committed to the pages repo gzipped; unchanged bytes drop out of the
 # commit naturally, so it only lands when a release moved it.
 #
@@ -77,7 +78,7 @@ jobs:
         run: sh scripts/fetch-wasm.sh
       - name: Build the site
         run: vilan build .
-      - name: Smoke-compile the seeded examples
+      - name: Smoke-compile the seeded examples and the landing page's panels
         run: node scripts/smoke-playground.mjs
       - name: Behaviour harness
         # The site's own bundles, driven under a node DOM stub (scripts/test.mjs).
