@@ -5,3 +5,16 @@ window.VILAN_EXAMPLES = {
 	"server": "// A typed HTTP service: the same language, the process leg. Server mode\n// TYPECHECKS this (platform coloring is the check; flip the mode to Browser\n// to watch it refuse); running it for real takes a process host:\n// `vilan init my-app && vilan run my-app`.\n\nimport std::io::print;\nimport std::http::{ Response, Server };\n\nasync fun main() {\n\tServer::builder()\n\t\t.port(3000)\n\t\t.on_request(|request| {\n\t\t\tResponse::builder().body(i\"hello from {request.path()}\").build()\n\t\t})\n\t\t.on_start(|server| print(i\"listening at {server.url()}\"))\n\t\t.build()\n\t\t.start();\n}\n",
 	"styles": "// Styles are compiled, not shipped: `const style()` values become a real\n// stylesheet at build time, and the classes below are its hashed names.\n\nimport std::style::{ Color, Length, space, style };\nimport std::ui::{ mount_root, view };\n\nlet card = const style()\n\t.padding(space(6))\n\t.color(Color::hex(\"#F9DFE7\"))\n\t.background(Color::hex(\"#1B060D\"))\n\t.radius(Length::px(12.0));\n\nlet title = const style().margin(space(0)).color(Color::hex(\"#EB682E\"));\n\nfun main() {\n\tlet _root = mount_root(\"app\", || {\n\t\tview(\"div\")\n\t\t\t.styled(card)\n\t\t\t.child(view(\"h2\").styled(title).text(\"Styled at compile time\"))\n\t\t\t.child(view(\"p\").text(\"This card's CSS came out of the compiler.\"))\n\t});\n}\n",
 };
+// Fingerprints (playground/fingerprint.js) of every example text the playground
+// shipped and has since replaced: a restored buffer matching one is swapped for
+// the current example (scripts/gen-examples.mjs says why).
+window.VILAN_RETIRED_EXAMPLES = {
+	"032a5e942eb099": "server",
+	"03f610205202ee": "styles",
+	"0b728bb6227dc2": "server",
+	"148f9fff184497": "styles",
+	"16a5c966936d49": "hello",
+	"1a96216090bf87": "hello",
+	"1ce991852812e5": "styles",
+	"1e88fc1ef2aa91": "counter",
+};

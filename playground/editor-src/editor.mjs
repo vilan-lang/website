@@ -25,6 +25,7 @@ import { autocompletion, closeBrackets, snippetCompletion } from "@codemirror/au
 import { setDiagnostics, lintGutter } from "@codemirror/lint";
 import { tags } from "@lezer/highlight";
 import { decodeBase64Url, deflate, encodeBase64Url, inflate } from "../codec.js";
+import { fingerprint } from "../fingerprint.js";
 
 // --- the vilan mode: a stream tokenizer, enough for the pane to read as
 // --- vilan (the real grammar lives in the compiler; this is presentation)
@@ -355,6 +356,22 @@ function savedDoc() {
 	}
 }
 
+// A restored buffer that is verbatim a RETIRED example (K25) is not the
+// visitor's program: it is our old example, seeded on an earlier visit and
+// saved untouched, and after a language change it is a broken program that
+// greets every return visit. examples.js lists the fingerprints of every
+// example text we have replaced (scripts/gen-examples.mjs keeps the record),
+// so such a buffer gives way to the current text of the same example — or to
+// the default doc when that example is gone too. An edited buffer matches
+// nothing and is restored as it was.
+function restoredDoc(doc) {
+	const saved = savedDoc();
+	if (saved == null) return doc;
+	const retired = (window.VILAN_RETIRED_EXAMPLES || {})[fingerprint(saved)];
+	if (retired == null) return saved;
+	return example(retired) || doc;
+}
+
 let saveTimer = null;
 
 function persist() {
@@ -377,7 +394,7 @@ function init(selector, doc) {
 	if (fragment && fragment.version) {
 		selectedVersion = fragment.version;
 	}
-	const fallback = savedDoc() ?? doc;
+	const fallback = restoredDoc(doc);
 	if (fragment != null) {
 		inflate(decodeBase64Url(fragment.payload)).then(
 			(text) => {
@@ -1041,4 +1058,8 @@ window.VilanPlayground = {
 	setMode,
 	runProgram,
 	clearProgram: placeholder,
+	// What a fresh visit with no shared link opens on. `init` is its one
+	// caller; it is exported so the harness can hold the retired-example swap
+	// (tests/playground-restore.test.mjs) without a live CodeMirror.
+	restoredDoc,
 };
