@@ -118,6 +118,13 @@ here rather than in a visitor's browser.
   the compiler says about the panel beside it. `scripts/smoke-playground.mjs`
   compiles the same programs with the playground's own wasm compiler; CI and
   the deploy run both.
+- `tests/keywords.test.mjs` — the editor's keyword lists are the compiler's:
+  `playground/keywords.js` is generated from `vilan --print-keywords`
+  (`node scripts/gen-keywords.mjs`, then rebuild the editor bundle) and must
+  match the installed toolchain; every word is probed as a name against the
+  compiler; and the committed bundle's tokenizer paints each reserved word,
+  each contextual word only in its keyword position (`ready then go()` but
+  not `let then = 1`), and `[resource]` as an attribute.
 - `tests/playground-restore.test.mjs` — a buffer the editor restores from
   localStorage that is verbatim a RETIRED example (our old text, seeded on an
   earlier visit and never edited) opens as the current example instead of a

@@ -7,13 +7,14 @@
 //
 // Built once by build.mjs and COMMITTED as playground/editor.js — the site
 // build stays npm-free and the page loads no CDN. Rebuild only to change
-// this file or bump CodeMirror: cd playground/editor-src && npm install &&
+// this file, bump CodeMirror, or take a regenerated ../keywords.js
+// (scripts/gen-keywords.mjs): cd playground/editor-src && npm install &&
 // npm run build.
 
 import { EditorView, keymap, lineNumbers, highlightActiveLine, highlightActiveLineGutter } from "@codemirror/view";
 import { EditorState } from "@codemirror/state";
 import { defaultKeymap, history, historyKeymap, indentWithTab } from "@codemirror/commands";
-import { bracketMatching, indentUnit, StreamLanguage, syntaxHighlighting, HighlightStyle } from "@codemirror/language";
+import { bracketMatching, indentUnit, StreamLanguage, StringStream, syntaxHighlighting, HighlightStyle } from "@codemirror/language";
 // Completion is the compiler's own (K9, proposal/playground-completion.md):
 // the wasm's `complete` export runs the same engine the language server
 // does, answered from the analysis the last check retained, and this file
@@ -26,25 +27,86 @@ import { setDiagnostics, lintGutter } from "@codemirror/lint";
 import { tags } from "@lezer/highlight";
 import { decodeBase64Url, deflate, encodeBase64Url, inflate } from "../codec.js";
 import { fingerprint } from "../fingerprint.js";
+import { CONTEXTUAL, RESERVED } from "../keywords.js";
 
 // --- the vilan mode: a stream tokenizer, enough for the pane to read as
 // --- vilan (the real grammar lives in the compiler; this is presentation)
 
-const KEYWORDS = new Set([
-	"async", "await", "borrows", "const", "else", "enum", "export", "external",
-	"for", "fun", "if", "impl", "import", "in", "is", "jump", "let", "macro",
-	"match", "mod", "mut", "own", "resource", "ret", "struct", "trait", "type",
-	"use", "with",
-]);
-
+// The keyword lists are the COMPILER's (K27): playground/keywords.js is
+// generated from `vilan --print-keywords` and gated against the installed
+// toolchain by tests/keywords.test.mjs. RESERVED words are keywords wherever
+// they stand — except as a member (`event.type`) or a field name
+// (`type: str`), the member tier the toolchain's two grammars share (B414
+// S4). CONTEXTUAL words are ordinary names everywhere except the one position
+// their keyword reading occupies; each is painted only there, by the same
+// two-sided guard the TextMate grammar and the book's highlighter use
+// (CONTEXTUAL_RULES below). `self`, `Self` and `void` are the contextual
+// NAMES with a fixed meaning, painted like the literals, as the book does.
+const KEYWORDS = new Set(RESERVED);
 const ATOMS = new Set(["true", "false", "null"]);
+const NAMES = new Set(["self", "Self", "void"]);
+
+// Each contextual keyword's position, as `before` (what the text ahead of the
+// word on its line must end with) and `after` (what the text behind it must
+// start with). Transcribed from the toolchain grammars' rules (vilan
+// editors/vscode/syntaxes/vilan.tmLanguage.json, vilan/docs/theme/vilan.js);
+// the comment on each is where the compiler reads the keyword.
+const OPERAND_END = /[A-Za-z0-9_>)\]]\s{1,8}$/; // a type, or a `)`/`]`, then space
+const NAME_NEXT = /^\s{1,8}(?!i[ns]\b|as\b)[A-Za-z_]/; // a name follows (never in/is/as)
+const NOT_MEMBER = /(?:^|[^.\w])$/; // the word is not `x.word`
+const CONTEXTUAL_RULES = {
+	// the alias on an import path leaf: `import a::b as c;`
+	as: { before: /[A-Za-z0-9_]\s{1,8}$/, after: /^\s{1,8}[A-Za-z_]/ },
+	// a declaration's return clause, after its return type: `: &T borrows xs`
+	borrows: { before: OPERAND_END, after: NAME_NEXT },
+	// after a closure type or a return type: `(|| void) context owner`
+	context: { before: OPERAND_END, after: /^\s{0,8}[(A-Za-z_]/ },
+	// the trait-object marker in type position: `dyn Source<i32>`
+	dyn: { before: NOT_MEMBER, after: NAME_NEXT },
+	// loop control, followed by its target: `jump break`
+	jump: { before: NOT_MEMBER, after: NAME_NEXT },
+	// deferral, before a binding or a parameter: `lazy let x = …`
+	lazy: { before: NOT_MEMBER, after: NAME_NEXT },
+	// the trailing modifier on an import: `import a::{ b } only;`. Neither
+	// toolchain grammar paints it yet; the guard here is the import's own
+	// shape — the word closes the statement, after a `}` or on an import line.
+	only: { before: /(?:\}|^\s*(?:export\s+)?(?:import|use)\b.*[A-Za-z0-9_])\s{1,8}$/, after: /^\s*;/ },
+	// the ownership convention at a parameter head: `own list: List<i32>`
+	own: { before: NOT_MEMBER, after: NAME_NEXT },
+	// the marker opening a closure type: `(sync || View)`
+	sync: { before: /\($/, after: /^/ },
+	// B459, the infix conditional: after a complete operand, before a branch
+	// — never where a name stands (`let then = 1`, `then: i32`, `p.then(f)`)
+	then: {
+		before: /[A-Za-z0-9_)\]}"']\s{1,8}$/,
+		after: /^\s{1,8}(?![=.:,;)\]}]|i[ns]\b|as\b)\S/,
+	},
+	// an `impl` or `trait` head's trait list: `impl Point with Show`
+	with: { before: OPERAND_END, after: /^\s{1,8}(?!i[ns]\b|as\b)[A-Za-z_(&|]/ },
+};
+
+/// Whether the word the stream just read sits in its keyword position.
+function inPosition(stream, word) {
+	const rule = CONTEXTUAL_RULES[word];
+	if (!rule) return false;
+	return rule.before.test(stream.string.slice(0, stream.start)) && rule.after.test(stream.string.slice(stream.pos));
+}
+
+/// A member (`event.type`) or a field name (`type: str`, `type = …` in a
+/// literal — never `::`, `==` or `=>`): the word is a name, whatever it spells.
+function namePosition(stream) {
+	return (
+		stream.string.slice(0, stream.start).endsWith(".") ||
+		/^\s*(?::(?!:)|=(?![=>]))/.test(stream.string.slice(stream.pos))
+	);
+}
 
 // Tokenizes with a mode stack so an i-string's `{holes}` read as the code
 // they are: string text stays rose, a hole's contents go back through the
 // code rules, and the brace seams mark themselves. Attributes, function
 // names, `::` paths and operators each get their own voice — the compiler
 // owns the real grammar; this is presentation, resynced by eye against it.
-const vilanLanguage = StreamLanguage.define({
+const vilanMode = {
 	startState: () => ({ stack: [], afterFun: false }),
 	token(stream, state) {
 		const top = state.stack[state.stack.length - 1];
@@ -100,7 +162,29 @@ const vilanLanguage = StreamLanguage.define({
 		attr: tags.meta,
 		hole: tags.special(tags.brace),
 	},
-});
+};
+const vilanLanguage = StreamLanguage.define(vilanMode);
+
+/// The tokenizer's reading of `text`, as `[token, style]` pairs (whitespace
+/// skipped) — the exact rules the editor paints with, run line by line the
+/// way CodeMirror runs them. Exported for the harness
+/// (tests/keywords.test.mjs), which holds the keyword lists and the
+/// contextual positions against the committed bundle.
+function tokens(text) {
+	const state = vilanMode.startState();
+	const out = [];
+	for (const line of text.split("\n")) {
+		const stream = new StringStream(line, 4, 4);
+		while (!stream.eol()) {
+			const style = vilanMode.token(stream, state);
+			if (stream.pos === stream.start) stream.next(); // never stall
+			const token = stream.current();
+			if (token.trim() !== "") out.push([token, style]);
+			stream.start = stream.pos;
+		}
+	}
+	return out;
+}
 
 // The code-mode rules, shared by top level and interpolation holes. A plain
 // function: StreamLanguage does not preserve `this` for its spec methods.
@@ -136,15 +220,21 @@ function codeToken(stream, state) {
 		}
 		if (stream.match(/^[A-Za-z_][A-Za-z0-9_]*/)) {
 			const word = stream.current();
-			if (word === "fun") {
+			const named = namePosition(stream);
+			if (word === "fun" && !named) {
 				state.afterFun = true;
 				return "keyword";
 			}
-			if (KEYWORDS.has(word)) {
+			if (ATOMS.has(word) && !named) return "atom";
+			if (KEYWORDS.has(word) && !named) {
 				state.afterFun = false;
 				return "keyword";
 			}
-			if (ATOMS.has(word)) return "atom";
+			if (NAMES.has(word)) return "atom";
+			if (CONTEXTUAL.includes(word) && inPosition(stream, word)) {
+				state.afterFun = false;
+				return "keyword";
+			}
 			if (state.afterFun) {
 				state.afterFun = false;
 				return "def";
@@ -1062,4 +1152,5 @@ window.VilanPlayground = {
 	// caller; it is exported so the harness can hold the retired-example swap
 	// (tests/playground-restore.test.mjs) without a live CodeMirror.
 	restoredDoc,
+	tokens,
 };
