@@ -40,8 +40,11 @@ export class StubElement {
 		this._text = String(value);
 	}
 
+	/// Every descendant text, concatenated - the real getter. `_text` is the
+	/// text node the setter stands for; a quoted child in element syntax (or
+	/// any `.child(str)`) is a `#text` child instead, and reads the same.
 	get textContent() {
-		return this._text;
+		return this._text + this.children.map((child) => child.textContent).join("");
 	}
 
 	appendChild(child) {

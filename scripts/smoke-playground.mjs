@@ -123,7 +123,7 @@ if (typeof glue.complete === "function") {
 // 5: the landing page's code panels, compiled by the visitor's compiler.
 const home = await bootHome(`${root}dist/client.js`);
 const pres = home.pres();
-const reactive = pres.find((lines) => lines.some((line) => line.includes("bind_text(")));
+const reactive = pres.find((lines) => lines.some((line) => line.includes("clicked {n} times")));
 if (!reactive) {
 	failed = true;
 	console.error("landing page: FAILED - the reactive snippet is missing");

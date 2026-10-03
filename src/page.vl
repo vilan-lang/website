@@ -19,8 +19,6 @@
 // hatch). The only raster
 // assets left are the brand marks and fonts, served from
 // vilan-lang.org/assets so dev and deployed builds see the same bytes.
-import std::option::Option::{ None, Some, self };
-import std::reactive::{ Signal, SignalCell };
 import std::shared::Shared;
 import std::style::{
 	AlignItems,
@@ -39,7 +37,6 @@ import std::style::{
 	style,
 };
 import std::time::Timer;
-import std::ui::{ View, view };
 import pkg::art::{ dataflow_art, diagram, editor_art, toolchain_art };
 import pkg::code::{ blank, code_panel, fn, hl, kw, leaf, leaf_link, ln, pt, st, t, ty };
 import pkg::masthead::{ bloom, masthead };
@@ -82,26 +79,26 @@ export *;
 // --- the page ---
 
 fun page(scroll_fade: SignalCell<str>, copy: |str| void): View {
-	view("div")
-		.styled(shell)
-		.child(bloom())
-		.child(top_bar(scroll_fade))
-		.child(masthead())
-		.child(divider())
-		.child(install_section(copy))
-		.child(divider())
-		.child(showcase_reactive())
-		.child(divider())
-		.child(showcase_fullstack())
-		.child(divider())
-		.child(showcase_compiler())
-		.child(divider())
-		.child(editor_band())
-		.child(divider())
-		.child(feature_grid())
-		.child(divider())
-		.child(dogfood())
-		.child(page_footer())
+	<div .styled(shell)>
+		{bloom()}
+		{top_bar(scroll_fade)}
+		{masthead()}
+		{divider()}
+		{install_section(copy)}
+		{divider()}
+		{showcase_reactive()}
+		{divider()}
+		{showcase_fullstack()}
+		{divider()}
+		{showcase_compiler()}
+		{divider()}
+		{editor_band()}
+		{divider()}
+		{feature_grid()}
+		{divider()}
+		{dogfood()}
+		{page_footer()}
+	</div>
 }
 
 // --- install ---
@@ -184,15 +181,14 @@ fun install_row(label: str, command: str, copy: |str| void): View {
 	// Re-clicks call the pending revert off before arming the next one -
 	// std::time::Timer, the API this very button drove into std.
 	let pending: Shared<Option<Timer>> = Shared::new(None);
-	view("div")
-		.child(view("p").styled(install_label).text(label))
-		.child(view("div")
-			.styled(install_command)
-			.child(view("span").styled(install_command_text).text(command))
-			.child(view("button")
+	<div>
+		<p .styled(install_label)>{label}</p>
+		<div .styled(install_command)>
+			<span .styled(install_command_text)>{command}</span>
+			<button
 				.styled(copy_button)
-				.attr("aria-label", "Copy command")
-				.on("click", || {
+				aria-label("Copy command")
+				on:click(|| {
 					copy(command);
 					icon.set(i"{assets}/icons/check.svg");
 					match pending.read() {
@@ -207,27 +203,30 @@ fun install_row(label: str, command: str, copy: |str| void): View {
 						}
 					};
 				})
-				.child(view("img").styled(copy_icon).attr("alt", "").bind_attr("src", icon))))
+			>
+				<img .styled(copy_icon) alt("") .bind_attr("src", icon) />
+			</button>
+		</div>
+	</div>
 }
 
 fun install_section(copy: |str| void): View {
-	view("section")
-		.attr("id", "install")
-		.styled(column + section_block + stack)
-		.child(view("h2").styled(heading).text("One command, the whole toolchain"))
-		.child(view("p")
-			.styled(lead)
-			.child(pt("The compiler, dev server with hot reload, formatter, test runner, and language server live in one small binary. There is nothing else to install and nothing to configure. Update any time with "))
-			.child(leaf("vilan upgrade"))
-			.child(pt(".")))
-		.child(view("div")
-			.styled(install_split)
-			.child(view("div")
-				.styled(install_grid)
-				.child(install_row("macOS / Linux", "curl -fsSL https://github.com/vilan-lang/vilan/releases/latest/download/install.sh | sh", copy))
-				.child(install_row("Windows (PowerShell)", "irm https://github.com/vilan-lang/vilan/releases/latest/download/install.ps1 | iex", copy))
-				.child(install_row("Homebrew", "brew install vilan-lang/vilan/vilan", copy)))
-			.child(view("div").styled(install_art_cell).child(toolchain_art())))
+	<section id("install") .styled(column + section_block + stack)>
+		<h2 .styled(heading)>"One command, the whole toolchain"</h2>
+		<p .styled(lead)>
+			{pt("The compiler, dev server with hot reload, formatter, test runner, and language server live in one small binary. There is nothing else to install and nothing to configure. Update any time with ")}
+			{leaf("vilan upgrade")}
+			{pt(".")}
+		</p>
+		<div .styled(install_split)>
+			<div .styled(install_grid)>
+				{install_row("macOS / Linux", "curl -fsSL https://github.com/vilan-lang/vilan/releases/latest/download/install.sh | sh", copy)}
+				{install_row("Windows (PowerShell)", "irm https://github.com/vilan-lang/vilan/releases/latest/download/install.ps1 | iex", copy)}
+				{install_row("Homebrew", "brew install vilan-lang/vilan/vilan", copy)}
+			</div>
+			<div .styled(install_art_cell)>{toolchain_art()}</div>
+		</div>
+	</section>
 }
 
 // --- showcases ---
@@ -252,13 +251,19 @@ let showcase_copy = const style()
 	.gap(space(3));
 
 fun showcase(prose: View, code: View): View {
-	view("div").styled(showcase_grid).child(prose).child(code)
+	<div .styled(showcase_grid)>
+		{prose}
+		{code}
+	</div>
 }
 
 // The mirrored arm: code left, prose right — the showcases alternate so the
 // page doesn't read as the same section three times.
 fun showcase_flipped(code: View, prose: View): View {
-	view("div").styled(showcase_grid_flipped).child(code).child(prose)
+	<div .styled(showcase_grid_flipped)>
+		{code}
+		{prose}
+	</div>
 }
 
 // Reactive UI — the guide's own counter, and a live copy of it: the snippet
@@ -295,88 +300,91 @@ let demo_label = const style().margin(space(0)).color(up_normal);
 
 fun counter_demo(): View {
 	let count = Signal::new(0);
-	view("div")
-		.styled(demo_box)
-		.child(view("button")
-			.styled(demo_button)
-			.text("+1")
-			.on("click", || count.set_with(|n: i32| n + 1)))
-		.child(view("p").styled(demo_label).bind_text(count.derive(|n: i32| i"clicked {n} times")))
+	<div .styled(demo_box)>
+		<button .styled(demo_button) on:click(|| count.set_with(|n: i32| n + 1))>"+1"</button>
+		<p .styled(demo_label)>{count.derive(|n: i32| i"clicked {n} times")}</p>
+	</div>
+}
+
+// The snippet, token by token: the playground's counter as the page tells it,
+// in element syntax and the web prelude's idiom (`Signal` and `ui::` are
+// ambient, so the program has no imports). tests/examples.test.mjs checks it
+// and runs it; scripts/smoke-playground.mjs compiles it in the playground's
+// own wasm.
+fun reactive_snippet(): View {
+	code_panel([
+		ln([kw("fun"), t(" "), fn("main"), t("() {")]),
+		ln([
+			t("    "),
+			kw("let"),
+			t(" count = "),
+			ty("Signal"),
+			t("::"),
+			fn("new"),
+			t("("),
+			st("0"),
+			t(");"),
+		]),
+		ln([
+			t("    "),
+			kw("let"),
+			t(" _root = ui::"),
+			fn("mount_root"),
+			t("("),
+			st("\"app\""),
+			t(", ||"),
+		]),
+		ln([t("        <"), ty("div"), t(">")]),
+		ln([
+			t("            <"),
+			ty("p"),
+			t(">{count."),
+			fn("derive"),
+			t("(|n: i32| "),
+			st("i\"clicked "),
+			hl("{"),
+			t("n"),
+			hl("}"),
+			st(" times\""),
+			t(")}</"),
+			ty("p"),
+			t(">"),
+		]),
+		ln([
+			t("            <"),
+			ty("button"),
+			t(" "),
+			fn("on:click"),
+			t("(|| count."),
+			fn("set_with"),
+			t("(|n| n + "),
+			st("1"),
+			t("))>"),
+			st("\"+1\""),
+			t("</"),
+			ty("button"),
+			t(">"),
+		]),
+		ln([t("        </"), ty("div"), t(">);")]),
+		ln([t("}")]),
+	])
 }
 
 fun showcase_reactive(): View {
-	view("section")
-		.styled(column + section_block + stack)
-		.child(showcase(view("div").styled(showcase_copy).child(view("h2").styled(heading).text("UI that follows your data")).child(view("p").styled(lead).child(pt("A view is a value and a binding is a subscription: ")).child(leaf("bind_text")).child(pt(" sets the text node once, then sets it again whenever the signal changes. There is no virtual DOM, no render loop, and no dependency array to babysit. Updates land exactly where the data changed."))).child(view("p").styled(lead).text("The snippet is the whole program, and it runs. Try it right here:")).child(counter_demo()), code_panel([
-			ln([kw("import"), t(" std::ui::{ view, mount_root };")]),
-			ln([kw("import"), t(" std::reactive::"), ty("Signal"), t(";")]),
-			blank(),
-			ln([kw("fun"), t(" "), fn("main"), t("() {")]),
-			ln([
-				t("    "),
-				kw("let"),
-				t(" count = "),
-				ty("Signal"),
-				t("::"),
-				fn("new"),
-				t("("),
-				st("0"),
-				t(");"),
-			]),
-			ln([
-				t("    "),
-				kw("let"),
-				t(" _root = "),
-				fn("mount_root"),
-				t("("),
-				st("\"app\""),
-				t(", || {"),
-			]),
-			ln([t("        "), fn("view"), t("("), st("\"div\""), t(")")]),
-			ln([
-				t("            ."),
-				fn("child"),
-				t("("),
-				fn("view"),
-				t("("),
-				st("\"p\""),
-				t(")."),
-				fn("bind_text"),
-				t("(count."),
-				fn("derive"),
-				t("(|n: i32| "),
-				st("i\"clicked "),
-				hl("{"),
-				t("n"),
-				hl("}"),
-				st(" times\""),
-				t(")))"),
-			]),
-			ln([
-				t("            ."),
-				fn("child"),
-				t("("),
-				fn("view"),
-				t("("),
-				st("\"button\""),
-				t(")."),
-				fn("text"),
-				t("("),
-				st("\"+1\""),
-				t(")."),
-				fn("on"),
-				t("("),
-				st("\"click\""),
-				t(", || count."),
-				fn("set_with"),
-				t("(|n| n + "),
-				st("1"),
-				t(")))"),
-			]),
-			ln([t("    });")]),
-			ln([t("}")]),
-		])))
-		.child(dataflow_art())
+	let prose = <div .styled(showcase_copy)>
+		<h2 .styled(heading)>"UI that follows your data"</h2>
+		<p .styled(lead)>
+			{pt("A view is a value and a binding is a subscription: a ")}
+			{leaf("{signal}")}
+			{pt(" hole sets the text node once, then sets it again whenever the signal changes. There is no virtual DOM, no render loop, and no dependency array to babysit. Updates land exactly where the data changed.")}
+		</p>
+		<p .styled(lead)>"The snippet is the whole program, and it runs. Try it right here:"</p>
+		{counter_demo()}
+	</div>;
+	<section .styled(column + section_block + stack)>
+		{showcase(prose, reactive_snippet())}
+		{dataflow_art()}
+	</section>
 }
 
 // Fullstack — the services guide's Notes server as the live diagram: the one
@@ -384,18 +392,18 @@ fun showcase_reactive(): View {
 // and the mirror flowing between them.
 
 fun showcase_fullstack(): View {
-	view("section")
-		.styled(column + section_block + stack)
-		.child(view("h2").styled(heading).text("The server is a struct. The client is generated."))
-		.child(view("p")
-			.styled(lead)
-			.child(pt("Mark a method "))
-			.child(leaf_link("/docs/guide/services.html#what-rpc-calls-do", "[rpc]"))
-			.child(pt(" and the browser can call it like any other function, typed and checked. Mark a signal "))
-			.child(leaf_link("/docs/guide/services.html#mirrors", "[expose]"))
-			.child(pt(" and every connected client holds a live mirror that updates when the server writes. You never write REST endpoints, fetch calls, or the JSON shapes that drift out of sync between them.")))
-		.child(diagram())
-		.child(button_link("/docs/guide/services.html", "Services & RPC in the guide"))
+	<section .styled(column + section_block + stack)>
+		<h2 .styled(heading)>"The server is a struct. The client is generated."</h2>
+		<p .styled(lead)>
+			{pt("Mark a method ")}
+			{leaf_link("/docs/guide/services.html#what-rpc-calls-do", "[rpc]")}
+			{pt(" and the browser can call it like any other function, typed and checked. Mark a signal ")}
+			{leaf_link("/docs/guide/services.html#mirrors", "[expose]")}
+			{pt(" and every connected client holds a live mirror that updates when the server writes. You never write REST endpoints, fetch calls, or the JSON shapes that drift out of sync between them.")}
+		</p>
+		{diagram()}
+		{button_link("/docs/guide/services.html", "Services & RPC in the guide")}
+	</section>
 }
 
 // The compiler — a real mistake and the real diagnostic. The snippet is the
@@ -427,43 +435,108 @@ let diag_stack = const style()
 	.gap(space(3))
 	.min_width(Length::zero());
 
+// The diagnosed file, token by token. It has no imports: `print`, `Option`,
+// `Some` and `None` are in every prelude.
+fun diagnosed_snippet(): View {
+	code_panel([
+		ln([kw("fun"), t(" "), fn("find_user"), t("(id: i32): "), ty("Option"), t("<str> {")]),
+		ln([
+			t("    "),
+			kw("if"),
+			t(" id == "),
+			st("1"),
+			t(" { "),
+			ty("Some"),
+			t("("),
+			st("\"Ada\""),
+			t(") } "),
+			kw("else"),
+			t(" { "),
+			ty("None"),
+			t(" }"),
+		]),
+		ln([t("}")]),
+		ln([kw("fun"), t(" "), fn("greet"), t("(name: str): str {")]),
+		ln([t("    "), st("i\"hello "), hl("{"), t("name"), hl("}"), st("\"")]),
+		ln([t("}")]),
+		ln([kw("fun"), t(" "), fn("main"), t("() {")]),
+		ln([
+			t("    "),
+			fn("print"),
+			t("("),
+			fn("greet"),
+			t("("),
+			fn("find_user"),
+			t("("),
+			st("2"),
+			t(")));"),
+		]),
+		ln([t("}")]),
+	])
+}
+
+// What `vilan check` says about it, quoted: tests/examples.test.mjs holds the
+// two together line for line.
+fun diagnostic_terminal(): View {
+	<pre .styled(diag_pre)>
+		{ln([
+			<span .styled(diag_error)>"Error:"</span>,
+			t(" Expected str, but got Option<str> instead."),
+		])}
+		{ln([<span .styled(diag_frame)>"   ╭─[ demo.vl:8:14 ]"</span>])}
+		{ln([<span .styled(diag_frame)>"   │"</span>])}
+		{ln([<span .styled(diag_frame)>" 8 │     print(greet(find_user(2)));"</span>])}
+		{ln([<span .styled(diag_frame)>"   │                 ──────┬─────"</span>])}
+		{ln([
+			<span .styled(diag_frame)>
+				"   │                       ╰─────── Expected str, but got Option<str> instead."
+			</span>,
+		])}
+		{ln([<span .styled(diag_frame)>"───╯"</span>])}
+	</pre>
+}
+
 fun showcase_compiler(): View {
-	view("section")
-		.styled(column + section_block + stack)
-		.child(showcase_flipped(view("div").styled(diag_stack).child(code_panel([ln([kw("import"), t(" std::io::print;")]), ln([kw("import"), t(" std::option::"), ty("Option"), t("::{ self, "), ty("Some"), t(", "), ty("None"), t(" };")]), ln([kw("fun"), t(" "), fn("find_user"), t("(id: i32): "), ty("Option"), t("<str> {")]), ln([t("    "), kw("if"), t(" id == "), st("1"), t(" { "), ty("Some"), t("("), st("\"Ada\""), t(") } "), kw("else"), t(" { "), ty("None"), t(" }")]), ln([t("}")]), ln([kw("fun"), t(" "), fn("greet"), t("(name: str): str {")]), ln([t("    "), st("i\"hello "), hl("{"), t("name"), hl("}"), st("\"")]), ln([t("}")]), ln([kw("fun"), t(" "), fn("main"), t("() {")]), ln([t("    "), fn("print"), t("("), fn("greet"), t("("), fn("find_user"), t("("), st("2"), t(")));")]), ln([t("}")])])).child(view("pre").styled(diag_pre).child(ln([view("span").styled(diag_error).text("Error:"), t(" Expected str, but got Option<str> instead.")])).child(ln([view("span").styled(diag_frame).text("    ╭─[ demo.vl:10:14 ]")])).child(ln([view("span").styled(diag_frame).text("    │")])).child(ln([view("span").styled(diag_frame).text(" 10 │     print(greet(find_user(2)));")])).child(ln([view("span").styled(diag_frame).text("    │                 ──────┬─────")])).child(ln([view("span").styled(diag_frame).text("    │                       ╰─────── Expected str, but got Option<str> instead.")])).child(ln([view("span").styled(diag_frame).text("────╯")]))), view("div")
-			.styled(showcase_copy)
-			.child(view("h2").styled(heading).text("Find out at compile time"))
-			.child(view("p")
-				.styled(lead)
-				.child(pt("Vilan has no null and no exceptions. A value that might be missing is an "))
-				.child(leaf_link("/docs/std/option-result.html#optiont", "Option"))
-				.child(pt(", a call that might fail returns a "))
-				.child(leaf_link("/docs/std/option-result.html#resultt-e", "Result"))
-				.child(pt(", and the compiler makes you look inside before you use either. The mistake in this snippet is a build error, not a production incident.")))
-			.child(view("p")
-				.styled(lead)
-				.text("Values are copied rather than silently shared, so two names never fight over one object. Most of the mistakes JavaScript saves for runtime cannot even be written."))
-			.child(button_link("/docs/std/option-result.html", "Option & Result in the reference"))))
+	let code = <div .styled(diag_stack)>
+		{diagnosed_snippet()}
+		{diagnostic_terminal()}
+	</div>;
+	let prose = <div .styled(showcase_copy)>
+		<h2 .styled(heading)>"Find out at compile time"</h2>
+		<p .styled(lead)>
+			{pt("Vilan has no null and no exceptions. A value that might be missing is an ")}
+			{leaf_link("/docs/std/option-result.html#optiont", "Option")}
+			{pt(", a call that might fail returns a ")}
+			{leaf_link("/docs/std/option-result.html#resultt-e", "Result")}
+			{pt(", and the compiler makes you look inside before you use either. The mistake in this snippet is a build error, not a production incident.")}
+		</p>
+		<p .styled(lead)>
+			"Values are copied rather than silently shared, so two names never fight over one object. Most of the mistakes JavaScript saves for runtime cannot even be written."
+		</p>
+		{button_link("/docs/std/option-result.html", "Option & Result in the reference")}
+	</div>;
+	<section .styled(column + section_block + stack)>{showcase_flipped(code, prose)}</section>
 }
 
 // --- the editor band ---
 
 fun editor_band(): View {
-	view("section")
-		.styled(column + section_block + stack)
-		.child(showcase_flipped(editor_art(), view("div")
-			.styled(showcase_copy)
-			.child(view("h2").styled(heading).text("The editor is in on it"))
-			.child(view("p")
-				.styled(lead)
-				.child(leaf("vilan"))
-				.child(pt(" and "))
-				.child(leaf("vilan-lsp"))
-				.child(pt(" ship together so your editor and build never disagree. In-editor diagnostics, hover types and docs, autocompletion, Symbol Rename, formatting, and Organize Imports are all available in VS Code today.")))
-			.child(view("p")
-				.styled(lead)
-				.text("One broken line does not take the tooling down. The rest of the file keeps compiling, serving hovers, and completing while you fix it."))
-			.child(button_link("https://github.com/vilan-lang/vilan/tree/main/editors/vscode", "The VS Code extension"))))
+	let prose = <div .styled(showcase_copy)>
+		<h2 .styled(heading)>"The editor is in on it"</h2>
+		<p .styled(lead)>
+			{leaf("vilan")}
+			{pt(" and ")}
+			{leaf("vilan-lsp")}
+			{pt(" ship together so your editor and build never disagree. In-editor diagnostics, hover types and docs, autocompletion, Symbol Rename, formatting, and Organize Imports are all available in VS Code today.")}
+		</p>
+		<p .styled(lead)>
+			"One broken line does not take the tooling down. The rest of the file keeps compiling, serving hovers, and completing while you fix it."
+		</p>
+		{button_link("https://github.com/vilan-lang/vilan/tree/main/editors/vscode", "The VS Code extension")}
+	</div>;
+	<section .styled(column + section_block + stack)>
+		{showcase_flipped(editor_art(), prose)}
+	</section>
 }
 
 // --- feature grid ---
@@ -543,52 +616,39 @@ let button_link_style = const style()
 	.hover(style().background(primary.alpha(0.12)).border_color(primary));
 
 fun button_link(href: str, label: str): View {
-	view("a")
-		.styled(button_link_style)
-		.attr("href", href)
-		.child(pt(label))
-		.child(view("img")
-			.styled(link_arrow)
-			.attr("src", i"{assets}/icons/move-right.svg")
-			.attr("alt", ""))
+	<a .styled(button_link_style) href(href)>
+		{pt(label)}
+		<img .styled(link_arrow) src(i"{assets}/icons/move-right.svg") alt("") />
+	</a>
 }
 
 fun docs_link(href: str, label: str): View {
-	view("a")
-		.styled(card_link)
-		.attr("href", href)
-		.child(pt(label))
-		.child(view("img")
-			.styled(link_arrow)
-			.attr("src", i"{assets}/icons/move-right.svg")
-			.attr("alt", ""))
+	<a .styled(card_link) href(href)>
+		{pt(label)}
+		<img .styled(link_arrow) src(i"{assets}/icons/move-right.svg") alt("") />
+	</a>
 }
 
 // Card icons are Lucide (lucide.dev, ISC), baked with the accent stroke and
-// served as plain images — `view("svg")` cannot render inline SVG today
-// (`create_element` has no SVG-namespace path).
+// served as plain images. They predate `std::ui` creating `<svg>` trees in the
+// SVG namespace, which it does now, so an inline icon whose stroke follows the
+// theme is open to them.
 let card_icon = const (style().width(Length::px(28.0)).height(Length::px(28.0)) + no_drag);
 
 fun feature(icon: str, name: str, href: str, body: List<View>): View {
-	view("article")
-		.styled(card)
-		.child(view("img")
-			.styled(card_icon)
-			.attr("src", i"{assets}/icons/{icon}.svg")
-			.attr("alt", ""))
-		.child(view("h3").styled(card_title).text(name))
-		.child(view("p").styled(card_body).children(body))
-		.child(docs_link(href, "docs"))
+	<article .styled(card)>
+		<img .styled(card_icon) src(i"{assets}/icons/{icon}.svg") alt("") />
+		<h3 .styled(card_title)>{name}</h3>
+		<p .styled(card_body)>{body}</p>
+		{docs_link(href, "docs")}
+	</article>
 }
 
 fun feature_grid(): View {
-	view("section")
-		.styled(column + section_block + stack)
-		.child(view("h2").styled(heading).text("Built into the language"))
-		.child(view("div")
-			.styled(cards_grid)
-			.attr("data-glow", "")
-			.child(feature("shield-check", "No null, no exceptions", "/docs/std/option-result.html", [
+	<section .styled(column + section_block + stack)>
+		<h2 .styled(heading)>"Built into the language"</h2>
+		<div .styled(cards_grid) data-glow("")>
+			{feature("shield-check", "No null, no exceptions", "/docs/std/option-result.html", [
 				pt("A missing value is an "),
 				leaf_link("/docs/std/option-result.html#optiont", "Option"),
 				pt(", a failure is a "),
@@ -596,27 +656,29 @@ fun feature_grid(): View {
 				pt(", and "),
 				leaf("match"),
 				pt(" makes you handle both arms. Errors are ordinary values you pass around like any other data."),
-			]))
-			.child(feature("copy", "Values, not references", "/docs/tour/memory-model.html", [
+			])}
+			{feature("copy", "Values, not references", "/docs/tour/memory-model.html", [
 				pt("Assignment copies. Sharing is explicit, borrowing is checked, and spooky action at a distance is a compile error."),
-			]))
-			.child(feature("zap", "Async without the ceremony", "/docs/tour/async.html", [
+			])}
+			{feature("zap", "Async without the ceremony", "/docs/tour/async.html", [
 				leaf_link("/docs/tour/async.html#opting-out-of-waiting-async-and-await", "await"),
 				pt(" is implicit. Call an async function and the machinery is the compiler's problem. When you want real concurrency, tasks and "),
 				leaf_link("/docs/tour/async.html#nurseries-structured-spawning", "nurseries"),
 				pt(" give it structure."),
-			]))
-			.child(feature("layers", "One program, two platforms", "/docs/tour/platforms.html", [
+			])}
+			{feature("layers", "One program, two platforms", "/docs/tour/platforms.html", [
 				pt("One workspace compiles the node server and the browser client. The compiler tracks which code needs which platform and keeps each bundle honest."),
-			]))
-			.child(feature("server", "Rendered before it ships", "/docs/guide/ssr.html", [
+			])}
+			{feature("server", "Rendered before it ships", "/docs/guide/ssr.html", [
 				leaf("std::ui"),
 				pt(" renders on the server too: first paint is real markup, then the client rebuilds it live. View source on this page and the content is already there."),
-			]))
-			.child(feature("refresh-cw", "A dev loop that keeps up", "/docs/guide/dev-loop.html", [
+			])}
+			{feature("refresh-cw", "A dev loop that keeps up", "/docs/guide/dev-loop.html", [
 				leaf("vilan run . --watch"),
 				pt(" rebuilds in milliseconds and hot-reloads the browser. Format, test, and language server ship in the same binary."),
-			])))
+			])}
+		</div>
+	</section>
 }
 
 // --- dogfood + footer ---
@@ -631,17 +693,17 @@ let dogfood_text = const style()
 let dogfood_cta = const style().margin(space(0)).text_align(TextAlign::Center);
 
 fun dogfood(): View {
-	view("section")
-		.styled(column + section_block + stack)
-		.child(view("p")
-			.styled(dogfood_text)
-			.text("This site is a vilan program: one package, three entries — this page, the playground, and the server that renders both. The server rendered the markup you first saw, and the browser rebuilt it live."))
-		.child(view("p")
-			.styled(dogfood_text)
-			.text("Vilan is built to last. Semantics are settled on paper before they are implemented, and pinned by tests after. A language is a foundation, and a foundation should not move under you."))
-		.child(view("p")
-			.styled(dogfood_cta)
-			.child(docs_link("https://github.com/vilan-lang/website", "Read this page's source")))
+	<section .styled(column + section_block + stack)>
+		<p .styled(dogfood_text)>
+			"This site is a vilan program: one package, three entries — this page, the playground, and the server that renders both. The server rendered the markup you first saw, and the browser rebuilt it live."
+		</p>
+		<p .styled(dogfood_text)>
+			"Vilan is built to last. Semantics are settled on paper before they are implemented, and pinned by tests after. A language is a foundation, and a foundation should not move under you."
+		</p>
+		<p .styled(dogfood_cta)>
+			{docs_link("https://github.com/vilan-lang/website", "Read this page's source")}
+		</p>
+	</section>
 }
 
 let footer_block = const style()
@@ -684,56 +746,47 @@ let footer_micro = const style()
 	.border_top(hairline_width, stroke_soft);
 
 fun footer_column(title: str, links: List<View>): View {
-	view("div")
-		.child(view("p").styled(footer_head).text(title))
-		.child(view("div").styled(footer_list).children(links))
+	<div>
+		<p .styled(footer_head)>{title}</p>
+		<div .styled(footer_list)>{links}</div>
+	</div>
 }
 
 fun page_footer(): View {
-	view("footer")
-		.styled(footer_block)
-		.child(view("div")
-			.styled(column + footer_grid)
-			.child(view("img")
-				.attr("src", i"{assets}/footer_mark.webp")
-				.attr("alt", "The vilan mark")
-				.attr("width", "200")
-				.styled(footer_mark))
-			.child(footer_column("Using Vilan", [
-				view("a").styled(footer_link).attr("href", "#install").text("Install"),
-				view("a")
-					.styled(footer_link)
-					.attr("href", "/docs/tour/hello-vilan.html")
-					.text("Learn"),
-				view("a").styled(footer_link).attr("href", "/playground").text("Playground"),
-				view("a").styled(footer_link).attr("href", "/docs/").text("Documentation"),
-			]))
-			.child(footer_column("Community", [
-				view("a").styled(footer_link).attr("href", i"{repo}/issues").text("Issues"),
-				view("a")
-					.styled(footer_link)
-					.attr("href", i"{repo}/discussions")
-					.text("Discussions"),
-				view("a")
-					.styled(footer_link)
-					.attr("href", "https://github.com/vilan-lang")
-					.text("GitHub"),
-			]))
-			.child(footer_column("Terms & policies", [
-				view("a")
-					.styled(footer_link)
-					.attr("href", i"{repo}/blob/main/CODE_OF_CONDUCT.md")
-					.text("Code of Conduct"),
-				view("a").styled(footer_link).attr("href", i"{repo}#license").text("Licenses"),
-				view("a")
-					.styled(footer_link)
-					.attr("href", i"{repo}/blob/main/assets/branding/LICENSE")
-					.text("Logo Policy"),
-			])))
-		.child(view("div")
-			.styled(column)
-			.child(view("div")
-				.styled(footer_micro)
-				.child(view("span").text("© 2026 Reed Syllas"))
-				.child(view("span").text("MIT or Apache-2.0"))))
+	<footer .styled(footer_block)>
+		<div .styled(column + footer_grid)>
+			<img
+				src(i"{assets}/footer_mark.webp")
+				alt("The vilan mark")
+				width("200")
+				.styled(footer_mark)
+			/>
+			{footer_column("Using Vilan", [
+				<a .styled(footer_link) href("#install")>"Install"</a>,
+				<a .styled(footer_link) href("/docs/tour/hello-vilan.html")>"Learn"</a>,
+				<a .styled(footer_link) href("/playground")>"Playground"</a>,
+				<a .styled(footer_link) href("/docs/")>"Documentation"</a>,
+			])}
+			{footer_column("Community", [
+				<a .styled(footer_link) href(i"{repo}/issues")>"Issues"</a>,
+				<a .styled(footer_link) href(i"{repo}/discussions")>"Discussions"</a>,
+				<a .styled(footer_link) href("https://github.com/vilan-lang")>"GitHub"</a>,
+			])}
+			{footer_column("Terms & policies", [
+				<a .styled(footer_link) href(i"{repo}/blob/main/CODE_OF_CONDUCT.md")>
+					"Code of Conduct"
+				</a>,
+				<a .styled(footer_link) href(i"{repo}#license")>"Licenses"</a>,
+				<a .styled(footer_link) href(i"{repo}/blob/main/assets/branding/LICENSE")>
+					"Logo Policy"
+				</a>,
+			])}
+		</div>
+		<div .styled(column)>
+			<div .styled(footer_micro)>
+				<span>"© 2026 Reed Syllas"</span>
+				<span>"MIT or Apache-2.0"</span>
+			</div>
+		</div>
+	</footer>
 }

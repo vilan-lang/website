@@ -10,11 +10,8 @@
 // page renders, and what each compiler or program event means to it.
 
 import std::asset::bundle;
-import std::option::Option::{ None, Some, self };
-import std::reactive::Signal;
 import std::shared::Shared;
 import std::time::Timer;
-import std::ui::mount_root;
 import pkg::playground_page::{ ConsoleRow, DiagRow, TraceRow, playground_page };
 
 // --- the vendored files this leg carries into the build ---
@@ -421,14 +418,14 @@ fun main() {
 				});
 			}
 			rows.push(DiagRow {
-				id = id,
+				id,
 				severity = diagnostic.severity(),
 				file = diagnostic.file(),
 				line = diagnostic.line() + 1,
 				column = diagnostic.column() + 1,
 				message = diagnostic.message(),
 				note = diagnostic.note(),
-				trace = trace,
+				trace,
 			});
 			id = id + 1;
 		}
@@ -437,7 +434,7 @@ fun main() {
 		rows.len()
 	};
 
-	let _root = mount_root("app", || playground_page(status, diagnostics, console_lines, can_format, can_platform, can_prelude, share_label, mode, modified_from, confirm_target, run, format, share, confirm_replace, cancel_replace));
+	let _root = ui::mount_root("app", || playground_page(status, diagnostics, console_lines, can_format, can_platform, can_prelude, share_label, mode, modified_from, confirm_target, run, format, share, confirm_replace, cancel_replace));
 
 	editor_init("#editor", example_source("counter"));
 
@@ -566,11 +563,11 @@ fun main() {
 				if next.len() < console_cap {
 					let id = next_row_id.read();
 					next_row_id.write() = id + 1;
-					next.push(ConsoleRow { id = id, kind = kind, text = message.text() });
+					next.push(ConsoleRow { id, kind, text = message.text() });
 				} else if next.len() == console_cap {
 					let id = next_row_id.read();
 					next_row_id.write() = id + 1;
-					next.push(ConsoleRow { id = id, kind = "error", text = "[output truncated]" });
+					next.push(ConsoleRow { id, kind = "error", text = "[output truncated]" });
 				}
 				next
 			});

@@ -14,7 +14,6 @@ import std::style::{
 	space,
 	style,
 };
-import std::ui::{ View, view };
 
 export *;
 
@@ -465,7 +464,9 @@ let lead = const (style().margin(space(0)).max_width(Length::rem(36.0)).color(up
 let rule_line = const style().height(Length::px(1.0)).background(stroke_soft);
 
 fun divider(): View {
-	view("div").styled(column).child(view("div").styled(rule_line))
+	<div .styled(column)>
+		<div .styled(rule_line) />
+	</div>
 }
 
 let grain_overlay = const (style()
@@ -478,7 +479,7 @@ let grain_overlay = const (style()
 	+ no_select);
 
 fun grain(): View {
-	view("div").styled(grain_overlay)
+	<div .styled(grain_overlay) />
 }
 
 let visually_hidden = const style()

@@ -12,7 +12,6 @@ import std::style::{
 	space,
 	style,
 };
-import std::ui::{ View, view };
 import pkg::theme::{
 	assets,
 	bloom_palette,
@@ -105,12 +104,14 @@ let bloom_duo = const (bloom_band + style()
 	.raw("mix-blend-mode", "soft-light"));
 
 fun bloom(): View {
-	view("div")
-		.styled(bloom_field)
-		.child(view("div")
-			.styled(bloom_drift)
-			.child(view("div").styled(bloom_blurwrap).child(view("div").styled(bloom_gradient)))
-			.child(view("div").styled(bloom_duo)))
+	<div .styled(bloom_field)>
+		<div .styled(bloom_drift)>
+			<div .styled(bloom_blurwrap)>
+				<div .styled(bloom_gradient) />
+			</div>
+			<div .styled(bloom_duo) />
+		</div>
+	</div>
 }
 
 let masthead_wrap = const style().position(Position::Relative);
@@ -152,23 +153,14 @@ let hero_tagline = const style()
 	.color(ink);
 
 fun hero(): View {
-	view("header")
-		.styled(hero_block)
-		.child(view("h1").styled(visually_hidden).text("Vilan — The Modern Web Language"))
-		.child(view("img")
-			.styled(hero_mark)
-			.attr("src", i"{assets}/dark_logo_flat.svg")
-			.attr("alt", ""))
-		.child(view("img")
-			.styled(hero_wordmark)
-			.attr("src", i"{assets}/wordmark_hero.svg")
-			.attr("alt", "VILAN"))
-		.child(view("p")
-			.styled(hero_tagline)
-			.attr("aria-hidden", "true")
-			.text("The Modern Web Language"))
+	<header .styled(hero_block)>
+		<h1 .styled(visually_hidden)>"Vilan — The Modern Web Language"</h1>
+		<img .styled(hero_mark) src(i"{assets}/dark_logo_flat.svg") alt("") />
+		<img .styled(hero_wordmark) src(i"{assets}/wordmark_hero.svg") alt("VILAN") />
+		<p .styled(hero_tagline) aria-hidden("true")>"The Modern Web Language"</p>
+	</header>
 }
 
 fun masthead(): View {
-	view("div").styled(masthead_wrap).child(hero())
+	<div .styled(masthead_wrap)>{hero()}</div>
 }

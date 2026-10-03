@@ -11,8 +11,7 @@
 // feature grid's cursor glow. The server passes inert stand-ins for all of it.
 
 import std::json::{ JsonValue, parse_json_value };
-import std::reactive::{ FlushPolicy, Signal, turn };
-import std::ui::mount_root;
+import std::reactive::{ FlushPolicy, turn };
 import pkg::page::page;
 import pkg::theme::reveal;
 
@@ -116,7 +115,7 @@ impl MouseProbe {
 
 fun main() {
 	let scroll_fade = Signal::new("0");
-	let _root = mount_root("app", || page(scroll_fade, |text| clipboard_write(text)));
+	let _root = ui::mount_root("app", || page(scroll_fade, |text| clipboard_write(text)));
 
 	let passive = parse_json_value("{\"passive\": true}");
 	let probe = scroll_probe("html");

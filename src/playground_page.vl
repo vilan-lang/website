@@ -9,7 +9,6 @@
 // the actions (Run, example picks) as closures — the server passes inert
 // stand-ins, the same split as `page()`.
 
-import std::reactive::{ Signal, SignalCell };
 import std::style::{
 	AlignItems,
 	Color,
@@ -23,7 +22,6 @@ import std::style::{
 	space,
 	style,
 };
-import std::ui::{ View, each_by, view };
 import pkg::theme::{
 	code_palette,
 	code_size,
@@ -313,7 +311,7 @@ let status_line = const (script_label + style()
 // also flips the mode to Server, so that option hides with the mode select on
 // a wasm without `compile_for`.
 fun template_option(value: str, label: str): View {
-	view("option").attr("value", value).text(label)
+	<option value(value)>{label}</option>
 }
 
 /// An example's bare name. The option labels carry the one-line pitch — the
@@ -402,8 +400,8 @@ let quiet_row = const style().padding_y(Length::px(3.0)).padding_x(space(2)).col
 
 fun severity_tag(row: DiagRow): View {
 	match row.severity {
-		"error" => view("span").styled(diag_error).text("error"),
-		_ => view("span").styled(diag_warning).text("warning"),
+		"error" => <span .styled(diag_error)>"error"</span>,
+		_ => <span .styled(diag_warning)>"warning"</span>,
 	}
 }
 
@@ -415,35 +413,36 @@ fun trace_row(hop: TraceRow): View {
 	} else {
 		i"  {hop.message}"
 	};
-	view("div").styled(diag_trace).text(text)
+	<div .styled(diag_trace)>{text}</div>
 }
 
 /// A diagnostic's row: the head line, then its requirement chain one dim
 /// line per hop (entry → read), then its note — the order the dev overlay
 /// and the editor's lint message keep.
 fun diagnostic_row(row: DiagRow): View {
-	let head = view("div")
-		.child(severity_tag(row))
-		.child(view("span").styled(diag_site).text(i" {row.file}:{row.line}:{row.column} "))
-		.child(view("span").text(row.message));
+	let head = <div>
+		{severity_tag(row)}
+		<span .styled(diag_site)>i" {row.file}:{row.line}:{row.column} "</span>
+		<span>{row.message}</span>
+	</div>;
 	mut lines: List<View> = [head];
 	for hop in row.trace {
 		lines.push(trace_row(hop));
 	}
 	if row.note != "" {
-		lines.push(view("div").styled(diag_note).text(i"  note: {row.note}"));
+		lines.push(<div .styled(diag_note)>i"  note: {row.note}"</div>);
 	}
-	let body = view("div").children(lines);
+	let body = <div>{lines}</div>;
 	match row.severity {
-		"error" => view("div").styled(diag_row_error).child(body),
-		_ => view("div").styled(diag_row_warning).child(body),
+		"error" => <div .styled(diag_row_error)>{body}</div>,
+		_ => <div .styled(diag_row_warning)>{body}</div>,
 	}
 }
 
 fun console_row(row: ConsoleRow): View {
 	match row.kind {
-		"error" => view("div").styled(console_error).text(row.text),
-		_ => view("div").styled(console_line).text(row.text),
+		"error" => <div .styled(console_error)>{row.text}</div>,
+		_ => <div .styled(console_line)>{row.text}</div>,
 	}
 }
 
@@ -466,130 +465,97 @@ fun playground_page(
 	confirm_replace: || void,
 	cancel_replace: || void,
 ): View {
-	view("div")
-		.styled(shell + app_fill + code_palette)
-		.child(view("header")
-			.styled(app_bar)
-			.child(view("a")
-				.styled(nav_brand + nav_link)
-				.attr("href", "/")
-				.child(view("span").styled(nav_mark + no_drag).attr("aria-hidden", "true"))
-				.child(view("span").text("VILAN")))
-			.child(view("h1").styled(page_title).text("Playground"))
-			.child(view("div").styled(rail_divider))
-			.child(view("button")
-				.styled(primary_button)
-				.bind_text(mode.derive(|current| match current {
+	<div .styled(shell + app_fill + code_palette)>
+		<header .styled(app_bar)>
+			<a .styled(nav_brand + nav_link) href("/")>
+				<span .styled(nav_mark + no_drag) aria-hidden("true") />
+				<span>"VILAN"</span>
+			</a>
+			<h1 .styled(page_title)>"Playground"</h1>
+			<div .styled(rail_divider) />
+			<button .styled(primary_button) on:click(|| run())>
+				{mode.derive(|current| match current {
 					"node" => "Check",
 					_ => "Run",
-				}))
-				.on("click", || run()))
-			.child(view("select")
-				.styled(select_box)
-				.attr("id", "mode")
-				.attr("aria-label", "Compile mode")
-				.show(can_platform)
-				.child(template_option("browser", "Browser: compile and run"))
-				.child(template_option("node", "Server: check the process leg")))
-			.child(view("select")
-				.styled(select_box)
-				.attr("id", "prelude")
-				.attr("aria-label", "Ambient scope")
-				.show(can_prelude)
-				.child(template_option("on", "Prelude: on"))
-				.child(template_option("web", "Prelude: web"))
-				.child(template_option("off", "Prelude: off")))
-			.child(view("button")
-				.styled(ghost_button)
-				.text("Format")
-				.on("click", || format())
-				.show(can_format))
-			.child(view("button")
-				.styled(ghost_button)
-				.bind_text(share_label)
-				.on("click", || share()))
-			.child(view("p").styled(status_line).attr("role", "status").bind_text(status))
-			.child(view("select")
-				.styled(version_select)
-				.attr("id", "version")
-				.attr("aria-label", "Compiler version"))
-			.child(view("div").styled(rail_divider))
-			.child(view("a").styled(nav_link).attr("href", "/docs/").text("Docs")))
-		.child(view("main")
-			.styled(quad_grid)
-			.child(view("div")
-				.styled(panel)
-				.child(view("div")
-					.styled(panel_head)
-					.child(view("p").styled(panel_title).text("Program"))
-					.child(view("select")
-						.styled(select_box)
-						.attr("id", "template")
-						.attr("aria-label", "Load an example")
-						.child(view("option")
-							.attr("value", "")
-							.attr("disabled", "true")
-							.attr("hidden", "true")
-							.bind_text(modified_from.derive(|name| match name {
+				})}
+			</button>
+			<select .styled(select_box) id("mode") aria-label("Compile mode") .show(can_platform)>
+				{template_option("browser", "Browser: compile and run")}
+				{template_option("node", "Server: check the process leg")}
+			</select>
+			<select .styled(select_box) id("prelude") aria-label("Ambient scope") .show(can_prelude)>
+				{template_option("on", "Prelude: on")}
+				{template_option("web", "Prelude: web")}
+				{template_option("off", "Prelude: off")}
+			</select>
+			<button .styled(ghost_button) on:click(|| format()) .show(can_format)>"Format"</button>
+			<button .styled(ghost_button) on:click(|| share())>{share_label}</button>
+			<p .styled(status_line) role("status")>{status}</p>
+			<select .styled(version_select) id("version") aria-label("Compiler version") />
+			<div .styled(rail_divider) />
+			<a .styled(nav_link) href("/docs/")>"Docs"</a>
+		</header>
+		<main .styled(quad_grid)>
+			<div .styled(panel)>
+				<div .styled(panel_head)>
+					<p .styled(panel_title)>"Program"</p>
+					<select .styled(select_box) id("template") aria-label("Load an example")>
+						<option disabled("true") hidden("true") value("")>
+							{modified_from.derive(|name| match name {
 								"" => "Examples",
 								_ => i"Modified — {template_title(name)}",
-							})))
-						.child(template_option("counter", "Counter: reactive state"))
-						.child(template_option("hello", "Hello: mount and print"))
-						.child(template_option("styles", "Styles: compile-time CSS"))
-						.child(template_option("server", "Server: typed HTTP, checked").show(can_platform))))
-				.child(view("div")
-					.attr("role", "alert")
-					.show(confirm_target.derive(|name| name != ""))
-					.child(view("div")
-						.styled(confirm_bar)
-						.child(view("p")
-							.styled(confirm_question)
-							.bind_text(confirm_target
-								.derive(|name| i"Replace the current program with {template_title(name)}? The edits are not kept.")))
-						.child(view("button")
-							.styled(ghost_button)
-							.text("Keep editing")
-							.on("click", || cancel_replace()))
-						.child(view("button")
-							.styled(primary_button)
-							.text("Replace")
-							.on("click", || confirm_replace()))))
-				.child(view("div")
-					.styled(editor_host)
-					.attr("id", "editor")
-					.attr("aria-label", "Program editor")))
-			.child(view("div")
-				.styled(panel)
-				.child(view("div")
-					.styled(panel_head)
-					.child(view("p").styled(panel_title).text("Result")))
-				.child(view("div")
-					.styled(runner_host)
-					.attr("id", "runner")
-					.attr("aria-label", "Program result")))
-			.child(view("div")
-				.styled(panel)
-				.child(view("div")
-					.styled(panel_head)
-					.child(view("p").styled(panel_title).text("Diagnostics")))
-				.child(view("pre")
-					.styled(report_well)
-					.child(view("div")
-						.styled(quiet_row)
-						.text("Nothing to report.")
-						.show(diagnostics.derive(|rows| rows.len() == 0)))
-					.child(each_by(diagnostics, |row| row.id, |row| diagnostic_row(row.get())))))
-			.child(view("div")
-				.styled(panel)
-				.child(view("div")
-					.styled(panel_head)
-					.child(view("p").styled(panel_title).text("Console")))
-				.child(view("pre")
-					.styled(report_well)
-					.child(view("div")
-						.styled(quiet_row)
-						.text("Program output lands here.")
-						.show(console_lines.derive(|rows| rows.len() == 0)))
-					.child(each_by(console_lines, |row| row.id, |row| console_row(row.get()))))))
+							})}
+						</option>
+						{template_option("counter", "Counter: reactive state")}
+						{template_option("hello", "Hello: mount and print")}
+						{template_option("styles", "Styles: compile-time CSS")}
+						{template_option("server", "Server: typed HTTP, checked").show(can_platform)}
+					</select>
+				</div>
+				<div role("alert") .show(confirm_target.derive(|name| name != ""))>
+					<div .styled(confirm_bar)>
+						<p .styled(confirm_question)>
+							{confirm_target
+								.derive(|name| i"Replace the current program with {template_title(name)}? The edits are not kept.")}
+						</p>
+						<button .styled(ghost_button) on:click(|| cancel_replace())>
+							"Keep editing"
+						</button>
+						<button .styled(primary_button) on:click(|| confirm_replace())>
+							"Replace"
+						</button>
+					</div>
+				</div>
+				<div .styled(editor_host) id("editor") aria-label("Program editor") />
+			</div>
+			<div .styled(panel)>
+				<div .styled(panel_head)>
+					<p .styled(panel_title)>"Result"</p>
+				</div>
+				<div .styled(runner_host) id("runner") aria-label("Program result") />
+			</div>
+			<div .styled(panel)>
+				<div .styled(panel_head)>
+					<p .styled(panel_title)>"Diagnostics"</p>
+				</div>
+				<pre .styled(report_well)>
+					<div .styled(quiet_row) .show(diagnostics.derive(|rows| rows.len() == 0))>
+						"Nothing to report."
+					</div>
+					{each_by(diagnostics, |row| row.id, |row| diagnostic_row(row.get()))}
+				</pre>
+			</div>
+			<div .styled(panel)>
+				<div .styled(panel_head)>
+					<p .styled(panel_title)>"Console"</p>
+				</div>
+				<pre .styled(report_well)>
+					<div .styled(quiet_row) .show(console_lines.derive(|rows| rows.len() == 0))>
+						"Program output lands here."
+					</div>
+					{each_by(console_lines, |row| row.id, |row| console_row(row.get()))}
+				</pre>
+			</div>
+		</main>
+	</div>
 }

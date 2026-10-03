@@ -3,7 +3,6 @@
 // chrome.vl) the book. Its own module so a leg that wants only the bar reaches
 // only the bar's rules: the masthead's bloom and hero are the landing page's.
 
-import std::reactive::{ Signal, SignalCell };
 import std::style::{
 	AlignItems,
 	Color,
@@ -15,7 +14,6 @@ import std::style::{
 	space,
 	style,
 };
-import std::ui::{ View, view };
 import pkg::theme::{
 	assets,
 	column,
@@ -97,23 +95,18 @@ let nav_link = const style()
 // /playground/, and every /docs/ page, so a relative target would resolve
 // against whichever page happens to carry it.
 fun top_bar(scroll_fade: SignalCell<str>): View {
-	view("nav")
-		.styled(topbar)
-		.style_var("--nav-fade", scroll_fade)
-		.child(view("div")
-			.styled(column + nav_row)
-			.child(view("a")
-				.styled(nav_brand + nav_link)
-				.attr("href", "/")
-				.child(view("span").styled(nav_mark + no_drag).attr("aria-hidden", "true"))
-				.child(view("span").text("VILAN")))
-			.child(view("div")
-				.styled(nav_links)
-				.child(view("a").styled(nav_link).attr("href", "/#install").text("Install"))
-				.child(view("a")
-					.styled(nav_link)
-					.attr("href", "/docs/tour/hello-vilan.html")
-					.text("Learn"))
-				.child(view("a").styled(nav_link).attr("href", "/playground/").text("Playground"))
-				.child(view("a").styled(nav_link).attr("href", "/docs/").text("Docs"))))
+	<nav .styled(topbar) .style_var("--nav-fade", scroll_fade)>
+		<div .styled(column + nav_row)>
+			<a .styled(nav_brand + nav_link) href("/")>
+				<span .styled(nav_mark + no_drag) aria-hidden("true") />
+				<span>"VILAN"</span>
+			</a>
+			<div .styled(nav_links)>
+				<a .styled(nav_link) href("/#install")>"Install"</a>
+				<a .styled(nav_link) href("/docs/tour/hello-vilan.html")>"Learn"</a>
+				<a .styled(nav_link) href("/playground/")>"Playground"</a>
+				<a .styled(nav_link) href("/docs/")>"Docs"</a>
+			</div>
+		</div>
+	</nav>
 }

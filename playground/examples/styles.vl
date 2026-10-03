@@ -1,22 +1,24 @@
-// Styles are compiled, not shipped: `const style()` values become a real
-// stylesheet at build time, and the classes below are its hashed names.
+// Styles are compiled, not shipped: each `css { … }` block is a style the
+// compiler turns into stylesheet rules at build time, and the classes below
+// are their hashed names.
 
-import std::style::{ Color, Length, space, style };
-import std::ui::mount_root;
+let card = css {
+	padding(space(6));
+	color(hex("#F9DFE7"));
+	background(hex("#1B060D"));
+	border-radius(px(12));
+};
 
-let card = const style()
-	.padding(space(6))
-	.color(Color::hex("#F9DFE7"))
-	.background(Color::hex("#1B060D"))
-	.radius(Length::px(12.0));
-
-let title = const style().margin(space(0)).color(Color::hex("#EB682E"));
+let title = css {
+	margin(space(0));
+	color(hex("#EB682E"));
+};
 
 fun main() {
-	let _root = mount_root("app", || {
-		view("div")
-			.styled(card)
-			.child(view("h2").styled(title).text("Styled at compile time"))
-			.child(view("p").text("This card's CSS came out of the compiler."))
+	let _root = ui::mount_root("app", || {
+		<div .styled(card)>
+			<h2 .styled(title)>"Styled at compile time"</h2>
+			<p>"This card's CSS came out of the compiler."</p>
+		</div>
 	});
 }

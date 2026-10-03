@@ -35,7 +35,6 @@ import std::style::{
 	space,
 	style,
 };
-import std::ui::{ View, view };
 import pkg::code::{ blank, kw, ln, st, t, tk_plain };
 import pkg::theme::grain;
 import pkg::theme::{
@@ -491,28 +490,24 @@ let ed_problem = const style().color(art_error);
 let ed_status_right = const style().margin_left(Length::auto());
 
 fun editor_art(): View {
-	view("div")
-		.styled(art_stage)
-		.child(view("div").styled(ed_blob_a))
-		.child(view("div").styled(ed_blob_b))
-		.child(grain())
-		.child(view("div")
-			.styled(ed_window)
-			.child(view("div")
-				.styled(ed_titlebar)
-				.child(view("div").styled(ed_dot_red))
-				.child(view("div").styled(ed_dot_orange))
-				.child(view("div").styled(ed_dot_magenta))
-				.child(view("span").styled(ed_title).text("app.vl — vilan")))
-			.child(view("div")
-				.styled(ed_body)
-				.child(view("div").styled(ed_gutter).text("1\n2\n3\n4\n5\n6\n7\n8\n9\n10\n11"))
-				.child(view("div")
-					.styled(ed_code)
-					.child(ln([kw("import"), t(" std::io::print;")]))
-					.child(ln([kw("import"), t(" std::option::Option::{ self, Some, None };")]))
-					.child(ln([kw("fun"), t(" find_user(id: i32): Option<str> {")]))
-					.child(ln([
+	<div .styled(art_stage)>
+		<div .styled(ed_blob_a) />
+		<div .styled(ed_blob_b) />
+		{grain()}
+		<div .styled(ed_window)>
+			<div .styled(ed_titlebar)>
+				<div .styled(ed_dot_red) />
+				<div .styled(ed_dot_orange) />
+				<div .styled(ed_dot_magenta) />
+				<span .styled(ed_title)>"app.vl — vilan"</span>
+			</div>
+			<div .styled(ed_body)>
+				<div .styled(ed_gutter)>"1\n2\n3\n4\n5\n6\n7\n8\n9\n10\n11"</div>
+				<div .styled(ed_code)>
+					{ln([kw("import"), t(" std::io::print;")])}
+					{ln([kw("import"), t(" std::option::Option::{ self, Some, None };")])}
+					{ln([kw("fun"), t(" find_user(id: i32): Option<str> {")])}
+					{ln([
 						t("    "),
 						kw("if"),
 						t(" id == 1 { Some("),
@@ -520,30 +515,32 @@ fun editor_art(): View {
 						t(") } "),
 						kw("else"),
 						t(" { None }"),
-					]))
-					.child(ln([t("}")]))
-					.child(ln([kw("fun"), t(" greet(name: str): str {")]))
-					.child(ln([t("    "), st("i\"hello {name}\"")]))
-					.child(ln([t("}")]))
-					.child(ln([kw("fun"), t(" main() {")]))
-					.child(ln([
+					])}
+					{ln([t("}")])}
+					{ln([kw("fun"), t(" greet(name: str): str {")])}
+					{ln([t("    "), st("i\"hello {name}\"")])}
+					{ln([t("}")])}
+					{ln([kw("fun"), t(" main() {")])}
+					{ln([
 						t("    print(greet("),
-						view("span").styled(ed_squiggle).text("find_user(2)"),
+						<span .styled(ed_squiggle)>"find_user(2)"</span>,
 						t("));"),
-						view("span").styled(ed_caret),
-					]))
-					.child(ln([t("}")]))))
-			.child(view("div")
-				.styled(ed_statusbar)
-				.child(view("span").styled(ed_problem).text("⊗ 1"))
-				.child(view("span").text("vilan-lsp"))
-				.child(view("span").styled(ed_status_right).text("Ln 10, Col 17 · app.vl")))
-			.child(view("div")
-				.styled(ed_hover)
-				.child(view("div")
-					.styled(ed_hover_error)
-					.text("Expected str, but got Option<str> instead."))
-				.child(view("div").styled(ed_hover_from).text("vilan · live as you type"))))
+						<span .styled(ed_caret) />,
+					])}
+					{ln([t("}")])}
+				</div>
+			</div>
+			<div .styled(ed_statusbar)>
+				<span .styled(ed_problem)>"⊗ 1"</span>
+				<span>"vilan-lsp"</span>
+				<span .styled(ed_status_right)>"Ln 10, Col 17 · app.vl"</span>
+			</div>
+			<div .styled(ed_hover)>
+				<div .styled(ed_hover_error)>"Expected str, but got Option<str> instead."</div>
+				<div .styled(ed_hover_from)>"vilan · live as you type"</div>
+			</div>
+		</div>
+	</div>
 }
 
 // --- the toolchain constellation (install section, desktop only) ---
@@ -677,38 +674,37 @@ let tc_center = const (style()
 /// A chip centred at (`left`, `top`) — the end of its spoke — with its LED in
 /// `color`: a role's `var()` or a literal hex, the inline style takes either.
 fun tc_chip_at(left: str, top: str, color: str, label: str): View {
-	view("div")
-		.styled(tc_chip)
-		.attr("style", i"left: {left}; top: {top}")
-		.child(view("div").styled(led).attr("style", i"background: {color}"))
-		.child(view("span").text(label))
+	<div .styled(tc_chip) style(i"left: {left}; top: {top}")>
+		<div .styled(led) style(i"background: {color}") />
+		<span>{label}</span>
+	</div>
 }
 
 fun toolchain_art(): View {
-	view("div")
-		.styled(tc_wrap)
-		.child(view("div").styled(tc_blob_b))
-		.child(view("div").styled(tc_blob_a))
-		.child(view("div").styled(tc_blob_c))
-		.child(grain())
-		.child(view("div").styled(tc_spoke_up))
-		.child(view("div").styled(tc_spoke_down))
-		.child(view("div").styled(tc_spoke_run))
-		.child(view("div").styled(tc_spoke_fmt))
-		.child(view("div").styled(tc_spoke_lsp))
-		.child(view("div").styled(tc_spoke_upgrade))
-		.child(view("div").styled(tc_center_mask))
-		.child(view("div").styled(tc_center).attr("role", "img").attr("aria-label", "vilan"))
+	<div .styled(tc_wrap)>
+		<div .styled(tc_blob_b) />
+		<div .styled(tc_blob_a) />
+		<div .styled(tc_blob_c) />
+		{grain()}
+		<div .styled(tc_spoke_up) />
+		<div .styled(tc_spoke_down) />
+		<div .styled(tc_spoke_run) />
+		<div .styled(tc_spoke_fmt) />
+		<div .styled(tc_spoke_lsp) />
+		<div .styled(tc_spoke_upgrade) />
+		<div .styled(tc_center_mask) />
+		<div .styled(tc_center) aria-label("vilan") role("img") />
 		// The LEDs are each tool's colour from the bloom: ember and rose as
 		// their roles, the rest literal. `vilan run --watch` is the widest chip
 		// (~176px), so it sits 18px in from its spoke's end — centred there it
 		// overran the 420px canvas by 14px; the spoke still ends under it.
-		.child(tc_chip_at("210px", "70px", primary.text, "vilan build"))
-		.child(tc_chip_at("328px", "142px", "#D84730", "vilan run --watch"))
-		.child(tc_chip_at("344px", "288px", accent.text, "vilan fmt"))
-		.child(tc_chip_at("210px", "360px", "#B23056", "vilan test"))
-		.child(tc_chip_at("78px", "288px", "#8B2786", "vilan-lsp"))
-		.child(tc_chip_at("82px", "142px", "#672283", "vilan upgrade"))
+		{tc_chip_at("210px", "70px", primary.text, "vilan build")}
+		{tc_chip_at("328px", "142px", "#D84730", "vilan run --watch")}
+		{tc_chip_at("344px", "288px", accent.text, "vilan fmt")}
+		{tc_chip_at("210px", "360px", "#B23056", "vilan test")}
+		{tc_chip_at("78px", "288px", "#8B2786", "vilan-lsp")}
+		{tc_chip_at("82px", "142px", "#672283", "vilan upgrade")}
+	</div>
 }
 
 // --- the dataflow strip (reactive section, desktop only) ---
@@ -781,44 +777,36 @@ let df_arrow_row = const style()
 	.width(Length::pct(100.0));
 
 fun df_arrow_to(label: str): View {
-	view("div")
-		.styled(df_arrow)
-		.child(view("span").styled(df_arrow_label).text(label))
-		.child(view("div")
-			.styled(df_arrow_row)
-			.child(view("div").styled(dg_line))
-			.child(view("div").styled(arrow_head_right)))
+	<div .styled(df_arrow)>
+		<span .styled(df_arrow_label)>{label}</span>
+		<div .styled(df_arrow_row)>
+			<div .styled(dg_line) />
+			<div .styled(arrow_head_right) />
+		</div>
+	</div>
 }
 
 fun df_node_view(lit: bool, tag: str, body: List<View>): View {
-	view("div")
-		.styled(if lit {
-			df_node_lit
-		} else {
-			df_node
-		})
-		.child(view("p").styled(df_tag).text(tag))
-		.child(view("div").styled(art_code).child(ln(body)))
+	<div .styled(if lit { df_node_lit } else { df_node })>
+		<p .styled(df_tag)>{tag}</p>
+		<div .styled(art_code)>{ln(body)}</div>
+	</div>
 }
 
 fun dataflow_art(): View {
-	view("div")
-		.styled(df_wrap)
-		.child(view("div").styled(df_blob_a))
-		.child(view("div").styled(df_blob_b))
-		.child(grain())
-		.child(view("div")
-			.styled(df_row)
-			.child(df_node_view(false, "the write", [t("count.set("), st("2"), t(")")]))
-			.child(df_arrow_to("notify"))
-			.child(df_node_view(false, "the signal", [t("SignalCell<i32> "), kw("= 2")]))
-			.child(df_arrow_to("re-set"))
-			.child(df_node_view(true, "the one text node", [
-				t("<p>clicked "),
-				kw("2"),
-				t(" times</p>"),
-			])))
-		.child(view("p")
-			.styled(art_caption)
-			.text("no virtual DOM, no re-render: the subscription updates exactly one node"))
+	<div .styled(df_wrap)>
+		<div .styled(df_blob_a) />
+		<div .styled(df_blob_b) />
+		{grain()}
+		<div .styled(df_row)>
+			{df_node_view(false, "the write", [t("count.set("), st("2"), t(")")])}
+			{df_arrow_to("notify")}
+			{df_node_view(false, "the signal", [t("SignalCell<i32> "), kw("= 2")])}
+			{df_arrow_to("re-set")}
+			{df_node_view(true, "the one text node", [t("<p>clicked "), kw("2"), t(" times</p>")])}
+		</div>
+		<p .styled(art_caption)>
+			"no virtual DOM, no re-render: the subscription updates exactly one node"
+		</p>
+	</div>
 }

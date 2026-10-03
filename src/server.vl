@@ -24,9 +24,7 @@ import std::display::Display;
 import std::document::Document;
 import std::fs;
 import std::http::{ Response, Server };
-import std::option::Option::{ None, Some, self };
 import std::process::env;
-import std::reactive::Signal;
 import pkg::page::page;
 import pkg::playground_page::{ ConsoleRow, DiagRow, playground_page };
 import pkg::theme::{ fallback, theme_metas };
@@ -263,7 +261,10 @@ async fun main() {
 			let path = request.path().split("?")[0];
 			match path {
 				"/playground/manifest.json" => match has_wasm {
-					true => Response::builder().set_header("Content-Type", "application/json").body(wasm_manifest).build(),
+					true => Response::builder()
+						.set_header("Content-Type", "application/json")
+						.body(wasm_manifest)
+						.build(),
 					false => missing_wasm(),
 				},
 				"/playground" => render_playground(),

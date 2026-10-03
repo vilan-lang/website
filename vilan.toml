@@ -15,6 +15,12 @@ description = "The vilan promo site (vilan-lang.org), a fullstack SSR vilan pack
 # Two node legs (the server and the chrome export); `vilan run .` means the
 # server.
 default-entry = "server"
+# The web prelude, on every entry: the base seven plus `Signal`/`SignalCell`,
+# `view`/`View` and the slot functions (`each_by`, `when`, ...), and the ambient
+# `ui::`/`style::` modules. It is what `vilan init` gives a web package, and it
+# is the playground's browser mode, so the site is written in the idiom its own
+# examples teach. Explicit imports still win (the `std::style` lists).
+prelude = "std::web"
 
 [entry.client]
 target = "browser"

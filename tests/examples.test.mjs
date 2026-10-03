@@ -182,7 +182,7 @@ for (const file of readdirSync(`${root}playground/examples`).filter((f) => f.end
 
 const home = await bootHome(`${root}dist/client.js`);
 const pres = home.pres();
-const reactive = pres.find((lines) => lines.some((line) => line.includes("bind_text(")));
+const reactive = pres.find((lines) => lines.some((line) => line.includes("clicked {n} times")));
 check(reactive != null, "the landing page shows the reactive snippet");
 if (reactive) {
 	const source = programOf(reactive);

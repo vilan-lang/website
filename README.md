@@ -9,8 +9,10 @@ One package, four entries. Every file is visible to every entry; the compiler
 sorts out what may run where by what each entry reaches.
 
 - **`src/page.vl`** — the one `fun page(): View` the landing entries build, plus
-  its `std::style` styles. It imports `std::ui`, which resolves per entry
-  platform: live DOM in the client build, an HTML string tree in the server build.
+  its `std::style` styles. Its views are element syntax over `std::ui`
+  (ambient through the web prelude, `prelude = "std::web"` in `vilan.toml`),
+  which resolves per entry platform: live DOM in the client build, an HTML
+  string tree in the server build.
 - **`src/server.vl`** — the node entry, at rung 2 of the full-stack ladder.
   Each page's HTML document is written from its leg's build (`Document::of`) —
   the stylesheet link, the module script and the mount div are derived, so they
@@ -57,6 +59,28 @@ sorts out what may run where by what each entry reaches.
   `examples.js` (`node scripts/gen-examples.mjs` after editing one; it also
   records the replaced text's fingerprint in `playground/retired-examples.json`,
   so a visitor's restored copy of the old example gives way to the new one).
+
+## Writing views
+
+Every view the site builds, and every program it shows, is written in element
+syntax (K26): `<div .styled(card)>…</div>`, not a `view("div")` chain. The
+rules the sources follow:
+
+- **Static text is a quoted child** (`<h2>"Counter"</h2>`); **reactive text
+  is a hole** (`<p>{count.derive(..)}</p>`); a component is a call in a hole
+  (`{footer_column(..)}`).
+- **Attributes are undotted** (`href("/")`, `aria-label("..")`); everything
+  else in the head is a dotted chain link, verbatim (`.styled(..)`,
+  `.show(..)`, `.bind_attr(..)`, `.style_var(..)`).
+- **Class names come from `.styled(..)` only.** An undotted `class(..)` is
+  the plain attribute, which would overwrite the classes `.styled` puts on.
+- **A handler written as a closure is `on:event(..)`**; a named handler stays
+  a chain link (`.on("click", handler)`).
+- **A tag chosen at run time** is the one case for a `view(tag)` chain. The
+  site has none.
+- `vilan fmt` lays the markup out, and sorts each run of undotted attributes
+  (E151: `id`, `name`, `type`, `for`, `href`, `src` first); a dotted link is a
+  barrier the sort does not cross.
 
 ## Develop
 

@@ -3,7 +3,6 @@
 // friends read as code, not bare prose; the linked flavor jumps to the docs.
 
 import std::style::{ Length, Overflow, WhiteSpace, space, style };
-import std::ui::{ View, view };
 import pkg::theme::{
 	accent,
 	code_callable,
@@ -56,42 +55,42 @@ let tk_type = const style().font_weight(600).color(up_bright);
 let tk_hole = const style().color(primary);
 
 fun kw(text: str): View {
-	view("span").styled(tk_keyword).text(text)
+	<span .styled(tk_keyword)>{text}</span>
 }
 
 fun st(text: str): View {
-	view("span").styled(tk_string).text(text)
+	<span .styled(tk_string)>{text}</span>
 }
 
 fun t(text: str): View {
-	view("span").styled(tk_plain).text(text)
+	<span .styled(tk_plain)>{text}</span>
 }
 
 /// A callable at its call (or definition) site.
 fun fn(text: str): View {
-	view("span").styled(tk_callable).text(text)
+	<span .styled(tk_callable)>{text}</span>
 }
 
 /// A type or variant name.
 fun ty(text: str): View {
-	view("span").styled(tk_type).text(text)
+	<span .styled(tk_type)>{text}</span>
 }
 
 /// An interpolation hole's brace — the seam between string and code.
 fun hl(text: str): View {
-	view("span").styled(tk_hole).text(text)
+	<span .styled(tk_hole)>{text}</span>
 }
 
 fun ln(spans: List<View>): View {
-	view("div").children(spans)
+	<div>{spans}</div>
 }
 
 fun blank(): View {
-	view("div").text(" ")
+	<div>" "</div>
 }
 
 fun code_panel(lines: List<View>): View {
-	view("pre").styled(code_pre).children(lines)
+	<pre .styled(code_pre)>{lines}</pre>
 }
 
 // Inline code leaf — `[rpc]`, `vilan upgrade`, and friends read as code, not
@@ -115,14 +114,14 @@ let leaf_link_style = const (leaf_style + style()
 	.hover(style().border_color(primary)));
 
 fun leaf(text: str): View {
-	view("code").styled(leaf_style).text(text)
+	<code .styled(leaf_style)>{text}</code>
 }
 
 fun leaf_link(href: str, text: str): View {
-	view("a").styled(leaf_link_style).attr("href", href).text(text)
+	<a .styled(leaf_link_style) href(href)>{text}</a>
 }
 
 /// A plain prose span, for paragraphs composed of text and leafs.
 fun pt(text: str): View {
-	view("span").text(text)
+	<span>{text}</span>
 }
