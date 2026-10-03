@@ -77,10 +77,11 @@ external fun request_format(): bool;
 [extern("VilanPlayground.setMode")]
 external fun set_mode(platform: str): void;
 
-/// Turn the ambient scope on or off ("on" / "off"). ON is the MODE's
+/// Set the ambient scope ("on" / "web" / "off"). ON is the MODE's
 /// recommended prelude — the web set in the browser, the base set on the node
 /// leg — so a pasted single-file program means what it would inside a fresh
-/// `vilan init` package; OFF is the explicit spelling, for teaching where a
+/// `vilan init` package; WEB pins the web set on either leg (a fullstack
+/// package's server entry); OFF is the explicit spelling, for teaching where a
 /// name really lives. Like `set_mode`, the bundle keeps the #prelude select in
 /// step, re-checks the buffer under the new scope, and echoes the change back
 /// as a "prelude" command event.
@@ -172,6 +173,14 @@ impl CompilerEvent {
 	/// came from (or, for a buffer that came from no example, is non-empty).
 	[extern(get, "changed")]
 	external fun changed(self): bool;
+
+	/// On the "formatted" event: the formatter's own sentence when it would
+	/// not reprint the buffer (it does not parse, or the printer has no rule
+	/// for a construct in it), and "" when it reprinted (K15). The same words
+	/// `vilan fmt` prints and the language server shows. Always "" from a
+	/// release without `format_checked`, which could not say.
+	[extern(get, "declined")]
+	external fun declined(self): str;
 
 	/// On the "shared" event: whether the link reached the clipboard (the
 	/// URL bar carries it either way).
@@ -477,7 +486,12 @@ fun main() {
 				mode.set(event.name());
 			}
 		} else if kind == "formatted" {
-			if event.changed() {
+			let declined = event.declined();
+			if declined != "" {
+				// The buffer is untouched, and "no changes" would claim it is
+				// already canonical: say why the formatter left it alone.
+				status.set(i"Format left the buffer unchanged — {declined}");
+			} else if event.changed() {
 				status.set("Formatted.");
 			} else {
 				status.set("Format made no changes.");

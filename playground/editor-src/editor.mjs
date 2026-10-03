@@ -67,9 +67,12 @@ const CONTEXTUAL_RULES = {
 	jump: { before: NOT_MEMBER, after: NAME_NEXT },
 	// deferral, before a binding or a parameter: `lazy let x = …`
 	lazy: { before: NOT_MEMBER, after: NAME_NEXT },
-	// the trailing modifier on an import: `import a::{ b } only;`. Neither
-	// toolchain grammar paints it yet; the guard here is the import's own
-	// shape — the word closes the statement, after a `}` or on an import line.
+	// the trailing modifier on an import: `import a::{ b } only;`. The
+	// toolchain's two grammars (the VS Code TextMate grammar and the book's
+	// highlighter) paint it after any path end and before `;`, ruling out
+	// `ret only;` and friends by name; the guard here is narrower, the
+	// import's own shape — the word closes the statement, after a `}` or on
+	// an import line.
 	only: { before: /(?:\}|^\s*(?:export\s+)?(?:import|use)\b.*[A-Za-z0-9_])\s{1,8}$/, after: /^\s*;/ },
 	// the ownership convention at a parameter head: `own list: List<i32>`
 	own: { before: NOT_MEMBER, after: NAME_NEXT },
@@ -402,14 +405,16 @@ let view = null;
 // (K15): esbuild inlines it here, and the book's harness carries a suite-
 // pinned copy of the half it needs (see that file's header).
 
-// `#code=<payload>` with optional `&mode=node`, `&prelude=off` and `&v=<tag>`
-// - a shared server-leg snippet opens straight into the check mode, a snippet
-// written against the explicit spellings opens with the ambient scope off, and
+// `#code=<payload>` with optional `&mode=node`, `&prelude=off|web` and
+// `&v=<tag>` - a shared server-leg snippet opens straight into the check mode,
+// a snippet written against the explicit spellings opens with the ambient
+// scope off (or a server snippet written in the web idiom under the web set),
+// and
 // a pinned link (a bug repro above all) opens under the exact compiler that
 // showed it. Only the non-default value is ever spelled, so the ordinary link
 // is the shortest one and every link already shared keeps its meaning.
 function fragmentPayload() {
-	const match = location.hash.match(/^#code=([A-Za-z0-9_-]+)(?:&mode=(node))?(?:&prelude=(off))?(?:&v=(v[0-9][0-9.]*))?$/);
+	const match = location.hash.match(/^#code=([A-Za-z0-9_-]+)(?:&mode=(node))?(?:&prelude=(off|web))?(?:&v=(v[0-9][0-9.]*))?$/);
 	return match
 		? {
 			payload: match[1],
@@ -425,7 +430,7 @@ function share() {
 		const source = view ? view.state.doc.toString() : "";
 		const encoded = encodeBase64Url(await deflate(source));
 		const mode = currentPlatform === "node" ? "&mode=node" : "";
-		const prelude = preludeOn ? "" : "&prelude=off";
+		const prelude = preludeState === "on" ? "" : `&prelude=${preludeState}`;
 		const pin = selectedVersion && currentVersion && selectedVersion !== currentVersion
 			? `&v=${selectedVersion}`
 			: "";
@@ -885,18 +890,21 @@ function setMode(platform) {
 
 // The ambient scope (K14). ON is the MODE's recommended set — the web set in
 // the browser, the base set on the node leg — so a pasted single-file program
-// means what it would inside a fresh `vilan init` package; OFF turns it off
-// entirely, for teaching the explicit spellings. It rides the same rails the
-// mode does: one setter both the page and the #prelude select route through,
-// a re-check under the new scope, an echo back as a command event, and a place
-// in the share link.
-let preludeOn = true;
+// means what it would inside a fresh `vilan init` package; WEB pins the web set
+// whatever the mode, which is what a fullstack package's server leg resolves
+// under (`prelude = "std::web"` covers every entry) and the set the E120 steer
+// names; OFF turns it off entirely, for teaching the explicit spellings. It
+// rides the same rails the mode does: one setter both the page and the
+// #prelude select route through, a re-check under the new scope, an echo back
+// as a command event, and a place in the share link. The worker owns what each
+// word means to the compiler.
+const PRELUDE_STATES = ["on", "web", "off"];
+let preludeState = "on";
 
 function setPrelude(state) {
-	if (state !== "on" && state !== "off") return;
-	const wanted = state === "on";
-	if (wanted === preludeOn) return;
-	preludeOn = wanted;
+	if (!PRELUDE_STATES.includes(state)) return;
+	if (state === preludeState) return;
+	preludeState = state;
 	const select = document.getElementById("prelude");
 	if (select) select.value = state;
 	sentSource = null; // the same text means something new under another scope
@@ -916,7 +924,7 @@ function scheduleCheck() {
 		}
 		sentSource = source;
 		inFlight = true;
-		worker.postMessage({ action: "check", source, platform: currentPlatform, prelude: preludeOn });
+		worker.postMessage({ action: "check", source, platform: currentPlatform, prelude: preludeState });
 	}, 400);
 }
 
@@ -963,7 +971,7 @@ function spawn() {
 			inFlight = false;
 			compileCount += 1; // a check leaks like a compile; it pays the same budget
 			const current = view ? view.state.doc.toString() : "";
-			if (current === sentSource && message.platform === currentPlatform && message.prelude === preludeOn) {
+			if (current === sentSource && message.platform === currentPlatform && message.prelude === preludeState) {
 				applyEditorDiagnostics(message.diagnostics);
 				dispatch(message);
 			}
@@ -1061,7 +1069,7 @@ function compile(source) {
 	}
 	sentSource = source;
 	inFlight = true;
-	worker.postMessage({ action: "compile", source, platform: currentPlatform, prelude: preludeOn });
+	worker.postMessage({ action: "compile", source, platform: currentPlatform, prelude: preludeState });
 	return true;
 }
 

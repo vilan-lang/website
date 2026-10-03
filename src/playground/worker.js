@@ -15,7 +15,7 @@
 // not have would fail the whole module. Capability rides the ready message.
 //
 // Messages in:  { action: "compile" | "check" | "format", source,
-//                 platform: "browser" | "node", prelude: true | false }
+//                 platform: "browser" | "node", prelude: "on" | "web" | "off" }
 //               { action: "complete", id, source, line, character }
 // Messages out:
 //   { kind: "ready",     version, canFormat, canPlatform, canComplete,
@@ -25,7 +25,9 @@
 //   { kind: "checked",   ok, version, platform, prelude,
 //                        diagnostics: [...] }             - live check;
 //                        same compile, but no emitted program rides back
-//   { kind: "formatted", text, changed }              - format's answer
+//   { kind: "formatted", text, changed, declined }    - format's answer;
+//                        `declined` is the formatter's own sentence when
+//                        it would not reprint the buffer, "" otherwise
 //   { kind: "completed", id, items: [...] }           - completion's answer,
 //                        from the analysis the last compile/check retained
 //                        (no analysis runs; it leaks nothing and does not
@@ -49,6 +51,10 @@ const wasm = await (async () => {
 await glue.default({ module_or_path: wasm });
 
 const canFormat = typeof glue.format === "function";
+// format_checked arrived after v0.38 (E197): the same formatter, plus WHY it
+// declined. The String-shaped `format` hands back the original bytes on a
+// decline, which the page cannot tell from an already-canonical buffer (K15).
+const canFormatChecked = typeof glue.format_checked === "function";
 // compile_for arrived after v0.19.0; without it every request is a browser
 // compile and the page hides its mode toggle.
 const canPlatform = typeof glue.compile_for === "function";
@@ -68,19 +74,44 @@ postMessage({
 	canPrelude,
 });
 
-// `prelude` is the toggle's ON position, which is the MODE's recommended set —
-// the web set in the browser, the base set on the node leg — so the request
-// leaves the choice to the compiler and sends `undefined`. OFF sends the "off"
+// The page's three prelude words, as `compile_with` reads them. ON is the
+// MODE's recommended set — the web set in the browser, the base set on the node
+// leg — so the request leaves the choice to the compiler and sends `undefined`.
+// WEB pins the web set by its module path, on either leg. OFF sends the "off"
 // word, the one value that is not a module path.
+function preludeArgument(prelude) {
+	switch (prelude) {
+		case "off":
+			return "off";
+		case "web":
+			return "std::web";
+		default:
+			return undefined;
+	}
+}
+
 function compileWith(source, platform, prelude) {
 	const leg = platform === "node" && canPlatform ? "node" : "browser";
 	if (canPrelude) {
-		return glue.compile_with(String(source), leg, prelude === false ? "off" : undefined);
+		return glue.compile_with(String(source), leg, preludeArgument(prelude));
 	}
 	if (leg === "node") {
 		return glue.compile_for(String(source), "node");
 	}
 	return glue.compile(String(source));
+}
+
+// The formatter's verdict as plain data: the canonical text, or the original
+// bytes plus the sentence saying why there is no canonical text. `declined` is
+// "" on success rather than null, so the page reads it as a plain `str`.
+function formatChecked(source) {
+	if (canFormatChecked) {
+		const result = glue.format_checked(source);
+		const verdict = { text: result.text, declined: result.declined ?? "" };
+		result.free();
+		return verdict;
+	}
+	return { text: canFormat ? glue.format(source) : source, declined: "" };
 }
 
 // One completion candidate as a plain object: the glue hands back class
@@ -113,8 +144,8 @@ onmessage = (event) => {
 	const { action, source, platform, prelude } = event.data;
 	try {
 		if (action === "format") {
-			const text = canFormat ? glue.format(String(source)) : String(source);
-			postMessage({ kind: "formatted", text, changed: text !== String(source) });
+			const { text, declined } = formatChecked(String(source));
+			postMessage({ kind: "formatted", text, changed: text !== String(source), declined });
 			return;
 		}
 		if (action === "complete") {
@@ -154,7 +185,7 @@ onmessage = (event) => {
 				// Echoed for the same reason `platform` is: a reply that
 				// crossed a toggle is about a scope the buffer no longer
 				// resolves under, and the page drops it on this field.
-				prelude: prelude !== false,
+				prelude: prelude ?? "on",
 				diagnostics,
 			});
 			return;
@@ -166,7 +197,7 @@ onmessage = (event) => {
 			css: result.css ?? "",
 			version: glue.version(),
 			platform: platform ?? "browser",
-			prelude: prelude !== false,
+			prelude: prelude ?? "on",
 			diagnostics,
 		});
 	} catch (error) {

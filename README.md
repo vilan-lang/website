@@ -125,6 +125,11 @@ here rather than in a visitor's browser.
   compiler; and the committed bundle's tokenizer paints each reserved word,
   each contextual word only in its keyword position (`ready then go()` but
   not `let then = 1`), and `[resource]` as an attribute.
+- `tests/playground-format.test.mjs` — the Format button's status note
+  (K15): a declined format says why, in the formatter's own sentence (the
+  worker calls `format_checked`), instead of "Format made no changes.";
+  the smoke gate holds the wasm half (it really declines a buffer it cannot
+  reprint).
 - `tests/playground-restore.test.mjs` — a buffer the editor restores from
   localStorage that is verbatim a RETIRED example (our old text, seeded on an
   earlier visit and never edited) opens as the current example instead of a

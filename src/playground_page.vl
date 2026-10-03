@@ -259,8 +259,8 @@ let primary_button = const (control_box + style()
 // colouring above all, are the product; running a process needs a real host, so
 // it is hidden entirely on a wasm without `compile_for`), the prelude select
 // beside it (the ambient scope a manifest-less buffer resolves under — on is
-// the mode's recommended set, off is the explicit spelling; hidden on a wasm
-// without `compile_with`), the template picker, and the version pin below.
+// the mode's recommended set, web pins the web set on either leg, off is the
+// explicit spelling; hidden on a wasm without `compile_with`), the template picker, and the version pin below.
 // The CLOSED control is drawn here — `appearance: none` — because the native
 // menulist paints its own answers to the pointer: Chrome and Firefox both
 // flood the whole control from mousedown to mouse-up, and Firefox repaints
@@ -497,6 +497,7 @@ fun playground_page(
 				.attr("aria-label", "Ambient scope")
 				.show(can_prelude)
 				.child(template_option("on", "Prelude: on"))
+				.child(template_option("web", "Prelude: web"))
 				.child(template_option("off", "Prelude: off")))
 			.child(view("button")
 				.styled(ghost_button)

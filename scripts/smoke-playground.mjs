@@ -1,5 +1,5 @@
 // The playground gate: prove the shipped pieces agree before a deploy ships
-// them. Six claims, each of which has silently broken a playground before
+// them. Seven claims, each of which has silently broken a playground before
 // it ever reached a visitor somewhere:
 //
 //   1. every seeded example compiles clean against the shipped wasm compiler
@@ -30,7 +30,13 @@
 //      else in either repo would notice if it stopped meaning anything: the
 //      toggle would just quietly become a no-op. Claim 1 already proves the
 //      ON position, since the examples no longer import what the prelude
-//      supplies.
+//      supplies. The WEB position's module path is held the same way: on the
+//      node leg, where ON is the base set, it must make `Signal` ambient;
+//   7. when the compiler exports `format_checked` (E197), it DECLINES a
+//      buffer it cannot reprint, with a sentence, and declines nothing on a
+//      seeded example (K15). The page's status note shows that sentence; a
+//      release whose export stopped declining would put "Format made no
+//      changes." back over a broken buffer, and nothing else would notice.
 import { readFileSync, readdirSync } from "node:fs";
 import { gunzipSync } from "node:zlib";
 import { fileURLToPath } from "node:url";
@@ -172,7 +178,36 @@ if (typeof glue.compile_with === "function") {
 	} else {
 		console.log("prelude toggle: ok (off requires the explicit imports)");
 	}
+	// The worker's "web" word is the module path below; ON on the node leg is
+	// the base set, which has no `Signal`.
+	const webOnly = "fun main() {\n\tlet count = Signal::new(0);\n\tprint(i\"{count.get()}\");\n}\n";
+	const base = glue.compile_with(webOnly, "node", undefined);
+	const web = glue.compile_with(webOnly, "node", "std::web");
+	if (base.js != null || web.js == null || web.diagnostics.length > 0) {
+		failed = true;
+		console.error("prelude toggle: FAILED - the web position does not pin the web set on the node leg");
+		for (const d of web.diagnostics) console.error(`  ${d.severity} ${d.line + 1}:${d.column + 1} ${d.message}`);
+	} else {
+		console.log("prelude toggle: ok (web pins the web set on the node leg)");
+	}
 } else {
 	console.log("prelude toggle: skipped (this release predates the compile_with export)");
+}
+// 7: the formatter's decline, as the page's Format note reads it.
+if (typeof glue.format_checked === "function") {
+	const broken = glue.format_checked("fun main( {\n");
+	const clean = glue.format_checked(readFileSync(`${root}playground/examples/counter.vl`, "utf8"));
+	const declined = broken.declined ?? null;
+	if (typeof declined !== "string" || declined.length === 0 || broken.text !== "fun main( {\n") {
+		failed = true;
+		console.error(`format declines: FAILED - an unparseable buffer came back ${JSON.stringify({ text: broken.text, declined })}`);
+	} else if (clean.declined != null) {
+		failed = true;
+		console.error(`format declines: FAILED - the counter example was declined: ${clean.declined}`);
+	} else {
+		console.log(`format declines: ok ("${declined}")`);
+	}
+} else {
+	console.log("format declines: skipped (this release predates the format_checked export)");
 }
 process.exit(failed ? 1 : 0);
