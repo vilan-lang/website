@@ -13,8 +13,9 @@
 # native toolchain. The playground's wasm compiler is fetched too (K25), from
 # the same latest release the toolchain installs from, so the smoke test the
 # deploy runs (scripts/smoke-playground.mjs: the same programs, compiled by the
-# exact compiler a visitor gets, which carries no prelude) is red on the branch
-# that rots an example rather than on the push to main that would deploy it.
+# exact compiler a visitor gets, under its mode's prelude - the web set in the
+# browser, the base set in the server check) is red on the branch that rots
+# an example rather than on the push to main that would deploy it.
 #
 # Every `uses:` is pinned to a full commit SHA with its tag in the comment,
 # the same rule deploy.yml states (K19, L14's class).
