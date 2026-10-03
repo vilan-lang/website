@@ -72,8 +72,10 @@ rules the sources follow:
 - **Attributes are undotted** (`href("/")`, `aria-label("..")`); everything
   else in the head is a dotted chain link, verbatim (`.styled(..)`,
   `.show(..)`, `.bind_attr(..)`, `.style_var(..)`).
-- **Class names come from `.styled(..)` only.** An undotted `class(..)` is
-  the plain attribute, which would overwrite the classes `.styled` puts on.
+- **Class names come from `.styled(..)` only, once per element** (compose
+  styles with `+`). `.styled(..)`, `.class(..)` and an undotted `class(..)`
+  each SET the class attribute, so on one element the last of them wins and
+  the others' classes are silently gone.
 - **A handler written as a closure is `on:event(..)`**; a named handler stays
   a chain link (`.on("click", handler)`).
 - **A tag chosen at run time** is the one case for a `view(tag)` chain. The
