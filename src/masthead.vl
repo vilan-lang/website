@@ -1,7 +1,7 @@
 // The page top below the toolbar (which is topbar.vl's): the CSS-built bloom
 // and the hero. One scale (`hero_scale`) rules every masthead dimension.
 
-import std::style::{
+import std::web::style::{
 	AlignItems,
 	Display,
 	FlexDirection,

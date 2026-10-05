@@ -9,8 +9,8 @@ One package, four entries. Every file is visible to every entry; the compiler
 sorts out what may run where by what each entry reaches.
 
 - **`src/page.vl`** — the one `fun page(): View` the landing entries build, plus
-  its `std::style` styles. Its views are element syntax over `std::ui`
-  (ambient through the web prelude, `prelude = "std::web"` in `vilan.toml`),
+  its `std::web::style` styles. Its views are element syntax over `std::web::ui`
+  (ambient through the web prelude, `prelude = "std::web::prelude"` in `vilan.toml`),
   which resolves per entry platform: live DOM in the client build, an HTML
   string tree in the server build.
 - **`src/server.vl`** — the node entry, at rung 2 of the full-stack ladder.
@@ -125,8 +125,8 @@ vilan-lang.org — under a minimal node DOM stub. The stub stands in for the
 browser and for the vendored editor bundle, which are the host from
 `src/*.vl`'s point of view; nothing mocks the code under test. Its shape is
 the toolchain repo's `crates/vilan-cli/tests/hmr.rs`, and its surface is
-deliberately small (`tests/support/dom.mjs` names exactly what `std::ui` and
-`std::dom` emit), so a change to std that reaches for a new host call fails
+deliberately small (`tests/support/dom.mjs` names exactly what `std::web::ui` and
+`std::web::dom` emit), so a change to std that reaches for a new host call fails
 here rather than in a visitor's browser.
 
 - `tests/playground-console.test.mjs` — the console's admission rule: a

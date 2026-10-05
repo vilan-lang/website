@@ -9,9 +9,9 @@
 // an srcdoc needs escaping. This entry owns the APPLICATION: every signal the
 // page renders, and what each compiler or program event means to it.
 
-import std::asset::bundle;
 import std::shared::Shared;
 import std::time::Timer;
+import std::web::asset::bundle;
 import pkg::playground_page::{ ConsoleRow, DiagRow, TraceRow, playground_page };
 
 // --- the vendored files this leg carries into the build ---

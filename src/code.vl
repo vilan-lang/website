@@ -2,7 +2,7 @@
 // over a pre) and the inline code leafs - `[rpc]`, `vilan upgrade`, and
 // friends read as code, not bare prose; the linked flavor jumps to the docs.
 
-import std::style::{ Length, Overflow, WhiteSpace, space, style };
+import std::web::style::{ Length, Overflow, WhiteSpace, space, style };
 import pkg::theme::{
 	accent,
 	code_callable,

@@ -892,7 +892,7 @@ function setMode(platform) {
 // the browser, the base set on the node leg — so a pasted single-file program
 // means what it would inside a fresh `vilan init` package; WEB pins the web set
 // whatever the mode, which is what a fullstack package's server leg resolves
-// under (`prelude = "std::web"` covers every entry) and the set the E120 steer
+// under (`prelude = "std::web::prelude"` covers every entry) and the set the E120 steer
 // names; OFF turns it off entirely, for teaching the explicit spellings. It
 // rides the same rails the mode does: one setter both the page and the
 // #prelude select route through, a re-check under the new scope, an echo back

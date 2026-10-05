@@ -21,10 +21,10 @@ import std::bytes::Bytes;
 // `Display` is `List::join`'s bound — the import is what puts the method in
 // scope (std-surface.md: discoverability follows the declaring file).
 import std::display::Display;
-import std::document::Document;
 import std::fs;
 import std::http::{ Response, Server };
 import std::process::env;
+import std::web::document::Document;
 import pkg::page::page;
 import pkg::playground_page::{ ConsoleRow, DiagRow, playground_page };
 import pkg::theme::{ fallback, theme_metas };

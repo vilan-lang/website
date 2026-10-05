@@ -84,7 +84,7 @@ function preludeArgument(prelude) {
 		case "off":
 			return "off";
 		case "web":
-			return "std::web";
+			return "std::web::prelude";
 		default:
 			return undefined;
 	}

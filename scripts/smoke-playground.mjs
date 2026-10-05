@@ -182,7 +182,7 @@ if (typeof glue.compile_with === "function") {
 	// the base set, which has no `Signal`.
 	const webOnly = "fun main() {\n\tlet count = Signal::new(0);\n\tprint(i\"{count.get()}\");\n}\n";
 	const base = glue.compile_with(webOnly, "node", undefined);
-	const web = glue.compile_with(webOnly, "node", "std::web");
+	const web = glue.compile_with(webOnly, "node", "std::web::prelude");
 	if (base.js != null || web.js == null || web.diagnostics.length > 0) {
 		failed = true;
 		console.error("prelude toggle: FAILED - the web position does not pin the web set on the node leg");

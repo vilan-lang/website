@@ -3,7 +3,7 @@
 // styles (shell, column, stack, reveal, dividers, grain).
 
 import std::io::panic;
-import std::style::{
+import std::web::style::{
 	Color,
 	Display,
 	FlexDirection,

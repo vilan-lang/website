@@ -52,7 +52,7 @@ function vilan(cwd, ...args) {
 /// compilers read the buffer under the same ambient scope.
 function playgroundDir(prefix, platform) {
 	const dir = mkdtempSync(join(scratch, prefix));
-	const prelude = platform === "browser" ? "std::web" : "std::prelude";
+	const prelude = platform === "browser" ? "std::web::prelude" : "std::prelude";
 	writeFileSync(join(dir, "vilan.toml"), `[package]\nname = "playground"\nprelude = "${prelude}"\n`);
 	return dir;
 }

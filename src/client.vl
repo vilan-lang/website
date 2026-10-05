@@ -71,7 +71,7 @@ impl DomRect {
 }
 
 /// `navigator.clipboard.writeText` — the member call keeps its receiver, the
-/// same shape as std::router's `history.pushState`.
+/// same shape as std::web::router's `history.pushState`.
 [extern("navigator.clipboard.writeText")]
 external fun clipboard_write(text: str): void;
 

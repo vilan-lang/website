@@ -3,7 +3,7 @@
 // chrome.vl) the book. Its own module so a leg that wants only the bar reaches
 // only the bar's rules: the masthead's bloom and hero are the landing page's.
 
-import std::style::{
+import std::web::style::{
 	AlignItems,
 	Color,
 	Display,

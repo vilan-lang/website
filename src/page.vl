@@ -1,7 +1,7 @@
 // The one page both legs build: the server renders it to an HTML string for
 // first paint (view source — the content is already there), the client rebuilds
 // it as live DOM and replaces it on boot. Build pure, bind reactive: nothing
-// here reaches for `std::dom`, so the same source compiles on both platforms.
+// here reaches for `std::web::dom`, so the same source compiles on both platforms.
 // The client passes a live `scroll_fade` signal (the toolbar's --nav-fade,
 // wired to the window in client.vl); the server passes a constant "0".
 //
@@ -20,7 +20,8 @@
 // assets left are the brand marks and fonts, served from
 // vilan-lang.org/assets so dev and deployed builds see the same bytes.
 import std::shared::Shared;
-import std::style::{
+import std::time::Timer;
+import std::web::style::{
 	AlignItems,
 	Color,
 	Cursor,
@@ -36,7 +37,6 @@ import std::style::{
 	space,
 	style,
 };
-import std::time::Timer;
 import pkg::art::{ dataflow_art, diagram, editor_art, toolchain_art };
 import pkg::code::{ blank, code_panel, fn, hl, kw, leaf, leaf_link, ln, pt, st, t, ty };
 import pkg::masthead::{ bloom, masthead };
@@ -630,7 +630,7 @@ fun docs_link(href: str, label: str): View {
 }
 
 // Card icons are Lucide (lucide.dev, ISC), baked with the accent stroke and
-// served as plain images. They predate `std::ui` creating `<svg>` trees in the
+// served as plain images. They predate `std::web::ui` creating `<svg>` trees in the
 // SVG namespace, which it does now, so an inline icon whose stroke follows the
 // theme is open to them.
 let card_icon = const (style().width(Length::px(28.0)).height(Length::px(28.0)) + no_drag);
@@ -670,7 +670,7 @@ fun feature_grid(): View {
 				pt("One workspace compiles the node server and the browser client. The compiler tracks which code needs which platform and keeps each bundle honest."),
 			])}
 			{feature("server", "Rendered before it ships", "/docs/guide/ssr.html", [
-				leaf("std::ui"),
+				leaf("std::web::ui"),
 				pt(" renders on the server too: first paint is real markup, then the client rebuilds it live. View source on this page and the content is already there."),
 			])}
 			{feature("refresh-cw", "A dev loop that keeps up", "/docs/guide/dev-loop.html", [

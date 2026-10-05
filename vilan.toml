@@ -2,7 +2,7 @@
 #
 # One package, four entries: the client and the server both build the one
 # `fun page(): View` in `src/page.vl`, the playground builds its own, and the
-# chrome leg exports the shared masthead for the book. `std::ui` resolves per
+# chrome leg exports the shared masthead for the book. `std::web::ui` resolves per
 # entry platform — live DOM in the browser builds, an HTML string tree in the
 # node builds — so the server renders each page to markup for first paint and
 # the browser rebuilds it live and replaces on boot.
@@ -19,8 +19,8 @@ default-entry = "server"
 # `view`/`View` and the slot functions (`each_by`, `when`, ...), and the ambient
 # `ui::`/`style::` modules. It is what `vilan init` gives a web package, and it
 # is the playground's browser mode, so the site is written in the idiom its own
-# examples teach. Explicit imports still win (the `std::style` lists).
-prelude = "std::web"
+# examples teach. Explicit imports still win (the `std::web::style` lists).
+prelude = "std::web::prelude"
 
 [entry.client]
 target = "browser"

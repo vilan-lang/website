@@ -7,16 +7,16 @@
 // for, because they are the boundary the browser (not this repo) owns.
 //
 // The surface is deliberately tiny, and it is not a guess: it is exactly what
-// `std::ui` and `std::dom` emit, which is why a change to std that reaches for
+// `std::web::ui` and `std::web::dom` emit, which is why a change to std that reaches for
 // a new host call fails HERE, loudly, instead of in a visitor's browser. Run
 //
 //   grep -o 'document\.[a-zA-Z]*\|\.\(appendChild\|replaceChildren\|remove\|setAttribute\|textContent\|hidden\|addEventListener\)' dist/*.js | sort -u
 //
 // to see the whole set the built bundles actually touch.
 
-/// A DOM element, as far as `std::ui` can tell: a tag, a class attribute, a
+/// A DOM element, as far as `std::web::ui` can tell: a tag, a class attribute, a
 /// text body, an ordered child list, and listeners. `textContent = ` clears
-/// children exactly as the real setter does — `std::ui`'s `text()` relies on
+/// children exactly as the real setter does — `std::web::ui`'s `text()` relies on
 /// it, and a stub that kept them would report rows that a browser had
 /// replaced.
 export class StubElement {
@@ -52,7 +52,7 @@ export class StubElement {
 	}
 
 	/// Insert before `anchor`, or at the end when `anchor` is null or not a
-	/// child. A fragment empties into the position (`std::ui` stages a row's
+	/// child. A fragment empties into the position (`std::web::ui` stages a row's
 	/// content in one, A71/A112); a node already placed moves.
 	insertBefore(child, anchor) {
 		if (child.tagName === "#fragment") {
@@ -106,7 +106,7 @@ export class StubElement {
 /// Installs the stub globals and returns the handles a test drives it by.
 /// `mounts` names the ids the page will look for (`mount_root("app", …)`);
 /// anything else answers null, which is what a real document does and what
-/// `std::ui`'s "mount: no element with id" refusal is built on.
+/// `std::web::ui`'s "mount: no element with id" refusal is built on.
 ///
 /// `vendored: true` adds the handful of members CodeMirror reads at import
 /// time (`documentElement.style`, `body`, `head`, the selector pair). They are off by default so that the site's own bundles are

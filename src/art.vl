@@ -19,7 +19,7 @@
 // same way. A blurred glow is a wash, so it keeps its hue at its alpha in
 // both themes; a 7px LED or a 2px wire is a mark, so it must clear blush.
 
-import std::style::{
+import std::web::style::{
 	AlignItems,
 	Color,
 	Display,

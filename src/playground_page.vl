@@ -2,14 +2,14 @@
 // (the editor and runner panes ship as empty containers), the playground entry
 // rebuilds it live and then hands the two containers to the vendored editor
 // bundle — CodeMirror mounts into `#editor`, each Run swaps a sandboxed iframe
-// into `#runner`. Nothing here reaches `std::dom`, so the same source compiles
+// into `#runner`. Nothing here reaches `std::web::dom`, so the same source compiles
 // on both platforms; every browser-only piece lives in playground.vl.
 //
 // The reactive state (status line, diagnostics, console) flows in as signals,
 // the actions (Run, example picks) as closures — the server passes inert
 // stand-ins, the same split as `page()`.
 
-import std::style::{
+import std::web::style::{
 	AlignItems,
 	Color,
 	Cursor,
