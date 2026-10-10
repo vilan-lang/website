@@ -55,8 +55,13 @@ const OPERAND_END = /[A-Za-z0-9_>)\]]\s{1,8}$/; // a type, or a `)`/`]`, then sp
 const NAME_NEXT = /^\s{1,8}(?!i[ns]\b|as\b)[A-Za-z_]/; // a name follows (never in/is/as)
 const NOT_MEMBER = /(?:^|[^.\w])$/; // the word is not `x.word`
 const CONTEXTUAL_RULES = {
-	// the alias on an import path leaf: `import a::b as c;`
-	as: { before: /[A-Za-z0-9_]\s{1,8}$/, after: /^\s{1,8}[A-Za-z_]/ },
+	// the alias on an import path leaf (`import a::b as c;`) and, since
+	// v0.47.0 (B571), the ascription after a value: `x as i32`, `xs as List<usize>`
+	as: { before: /[A-Za-z0-9_)\]"']\s{1,8}$/, after: /^\s{1,8}[A-Za-z_(&\[|]/ },
+	// v0.47.0 (B570): the annotation the toolchain keeps current, after `:` on a
+	// return or a binding, or after `as`: `fun f(): auto i32 {`, `let x: auto str = …`,
+	// `value as auto T` — never where a name stands (`let auto = 1`, `auto: i32`)
+	auto: { before: /(?::|\bas)\s{1,8}$/, after: /^\s{1,8}[A-Za-z_(&\[|]/ },
 	// a declaration's return clause, after its return type: `: &T borrows xs`
 	borrows: { before: OPERAND_END, after: NAME_NEXT },
 	// after a closure type or a return type: `(|| void) context owner`

@@ -111,8 +111,12 @@ for (const word of reserved) {
 // sentences (lexing::CONTEXTUAL_KEYWORDS, the marker census).
 const POSITIONS = {
 	as: {
-		in: ["import a::b as c;", "use a::{ b as c };"],
+		in: ["import a::b as c;", "use a::{ b as c };", "let n = x as i32;", "f(xs as List<usize>)"],
 		out: ["let as = 1;", "f(as)", "x.as", "as: i32"],
+	},
+	auto: {
+		in: ["fun f(): auto i32 {", "let x: auto str = y;", "let v = value as auto T;"],
+		out: ["let auto = 1;", "auto.x", "f(auto)", "auto: i32", "ret auto;"],
 	},
 	borrows: {
 		in: ["fun first(xs: &List<T>): &T borrows xs {"],

@@ -5,4 +5,4 @@
 
 export const RESERVED = ["async", "await", "const", "css", "else", "enum", "export", "external", "false", "for", "fun", "if", "impl", "import", "in", "is", "let", "macro", "match", "mod", "mut", "null", "ret", "struct", "trait", "true", "type", "use"];
 
-export const CONTEXTUAL = ["Self", "as", "borrows", "context", "dyn", "jump", "lazy", "only", "own", "self", "sync", "then", "void", "with"];
+export const CONTEXTUAL = ["Self", "as", "auto", "borrows", "context", "dyn", "jump", "lazy", "only", "own", "self", "sync", "then", "void", "with"];
