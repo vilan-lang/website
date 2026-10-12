@@ -74,6 +74,18 @@ postMessage({
 	canPrelude,
 });
 
+// The std path the WEB set lives at, spelled for the compiler this page loaded (K29). It is
+// `std::web::prelude` from v0.44.0 (A154) and was `std::web` before, and the version
+// selector (`?v=`) still loads the older wasm builds - so the path follows glue.version()
+// rather than being one string for every compiler. A version that does not parse (a dev
+// build) takes the current path.
+function webPreludeFor(version) {
+	const parts = /^(\d+)\.(\d+)/.exec(String(version));
+	const before = parts !== null && Number(parts[1]) === 0 && Number(parts[2]) < 44;
+	return before ? "std::web" : "std::web::prelude";
+}
+const webPreludePath = webPreludeFor(glue.version());
+
 // The page's three prelude words, as `compile_with` reads them. ON is the
 // MODE's recommended set — the web set in the browser, the base set on the node
 // leg — so the request leaves the choice to the compiler and sends `undefined`.
@@ -84,7 +96,7 @@ function preludeArgument(prelude) {
 		case "off":
 			return "off";
 		case "web":
-			return "std::web::prelude";
+			return webPreludePath;
 		default:
 			return undefined;
 	}
