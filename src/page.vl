@@ -220,8 +220,16 @@ fun install_section(copy: |str| void): View {
 		</p>
 		<div .styled(install_split)>
 			<div .styled(install_grid)>
-				{install_row("macOS / Linux", "curl -fsSL https://github.com/vilan-lang/vilan/releases/latest/download/install.sh | sh", copy)}
-				{install_row("Windows (PowerShell)", "irm https://github.com/vilan-lang/vilan/releases/latest/download/install.ps1 | iex", copy)}
+				{install_row(
+					"macOS / Linux",
+					"curl -fsSL https://github.com/vilan-lang/vilan/releases/latest/download/install.sh | sh",
+					copy,
+				)}
+				{install_row(
+					"Windows (PowerShell)",
+					"irm https://github.com/vilan-lang/vilan/releases/latest/download/install.ps1 | iex",
+					copy,
+				)}
 				{install_row("Homebrew", "brew install vilan-lang/vilan/vilan", copy)}
 			</div>
 			<div .styled(install_art_cell)>{toolchain_art()}</div>
@@ -532,7 +540,10 @@ fun editor_band(): View {
 		<p .styled(lead)>
 			"One broken line does not take the tooling down. The rest of the file keeps compiling, serving hovers, and completing while you fix it."
 		</p>
-		{button_link("https://github.com/vilan-lang/vilan/tree/main/editors/vscode", "The VS Code extension")}
+		{button_link(
+			"https://github.com/vilan-lang/vilan/tree/main/editors/vscode",
+			"The VS Code extension",
+		)}
 	</div>;
 	<section .styled(column + section_block + stack)>
 		{showcase_flipped(editor_art(), prose)}
