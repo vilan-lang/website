@@ -559,7 +559,10 @@ fun editor_band(): View {
 let cards_grid = const (style()
 	.display(Display::Grid)
 	.gap(space(4))
-	.raw("background", "radial-gradient(340px circle at var(--glow-x, -999px) var(--glow-y, -999px), rgb(from var(--primary) r g b / 0.10), transparent 70%)")
+	.raw(
+		"background",
+		"radial-gradient(340px circle at var(--glow-x, -999px) var(--glow-y, -999px), rgb(from var(--primary) r g b / 0.10), transparent 70%)",
+	)
 	.sm(style().grid_template_columns("1fr 1fr"))
 	.lg(style().grid_template_columns("1fr 1fr 1fr"))
 	+ reveal);

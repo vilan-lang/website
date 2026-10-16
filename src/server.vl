@@ -172,7 +172,27 @@ fun landing_document(build: LegBuild): Document {
 		"\t</filter>",
 		"</svg>",
 	];
-	with_head(Document::of(build).title("Vilan — The Modern Web Language"), "Vilan is a language for building full-stack web apps: one small toolchain, reactive UI, and a compiler that checks what you usually find out at runtime.", "Vilan — The Modern Web Language", "A language for building full-stack web apps: one small toolchain, reactive UI, and a compiler that checks what you usually find out at runtime.", "https://vilan-lang.org/", style_block(["@keyframes bloom-drift-a {", "\tfrom { transform: translate(0, 0) scale(1); }", "\tto { transform: translate(0.8%, 1.6%) scale(1.035); }", "}", "@keyframes dash-flow {", "\tto { background-position: 22px 0; }", "}", "@keyframes caret-blink {", "\t0%, 49% { opacity: 1; }", "\t50%, 100% { opacity: 0; }", "}"])).body(texture.join("\n\t\t"))
+	with_head(
+		Document::of(build).title("Vilan — The Modern Web Language"),
+		"Vilan is a language for building full-stack web apps: one small toolchain, reactive UI, and a compiler that checks what you usually find out at runtime.",
+		"Vilan — The Modern Web Language",
+		"A language for building full-stack web apps: one small toolchain, reactive UI, and a compiler that checks what you usually find out at runtime.",
+		"https://vilan-lang.org/",
+		style_block([
+			"@keyframes bloom-drift-a {",
+			"\tfrom { transform: translate(0, 0) scale(1); }",
+			"\tto { transform: translate(0.8%, 1.6%) scale(1.035); }",
+			"}",
+			"@keyframes dash-flow {",
+			"\tto { background-position: 22px 0; }",
+			"}",
+			"@keyframes caret-blink {",
+			"\t0%, 49% { opacity: 1; }",
+			"\t50%, 100% { opacity: 0; }",
+			"}",
+		]),
+	)
+		.body(texture.join("\n\t\t"))
 }
 
 /// The playground page's document. Its own style rules size the workbench:
@@ -184,7 +204,22 @@ fun landing_document(build: LegBuild): Document {
 /// both globals exist before the document's own module script runs — the
 /// generated tag lands after the hatch, which is exactly that order.
 fun playground_document(build: LegBuild): Document {
-	with_head(Document::of(build).title("Vilan Playground — run vilan in your browser"), "Write and run Vilan in your browser: the compiler itself runs client-side as WebAssembly — no install, no server.", "Vilan Playground", "Write and run Vilan in your browser: the compiler itself runs client-side as WebAssembly — no install, no server.", "https://vilan-lang.org/playground/", style_block(["#app { height: 100%; }", "#editor .cm-editor { height: 100%; }", "#runner iframe { border: 0; width: 100%; height: 100%; background: #fff; }", "button:focus-visible, select:focus-visible {", i"\toutline: 2px solid {fallback("primary")};", "\toutline-offset: 2px;", "}"]))
+	with_head(
+		Document::of(build).title("Vilan Playground — run vilan in your browser"),
+		"Write and run Vilan in your browser: the compiler itself runs client-side as WebAssembly — no install, no server.",
+		"Vilan Playground",
+		"Write and run Vilan in your browser: the compiler itself runs client-side as WebAssembly — no install, no server.",
+		"https://vilan-lang.org/playground/",
+		style_block([
+			"#app { height: 100%; }",
+			"#editor .cm-editor { height: 100%; }",
+			"#runner iframe { border: 0; width: 100%; height: 100%; background: #fff; }",
+			"button:focus-visible, select:focus-visible {",
+			i"\toutline: 2px solid {fallback("primary")};",
+			"\toutline-offset: 2px;",
+			"}",
+		]),
+	)
 		.body("<script src=\"/playground/examples.js\"></script>")
 		.body("<script src=\"/playground/editor.js\"></script>")
 }

@@ -71,7 +71,10 @@ let bloom_drift = const style()
 let bloom_blurwrap = const style()
 	.position(Position::Absolute)
 	.inset(Length::zero())
-	.raw("filter", i"blur(calc({hero_scale} * 0.052)) saturate(1.25) brightness(1.12) url(#bloom-texture)");
+	.raw(
+		"filter",
+		i"blur(calc({hero_scale} * 0.052)) saturate(1.25) brightness(1.12) url(#bloom-texture)",
+	);
 
 let bloom_band_geometry = const style()
 	.position(Position::Absolute)

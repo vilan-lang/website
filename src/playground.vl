@@ -434,7 +434,26 @@ fun main() {
 		rows.len()
 	};
 
-	let _root = ui::mount_root("app", || playground_page(status, diagnostics, console_lines, can_format, can_platform, can_prelude, share_label, mode, modified_from, confirm_target, run, format, share, confirm_replace, cancel_replace));
+	let _root = ui::mount_root(
+		"app",
+		|| playground_page(
+			status,
+			diagnostics,
+			console_lines,
+			can_format,
+			can_platform,
+			can_prelude,
+			share_label,
+			mode,
+			modified_from,
+			confirm_target,
+			run,
+			format,
+			share,
+			confirm_replace,
+			cancel_replace,
+		),
+	);
 
 	editor_init("#editor", example_source("counter"));
 

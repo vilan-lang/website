@@ -283,7 +283,10 @@ let dg_line = const style().flex("1").height(Length::px(2.0)).background(primary
 let dg_line_dashed = const style()
 	.flex("1")
 	.height(Length::px(2.0))
-	.raw("background", i"repeating-linear-gradient(90deg, {accent.text} 0 5px, transparent 5px 11px)")
+	.raw(
+		"background",
+		i"repeating-linear-gradient(90deg, {accent.text} 0 5px, transparent 5px 11px)",
+	)
 	.raw("animation", "dash-flow 1.6s linear infinite");
 
 let dg_note = const style().font_size(Length::px(11.0)).text_align(TextAlign::Center).opacity(0.6);
